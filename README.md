@@ -1,70 +1,156 @@
-# Proyecto Final - GalacticApp - Frontend
+# GalacticApp Frontend
 
-Descripción
--
-Frontend desarrollado con React y Vite como parte del Proyecto Final (UNAHUR C2). Esta carpeta contiene la aplicación web, la configuración de Vite y los recursos estáticos.
+Frontend del proyecto final desarrollado con React + Vite para la UNAHUR.
 
-Tecnologías
--
+## Tecnologías
+
 - React
 - Vite
-- JavaScript (ESNext)
+- JavaScript
 - CSS
 - ESLint
+- Docker
 
-Instalación y ejecución
--
-1. Instalar dependencias:
+## Requisitos previos
+
+Antes de levantar el proyecto, asegurate de tener instalado:
+
+- Node.js 20+
+- npm
+- Git
+- Docker Desktop (si vas a usar contenedores)
+
+## 1) Clonar el repositorio
+
+```bash
+git clone <url-del-repositorio>
+cd Proyecto_Final_UNAHUR_C2-Frontend
+```
+
+## 2) Instalar dependencias
 
 ```bash
 npm install
 ```
 
-2. Ejecutar en desarrollo (servidor con HMR):
+## 3) Variables de entorno
+
+Copia el archivo de ejemplo:
+
+```bash
+cp .env.example .env
+```
+
+Luego editá el archivo `.env` según tu entorno:
+
+```env
+VITE_PORT=5173
+VITE_API_URL=http://localhost:3000
+VITE_APP_ENV=development
+```
+
+## 4) Ejecutar en modo desarrollo
 
 ```bash
 npm run dev
 ```
 
-3. Generar build para producción:
+La aplicación quedará disponible en:
+
+```text
+http://localhost:5173
+```
+
+## 5) Build de producción
 
 ```bash
 npm run build
 ```
 
-4. Previsualizar el build:
+Para previsualizar el build:
 
 ```bash
 npm run preview
 ```
 
-Estructura del proyecto
--
-- `index.html` - punto de entrada HTML
-- `src/` - código fuente de la aplicación
-	- `main.jsx` - arranque de la app
-	- `App.jsx` - componente raíz
-	- `assets/` - imágenes y recursos
-- `public/` - archivos estáticos servidos tal cual
-- `package.json` - scripts y dependencias
-- `vite.config.js` - configuración de Vite
+## 6) Ejecutar con Docker
 
-Comandos disponibles (definidos en `package.json`)
--
-- `npm run dev` - inicia servidor de desarrollo
-- `npm run build` - crea la versión de producción
-- `npm run preview` - sirve la versión de producción localmente
+### Desarrollo
 
-Cómo contribuir
--
-- Crear una rama nueva para cada feature o fix: `git checkout -b feat/nombre`
-- Hacer commits claros y atómicos
-- Abrir un Pull Request cuando la funcionalidad esté lista
+```bash
+docker compose up --build
+```
 
-Notas
--
-- Actualiza este README con detalles del despliegue, variables de entorno y dependencias específicas cuando estén disponibles.
+La app queda disponible en:
 
-Licencia
--
-Proyecto bajo licencia (añadir la licencia correspondiente).
+```text
+http://localhost:5173
+```
+
+### Producción
+
+```bash
+docker build -f Dockerfile.prod -t galacticapp-frontend-prod .
+docker run -p 80:80 galacticapp-frontend-prod
+```
+
+Luego abrí:
+
+```text
+http://localhost
+```
+
+## 7) Estructura del proyecto
+
+```text
+.
+├── .dockerignore
+├── .env.example
+├── Dockerfile
+├── Dockerfile.prod
+├── docker-compose.yml
+├── nginx.conf
+├── index.html
+├── package.json
+├── public/
+├── src/
+├── vite.config.js
+├── README.md
+└── eslint.config.js
+```
+
+## 8) Scripts disponibles
+
+```bash
+npm run dev
+npm run build
+npm run preview
+npm run lint
+```
+
+## 9) Troubleshooting
+
+### Error de Docker en Windows
+
+Si aparece un error como:
+
+```text
+The system cannot find the file specified
+```
+
+eso normalmente significa que Docker Desktop no está ejecutándose o no está instalado en tu máquina. Verificá que Docker Desktop esté activo y luego volvé a ejecutar:
+
+```bash
+docker version
+docker compose up --build
+```
+
+## 10) Contribución
+
+- Crear una rama por funcionalidad
+- Hacer commits claros
+- Realizar pull requests para revisión
+
+## Licencia
+
+Este proyecto aún no define una licencia específica.
