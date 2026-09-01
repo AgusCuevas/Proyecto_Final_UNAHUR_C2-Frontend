@@ -61,19 +61,7 @@ La aplicación quedará disponible en:
 http://localhost:5173
 ```
 
-## 5) Build de producción
-
-```bash
-npm run build
-```
-
-Para previsualizar el build:
-
-```bash
-npm run preview
-```
-
-## 6) Ejecutar con Docker
+## 5) Ejecutar con Docker
 
 ### Desarrollo
 
@@ -87,20 +75,7 @@ La app queda disponible en:
 http://localhost:5173
 ```
 
-### Producción
-
-```bash
-docker build -f Dockerfile.prod -t galacticapp-frontend-prod .
-docker run -p 80:80 galacticapp-frontend-prod
-```
-
-Luego abrí:
-
-```text
-http://localhost
-```
-
-## 7) Estructura del proyecto
+## 6) Estructura del proyecto
 
 ```text
 .
@@ -118,38 +93,6 @@ http://localhost
 ├── README.md
 └── eslint.config.js
 ```
-
-## 8) Scripts disponibles
-
-```bash
-npm run dev
-npm run build
-npm run preview
-npm run lint
-```
-
-## 9) Troubleshooting
-
-### Error de Docker en Windows
-
-Si aparece un error como:
-
-```text
-The system cannot find the file specified
-```
-
-eso normalmente significa que Docker Desktop no está ejecutándose o no está instalado en tu máquina. Verificá que Docker Desktop esté activo y luego volvé a ejecutar:
-
-```bash
-docker version
-docker compose up --build
-```
-
-## 10) Contribución
-
-- Crear una rama por funcionalidad
-- Hacer commits claros
-- Realizar pull requests para revisión
 
 ## Licencia
 
