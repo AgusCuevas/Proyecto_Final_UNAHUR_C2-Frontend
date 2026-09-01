@@ -23,7 +23,7 @@ Antes de levantar el proyecto, asegurate de tener instalado:
 ## 1) Clonar el repositorio
 
 ```bash
-git clone <url-del-repositorio>
+git clone https://github.com/AgusCuevas/Proyecto_Final_UNAHUR_C2-Frontend
 cd Proyecto_Final_UNAHUR_C2-Frontend
 ```
 
