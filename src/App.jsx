@@ -1,29 +1,43 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { CssBaseline, ThemeProvider } from '@mui/material';
+import Login from './components/Login.jsx';
+import AdminHome from './components/admin/adminHome.jsx';
+import CoordinadorHome from './components/coordinador/coordinadorHome.jsx';
+import TecnicoHome from './components/tecnico/tecnicoHome.jsx';
+import { theme } from './theme/theme.js';
 
+const inicioPorRuta = {
+  '/adminHome': AdminHome,
+  '/coordinadorHome': CoordinadorHome,
+  '/tecnicoHome': TecnicoHome,
+};
+
+// Componente principal de la aplicación.
 function App() {
-  const [respuesta, setRespuesta] = useState('Esperando al backend...');
+  const [Inicio, establecerInicio] = useState(() => inicioPorRuta[window.location.pathname]);
+  const [usuarioActual, establecerUsuarioActual] = useState('');
 
-  useEffect(() => {
-    // Llamamos al puerto 3000 que expusimos en el Docker del backend
-    fetch('http://localhost:3000/api/ping')
-      .then((res) => res.json())
-      .then((data) => {
-        setRespuesta(data.mensaje);
-      })
-      .catch((err) => {
-        console.error(err);
-        setRespuesta('Error de conexión con el backend 🔴');
-      });
-  }, []);
+  // Función para manejar el inicio de sesión exitoso.
+  const ingresar = (usuario, datosUsuario) => {
+    establecerUsuarioActual(usuario);
+    establecerInicio(() => inicioPorRuta[datosUsuario.inicio]);
+    window.history.pushState({}, '', datosUsuario.inicio);
+  };
+
+  // Función para manejar el cierre de sesión.
+  const volverAlLogin = () => {
+    establecerUsuarioActual('');
+    establecerInicio(null);
+    window.history.pushState({}, '', '/');
+  };
 
   return (
-    <div style={{ textAlign: 'center', marginTop: '50px', fontFamily: 'sans-serif' }}>
-      <h1>GalacticApp - Prueba de Integración</h1>
-      <div style={{ padding: '20px', border: '1px solid #ccc', display: 'inline-block', borderRadius: '8px' }}>
-        <p>Estado del Backend:</p>
-        <h2>{respuesta}</h2>
-      </div>
-    </div>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      {Inicio && usuarioActual 
+      ? <Inicio usuario={usuarioActual} alCerrarSesion={volverAlLogin} /> 
+      : <Login alIniciarSesion={ingresar} />}
+    </ThemeProvider>
   );
 }
 
