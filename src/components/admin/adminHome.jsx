@@ -1,20 +1,9 @@
-import {
-  Box,
-  Chip,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  Typography,
-} from '@mui/material';
+import { Paper, Typography } from '@mui/material';
 import { useState } from 'react';
 import AppLayout from '../AppLayout.jsx';
-import { datosIniciales } from '../../data/datosIniciales.js';
 
 // Componente principal para la pantalla del administrador.
-function AdminHome({ usuario, alCerrarSesion }) {
+function AdminHome({ usuario, alCerrarSesion, alCambiarTema, modo }) {
   const [seccion, establecerSeccion] = useState('Panel de administración');
 
   return (
@@ -25,6 +14,8 @@ function AdminHome({ usuario, alCerrarSesion }) {
       usuario={usuario}
       opciones={['Panel de administración', 'Usuarios', 'Clientes', 'Reportes']}
       alCerrarSesion={alCerrarSesion}
+      alCambiarTema={alCambiarTema}
+      modo={modo}
       alSeleccionarOpcion={establecerSeccion}
     >
       <Paper sx={{ p: 3 }}>

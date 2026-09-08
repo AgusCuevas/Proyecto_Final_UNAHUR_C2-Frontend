@@ -4,7 +4,7 @@ import MisAsignaciones from './MisAsignaciones.jsx';
 import Vehiculo from './Vehiculo.jsx';
 import Jornada from './Jornada.jsx';
 
-function TecnicoHome({ usuario, alCerrarSesion }) {
+function TecnicoHome({ usuario, alCerrarSesion, alCambiarTema, modo }) {
   const [seccion, establecerSeccion] = useState('Mis asignaciones');
 
   const contenidoPorSeccion = {
@@ -21,6 +21,8 @@ function TecnicoHome({ usuario, alCerrarSesion }) {
       usuario={usuario}
       opciones={['Mis asignaciones', 'Vehículo', 'Jornada']}
       alCerrarSesion={alCerrarSesion}
+      alCambiarTema={alCambiarTema}
+      modo={modo}
       alSeleccionarOpcion={establecerSeccion}
     >
       {contenidoPorSeccion[seccion]}

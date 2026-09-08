@@ -2,8 +2,8 @@
 
 :root {
   font-family: 'Inter', 'Roboto', sans-serif;
-  color: #183153;
-  background: #eef5ff;
+  color: #536875;
+  background: #f3f6f8;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -11,4 +11,6 @@
 
 * { box-sizing: border-box; }
 
-html, body, #root { min-height: 100%; min-height: 100vh; margin: 0; }
+html, body, #root { min-height: 100%; min-height: 100vh; margin: 0; width: 100%; }
+
+body { overflow-x: hidden; }

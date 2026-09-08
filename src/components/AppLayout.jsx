@@ -15,12 +15,14 @@ import {
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
+import LightModeIcon from '@mui/icons-material/LightMode';
 import { useState } from 'react';
 import { appTheme } from '../theme/theme.js';
 
 const anchoMenu = 248;
 
-function AppLayout({ titulo, subtitulo, rol, usuario, opciones = [], alCerrarSesion, alSeleccionarOpcion, children }) {
+function AppLayout({ titulo, subtitulo, rol, usuario, opciones = [], alCerrarSesion, alSeleccionarOpcion, alCambiarTema, modo = 'light', children }) {
   const [menuAbierto, establecerMenuAbierto] = useState(false);
 
   const seleccionarOpcion = (opcion) => {
@@ -49,7 +51,7 @@ function AppLayout({ titulo, subtitulo, rol, usuario, opciones = [], alCerrarSes
   );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', background: appTheme.brand.pageGradient }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', background: modo === 'dark' ? appTheme.brand.pageGradientDark : appTheme.brand.pageGradientLight }}>
       <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
         <Toolbar>
           <IconButton color="inherit" edge="start" onClick={() => establecerMenuAbierto(true)} sx={{ display: { xs: 'inline-flex', md: 'none' }, mr: 1 }} aria-label="Abrir menú">
@@ -58,6 +60,9 @@ function AppLayout({ titulo, subtitulo, rol, usuario, opciones = [], alCerrarSes
           <Typography variant="h6" sx={{ fontWeight: 800, flexGrow: 1 }}>
             {appTheme.brand.name}
           </Typography>
+          <IconButton color="inherit" onClick={alCambiarTema} aria-label="Cambiar modo de color" sx={{ mr: 1 }}>
+            {modo === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+          </IconButton>
           <Button color="inherit" startIcon={<LogoutIcon />} onClick={alCerrarSesion}>
             Salir
           </Button>
@@ -91,9 +96,9 @@ function AppLayout({ titulo, subtitulo, rol, usuario, opciones = [], alCerrarSes
         {contenidoMenu}
       </Drawer>
 
-      <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, md: 4 }, pt: { xs: 10, md: 12 } }}>
-        <Box sx={{ maxWidth: 1400, mx: 'auto' }}>
-          <Typography variant="h4" color="text.primary" sx={{ fontWeight: 800 }}>
+      <Box component="main" sx={{ flexGrow: 1, minWidth: 0, p: { xs: 2, sm: 3, md: 4 }, pt: { xs: 10, md: 12 } }}>
+        <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
+          <Typography variant="h4" color="text.primary" sx={{ fontWeight: 800, fontSize: { xs: '1.8rem', sm: '2.125rem' } }}>
             {titulo}
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 1, mb: 4 }}>

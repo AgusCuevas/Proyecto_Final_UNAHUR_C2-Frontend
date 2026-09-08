@@ -1,17 +1,15 @@
 import { createTheme } from '@mui/material/styles';
 
 export const appTheme = {
-  // Valores reutilizables de marca y layout para todas las pantallas.
   brand: {
     name: 'GALACTIC APP',
-    primary: '#1259c3',
-    primaryDark: '#0b3d91',
-    secondary: '#13b8a6',
-    text: '#12305b',
-    pageBackground: '#eef5ff',
-    cardBorder: '#d6e5fa',
-    cardShadow: '0 24px 70px rgba(24, 65, 124, 0.16)',
-    pageGradient: 'radial-gradient(circle at top right, #d7e7ff 0, #eef5ff 42%, #e5f8f5 100%)',
+    primary: '#57A2BC',
+    primaryDark: '#536875',
+    secondary: '#8299C8',
+    light: '#D8E0E9',
+    soft: '#B0CAD5',
+    pageGradientLight: 'radial-gradient(circle at top right, #D8E0E9 0, #F3F6F8 48%, #B0CAD5 140%)',
+    pageGradientDark: 'radial-gradient(circle at top right, #536875 0, #243642 42%, #18242D 100%)',
   },
   layout: {
     loginCardWidth: 460,
@@ -30,14 +28,35 @@ export const appTheme = {
   },
 };
 
-export const theme = createTheme({
-  // Material UI toma estos valores como configuración visual global.
+export const createAppTheme = (modo = 'light') => {
+  const esOscuro = modo === 'dark';
+  const colores = esOscuro
+    ? {
+      background: '#18242D',
+      paper: '#243642',
+      text: '#D8E0E9',
+      muted: '#B0CAD5',
+      border: '#536875',
+      gradient: 'radial-gradient(circle at top right, #536875 0, #243642 42%, #18242D 100%)',
+      shadow: '0 24px 70px rgba(5, 15, 22, 0.42)',
+    }
+    : {
+      background: '#F3F6F8',
+      paper: '#FFFFFF',
+      text: '#536875',
+      muted: '#536875',
+      border: '#B0CAD5',
+      gradient: 'radial-gradient(circle at top right, #D8E0E9 0, #F3F6F8 48%, #B0CAD5 140%)',
+      shadow: '0 24px 70px rgba(83, 104, 117, 0.16)',
+    };
+
+  return createTheme({
   palette: {
-    mode: 'light',
+    mode: modo,
     primary: { main: appTheme.brand.primary, dark: appTheme.brand.primaryDark },
     secondary: { main: appTheme.brand.secondary },
-    background: { default: appTheme.brand.pageBackground, paper: '#ffffff' },
-    text: { primary: appTheme.brand.text },
+    background: { default: colores.background, paper: colores.paper },
+    text: { primary: colores.text, secondary: colores.muted },
   },
   shape: { borderRadius: 14 },
   typography: {
@@ -48,8 +67,8 @@ export const theme = createTheme({
     MuiPaper: {
       styleOverrides: {
         root: {
-          border: `1px solid ${appTheme.brand.cardBorder}`,
-          boxShadow: appTheme.brand.cardShadow,
+          border: `1px solid ${colores.border}`,
+          boxShadow: colores.shadow,
         },
       },
     },
@@ -64,4 +83,7 @@ export const theme = createTheme({
       },
     },
   },
-});
+  });
+};
+
+export const theme = createAppTheme();
