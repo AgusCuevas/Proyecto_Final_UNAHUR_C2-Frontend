@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Box, Button, ButtonGroup, Chip, Paper, Stack, Typography } from '@mui/material';
+import { Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import { CircleMarker, MapContainer, Popup, TileLayer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -30,12 +30,30 @@ function MapaTecnicos() {
 
   return (
     <Paper sx={{ p: { xs: 2, md: 3 } }}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={2} mb={2}>
-        <Box>
-          <Typography variant="h5" sx={{ fontWeight: 800 }}>Ubicación de técnicos</Typography>
-          <Typography color="text.secondary">Seguimiento del equipo en la zona de trabajo.</Typography>
-        </Box>
-        <ButtonGroup size="small" variant="outlined" aria-label="Filtrar técnicos por estado">
+      <Stack spacing={2.5} mb={4}>
+        <Stack spacing={1.5} sx={{ minWidth: 0 }}>
+          <Typography variant="h5" sx={{ fontWeight: 800, lineHeight: 1.2 }}>Ubicación de técnicos</Typography>
+          <Typography color="text.secondary" sx={{ lineHeight: 1.6 }}>
+            Seguimiento del equipo en la zona de trabajo.
+          </Typography>
+        </Stack>
+        <Stack
+          direction="row"
+          spacing={1}
+          aria-label="Filtrar técnicos por estado"
+          sx={{
+            alignSelf: 'center',
+            justifyContent: 'center',
+            width: { xs: '100%', sm: 'fit-content' },
+            flexWrap: 'wrap',
+            p: 1,
+            border: 1,
+            borderColor: 'divider',
+            borderRadius: 2,
+            backgroundColor: 'action.hover',
+            '& .MuiButton-root': { flex: { xs: 1, sm: 'initial' }, minWidth: { sm: 82 } },
+          }}
+        >
           {['Todos', 'Activo', 'Libre'].map((opcion) => (
             <Button
               key={opcion}
@@ -45,15 +63,24 @@ function MapaTecnicos() {
               {opcion}
             </Button>
           ))}
-        </ButtonGroup>
+        </Stack>
       </Stack>
 
-      <Stack direction="row" gap={1} mb={2} flexWrap="wrap">
+      <Stack
+        direction="row"
+        gap={1}
+        mt={3}
+        pt={2.5}
+        pb={2.5}
+        mb={3.5}
+        flexWrap="wrap"
+        sx={{ borderTop: 1, borderColor: 'divider' }}
+      >
         <Chip icon={<LocationOnIcon />} label={`${activos} activos`} color="success" size="small" />
         <Chip label={`${libres} libres`} color="default" size="small" />
       </Stack>
 
-      <Box sx={{ height: { xs: 360, md: 520 }, borderRadius: 2, overflow: 'hidden' }}>
+      <Box sx={{ mt: 1, height: { xs: 360, md: 520 }, borderRadius: 2, overflow: 'hidden' }}>
         <MapContainer center={centroMapa} zoom={13} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

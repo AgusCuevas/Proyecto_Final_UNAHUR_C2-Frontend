@@ -32,16 +32,42 @@ function AppLayout({ titulo, subtitulo, rol, usuario, opciones = [], alCerrarSes
 
   const contenidoMenu = (
     <>
-      <Box sx={{ px: 2, pb: 2 }}>
-        <Avatar sx={{ bgcolor: 'secondary.main', mb: 1 }}>{usuario.charAt(0).toUpperCase()}</Avatar>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{usuario}</Typography>
-        <Typography variant="body2" color="text.secondary">{rol}</Typography>
+      <Box sx={{ px: 2.5, pb: 2.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Avatar sx={{ flexShrink: 0, bgcolor: 'secondary.main', width: 50, height: 50, border: 3, borderColor: 'background.paper', boxShadow: 2 }}>
+            {usuario.charAt(0).toUpperCase()}
+          </Avatar>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {usuario}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35 }}>{rol}</Typography>
+          </Box>
+        </Box>
       </Box>
       <Divider />
-      <List>
+      <List sx={{ px: 1.25, py: 1.5 }}>
         {opciones.map((opcion) => (
           <ListItem key={opcion} disablePadding>
-            <ListItemButton selected={opcion === titulo} onClick={() => seleccionarOpcion(opcion)}>
+            <ListItemButton
+              selected={opcion === titulo}
+              onClick={() => seleccionarOpcion(opcion)}
+              sx={{
+                borderRadius: 2,
+                mb: 0.5,
+                '&.Mui-selected': {
+                  color: modo === 'dark' ? 'text.primary' : 'primary.dark',
+                  backgroundColor: modo === 'dark'
+                    ? 'rgba(87, 162, 188, 0.28)'
+                    : 'rgba(87, 162, 188, 0.14)',
+                  '&:hover': {
+                    backgroundColor: modo === 'dark'
+                      ? 'rgba(87, 162, 188, 0.36)'
+                      : 'rgba(87, 162, 188, 0.2)',
+                  },
+                },
+              }}
+            >
               <ListItemText primary={opcion} />
             </ListItemButton>
           </ListItem>
@@ -52,19 +78,21 @@ function AppLayout({ titulo, subtitulo, rol, usuario, opciones = [], alCerrarSes
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', background: modo === 'dark' ? appTheme.brand.pageGradientDark : appTheme.brand.pageGradientLight }}>
-      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
-        <Toolbar>
+      <AppBar position="fixed" elevation={0} sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, borderBottom: 1, borderColor: 'rgba(255,255,255,0.16)' }}>
+        <Toolbar sx={{ minHeight: { xs: 64, md: 72 }, px: { xs: 2, sm: 3, md: 4 }, gap: { xs: 0.5, sm: 1 } }}>
           <IconButton color="inherit" edge="start" onClick={() => establecerMenuAbierto(true)} sx={{ display: { xs: 'inline-flex', md: 'none' }, mr: 1 }} aria-label="Abrir menú">
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" sx={{ fontWeight: 800, flexGrow: 1 }}>
+          <Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: '0.04em', flexGrow: 1 }}>
             {appTheme.brand.name}
           </Typography>
           <IconButton color="inherit" onClick={alCambiarTema} aria-label="Cambiar modo de color" sx={{ mr: 1 }}>
             {modo === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
           </IconButton>
-          <Button color="inherit" startIcon={<LogoutIcon />} onClick={alCerrarSesion}>
-            Salir
+          <Button color="inherit" size="small" startIcon={<LogoutIcon />} onClick={alCerrarSesion} sx={{ minWidth: { xs: 0, sm: 'auto' }, px: { xs: 1, sm: 1.5 } }}>
+            <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+              Salir
+            </Box>
           </Button>
         </Toolbar>
       </AppBar>
@@ -77,8 +105,11 @@ function AppLayout({ titulo, subtitulo, rol, usuario, opciones = [], alCerrarSes
           '& .MuiDrawer-paper': {
             width: anchoMenu,
             boxSizing: 'border-box',
-            pt: 8,
+            pt: 11,
             display: { xs: 'none', md: 'block' },
+            borderRight: 1,
+            borderColor: 'divider',
+            backgroundColor: 'background.paper',
           },
         }}
       >
@@ -91,17 +122,17 @@ function AppLayout({ titulo, subtitulo, rol, usuario, opciones = [], alCerrarSes
         onClose={() => establecerMenuAbierto(false)}
         ModalProps={{ keepMounted: true }}
         sx={{ display: { xs: 'block', md: 'none' } }}
-        PaperProps={{ sx: { width: anchoMenu, pt: 2 } }}
+        PaperProps={{ sx: { width: anchoMenu, pt: 3 } }}
       >
         {contenidoMenu}
       </Drawer>
 
-      <Box component="main" sx={{ flexGrow: 1, minWidth: 0, p: { xs: 2, sm: 3, md: 4 }, pt: { xs: 10, md: 12 } }}>
-        <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
+      <Box component="main" sx={{ flexGrow: 1, minWidth: 0, p: { xs: 2, sm: 3, md: 5 }, pt: { xs: 10, md: 13 } }}>
+        <Box sx={{ maxWidth: 1480, mx: 'auto', width: '100%' }}>
           <Typography variant="h4" color="text.primary" sx={{ fontWeight: 800, fontSize: { xs: '1.8rem', sm: '2.125rem' } }}>
             {titulo}
           </Typography>
-          <Typography color="text.secondary" sx={{ mt: 1, mb: 4 }}>
+          <Typography color="text.secondary" sx={{ mt: 0.75, mb: { xs: 3, md: 4.5 }, maxWidth: 720 }}>
             {subtitulo}
           </Typography>
           {children}

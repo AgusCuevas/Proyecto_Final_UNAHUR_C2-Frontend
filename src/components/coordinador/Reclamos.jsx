@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import {
+  Box,
   Button,
   Card,
   CardContent,
-  Chip,
+  Divider,
   FormControl,
   InputLabel,
   MenuItem,
@@ -18,58 +19,21 @@ import SaveIcon from '@mui/icons-material/Save';
 import CloseIcon from '@mui/icons-material/Close';
 import { datosIniciales } from '../../data/datosIniciales.js';
 
-const reclamoVacio = {
-  clienteId: '',
-  tipo: '',
-  prioridad: 'Normal',
-  descripcion: '',
-  tecnicoId: '',
-};
-
 function Reclamos() {
-  const [reclamos, establecerReclamos] = useState(datosIniciales.reclamos);
   const [formularioAbierto, establecerFormularioAbierto] = useState(false);
-  const [formulario, establecerFormulario] = useState(reclamoVacio);
+  const [reclamoEditado, establecerReclamoEditado] = useState(null);
+  const [reclamos, establecerReclamos] = useState(datosIniciales.reclamos);
+  const [tecnicoSeleccionado, establecerTecnicoSeleccionado] = useState('');
   const [filtros, establecerFiltros] = useState({
     estado: 'Todos',
     tecnicoId: 'Todos',
     desde: '',
     hasta: '',
   });
-  const [reclamoEditado, establecerReclamoEditado] = useState(null);
-  const [tecnicoEditado, establecerTecnicoEditado] = useState('');
 
   const tecnicos = datosIniciales.usuarios.filter(
     (usuario) => usuario.rol === 'Tecnico' && usuario.activo,
   );
-
-  const actualizarCampo = (campo, valor) => {
-    establecerFormulario((actual) => ({ ...actual, [campo]: valor }));
-  };
-
-  const guardarReclamo = (evento) => {
-    evento.preventDefault();
-    const cliente = datosIniciales.clientes.find(
-      (item) => item.id === Number(formulario.clienteId),
-    );
-    const tecnicoId = formulario.tecnicoId ? Number(formulario.tecnicoId) : null;
-
-    establecerReclamos((actuales) => [
-      ...actuales,
-      {
-        id: Math.max(...actuales.map((reclamo) => reclamo.id)) + 1,
-        ...formulario,
-        clienteId: Number(formulario.clienteId),
-        tecnicoId,
-        estado: tecnicoId ? 'Asignado' : 'Abierto',
-        creadoEn: new Date().toISOString(),
-        agrupacionGeografica: cliente.zona,
-        fechaProgramada: new Date().toISOString().slice(0, 10),
-      },
-    ]);
-    establecerFormulario(reclamoVacio);
-    establecerFormularioAbierto(false);
-  };
 
   const nombreCliente = (clienteId) => datosIniciales.clientes.find(
     (cliente) => cliente.id === clienteId,
@@ -78,6 +42,20 @@ function Reclamos() {
   const nombreTecnico = (tecnicoId) => tecnicos.find(
     (tecnico) => tecnico.id === tecnicoId,
   )?.nombre || 'Sin asignar';
+
+  const colorEstado = {
+    Abierto: 'warning.main',
+    Asignado: 'info.main',
+    'En progreso': 'secondary.main',
+    Finalizado: 'success.main',
+  };
+
+  const abrirEdicionTecnico = (reclamo) => {
+    establecerTecnicoSeleccionado(reclamo.tecnicoId || '');
+    establecerReclamoEditado((actual) => (
+      actual === reclamo.id ? null : reclamo.id
+    ));
+  };
 
   const actualizarFiltro = (campo, valor) => {
     establecerFiltros((actuales) => ({ ...actuales, [campo]: valor }));
@@ -91,32 +69,17 @@ function Reclamos() {
     const coincideTecnico = filtros.tecnicoId === 'Todos'
       || (filtros.tecnicoId === 'Sin asignar' && !reclamo.tecnicoId)
       || reclamo.tecnicoId === Number(filtros.tecnicoId);
-    const coincideDesde = !desde || fechaCreacion >= desde;
-    const coincideHasta = !hasta || fechaCreacion <= hasta;
 
-    return coincideEstado && coincideTecnico && coincideDesde && coincideHasta;
+    return coincideEstado
+      && coincideTecnico
+      && (!desde || fechaCreacion >= desde)
+      && (!hasta || fechaCreacion <= hasta);
   });
-
-  const abrirEdicionTecnico = (reclamo) => {
-    establecerReclamoEditado(reclamo.id);
-    establecerTecnicoEditado(reclamo.tecnicoId || '');
-  };
-
-  const guardarAsignacion = (reclamoId) => {
-    const tecnicoId = tecnicoEditado ? Number(tecnicoEditado) : null;
-    establecerReclamos((actuales) => actuales.map((reclamo) => (
-      reclamo.id === reclamoId
-        ? { ...reclamo, tecnicoId, estado: tecnicoId ? 'Asignado' : 'Abierto' }
-        : reclamo
-    )));
-    establecerReclamoEditado(null);
-    establecerTecnicoEditado('');
-  };
 
   return (
     <Stack spacing={3}>
       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={2}>
-        <div>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <Typography variant="h5" sx={{ fontWeight: 800 }}>Reclamos</Typography>
           <Typography color="text.secondary">Alta y asignación de reclamos del equipo técnico.</Typography>
         </div>
@@ -124,23 +87,25 @@ function Reclamos() {
           variant="contained"
           startIcon={<AddIcon />}
           onClick={() => establecerFormularioAbierto((actual) => !actual)}
+          sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' }, ml: { sm: 'auto' }, flexShrink: 0 }}
         >
           Nuevo reclamo
         </Button>
       </Stack>
 
       {formularioAbierto && (
-        <Card component="form" onSubmit={guardarReclamo}>
+      <Card>
           <CardContent>
             <Stack spacing={2}>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Typography variant="h6" sx={{ fontWeight: 800 }}>Alta de reclamo</Typography>
                 <Button
+                  size="small"
                   color="inherit"
                   startIcon={<CloseIcon />}
                   onClick={() => establecerFormularioAbierto(false)}
                 >
-                  Cancelar
+                  Cerrar
                 </Button>
               </Stack>
               <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
@@ -148,9 +113,8 @@ function Reclamos() {
                   <InputLabel id="cliente-label">Cliente</InputLabel>
                   <Select
                     labelId="cliente-label"
-                    value={formulario.clienteId}
+                    defaultValue=""
                     label="Cliente"
-                    onChange={(evento) => actualizarCampo('clienteId', evento.target.value)}
                   >
                     {datosIniciales.clientes.map((cliente) => (
                       <MenuItem key={cliente.id} value={cliente.id}>
@@ -163,17 +127,14 @@ function Reclamos() {
                   fullWidth
                   required
                   label="Tipo de reclamo"
-                  value={formulario.tipo}
-                  onChange={(evento) => actualizarCampo('tipo', evento.target.value)}
                   placeholder="Ej: Sin servicio"
                 />
                 <FormControl fullWidth required>
                   <InputLabel id="prioridad-label">Prioridad</InputLabel>
                   <Select
                     labelId="prioridad-label"
-                    value={formulario.prioridad}
+                    defaultValue="Normal"
                     label="Prioridad"
-                    onChange={(evento) => actualizarCampo('prioridad', evento.target.value)}
                   >
                     {['Normal', 'Alta', 'Urgente'].map((prioridad) => (
                       <MenuItem key={prioridad} value={prioridad}>{prioridad}</MenuItem>
@@ -186,16 +147,13 @@ function Reclamos() {
                 multiline
                 minRows={3}
                 label="Descripción"
-                value={formulario.descripcion}
-                onChange={(evento) => actualizarCampo('descripcion', evento.target.value)}
               />
               <FormControl fullWidth>
                 <InputLabel id="tecnico-label">Asignar técnico</InputLabel>
                 <Select
                   labelId="tecnico-label"
-                  value={formulario.tecnicoId}
+                    defaultValue=""
                   label="Asignar técnico"
-                  onChange={(evento) => actualizarCampo('tecnicoId', evento.target.value)}
                   startAdornment={<AssignmentIndIcon sx={{ mr: 1, color: 'text.secondary' }} />}
                 >
                   <MenuItem value="">Sin asignar</MenuItem>
@@ -204,26 +162,33 @@ function Reclamos() {
                   ))}
                 </Select>
               </FormControl>
-              <Button type="submit" variant="contained" startIcon={<SaveIcon />}>
+              <Button variant="contained" startIcon={<SaveIcon />} sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}>
                 Guardar reclamo
               </Button>
             </Stack>
           </CardContent>
-        </Card>
-      )}
+      </Card>
+          )}
 
       <Card>
         <CardContent>
           <Stack spacing={2}>
             <Typography variant="h6" sx={{ fontWeight: 800 }}>Filtrar reclamos</Typography>
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+            <Stack
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', md: 'repeat(4, minmax(0, 1fr))' },
+                gap: 2,
+                alignItems: 'end',
+              }}
+            >
               <FormControl fullWidth>
                 <InputLabel id="filtro-estado-label">Estado</InputLabel>
                 <Select
                   labelId="filtro-estado-label"
-                  value={filtros.estado}
+                    value={filtros.estado}
                   label="Estado"
-                  onChange={(evento) => actualizarFiltro('estado', evento.target.value)}
+                    onChange={(evento) => actualizarFiltro('estado', evento.target.value)}
                 >
                   {['Todos', 'Abierto', 'Asignado', 'En progreso', 'Finalizado'].map((estado) => (
                     <MenuItem key={estado} value={estado}>{estado}</MenuItem>
@@ -234,9 +199,9 @@ function Reclamos() {
                 <InputLabel id="filtro-tecnico-label">Técnico</InputLabel>
                 <Select
                   labelId="filtro-tecnico-label"
-                  value={filtros.tecnicoId}
+                    value={filtros.tecnicoId}
                   label="Técnico"
-                  onChange={(evento) => actualizarFiltro('tecnicoId', evento.target.value)}
+                    onChange={(evento) => actualizarFiltro('tecnicoId', evento.target.value)}
                 >
                   <MenuItem value="Todos">Todos</MenuItem>
                   <MenuItem value="Sin asignar">Sin asignar</MenuItem>
@@ -245,22 +210,28 @@ function Reclamos() {
                   ))}
                 </Select>
               </FormControl>
-              <TextField
-                fullWidth
-                type="datetime-local"
-                label="Desde fecha y hora"
-                value={filtros.desde}
-                onChange={(evento) => actualizarFiltro('desde', evento.target.value)}
-                InputLabelProps={{ shrink: true }}
-              />
-              <TextField
-                fullWidth
-                type="datetime-local"
-                label="Hasta fecha y hora"
-                value={filtros.hasta}
-                onChange={(evento) => actualizarFiltro('hasta', evento.target.value)}
-                InputLabelProps={{ shrink: true }}
-              />
+              <Stack spacing={0.75} sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ pl: 0.5 }}>
+                  Desde fecha y hora
+                </Typography>
+                <TextField
+                  fullWidth
+                  type="datetime-local"
+                  value={filtros.desde}
+                  onChange={(evento) => actualizarFiltro('desde', evento.target.value)}
+                />
+              </Stack>
+              <Stack spacing={0.75} sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ pl: 0.5 }}>
+                  Hasta fecha y hora
+                </Typography>
+                <TextField
+                  fullWidth
+                  type="datetime-local"
+                  value={filtros.hasta}
+                  onChange={(evento) => actualizarFiltro('hasta', evento.target.value)}
+                />
+              </Stack>
             </Stack>
             <Typography variant="body2" color="text.secondary">
               {reclamosFiltrados.length} de {reclamos.length} reclamos visibles
@@ -271,54 +242,174 @@ function Reclamos() {
 
       <Stack spacing={2}>
         {reclamosFiltrados.map((reclamo) => (
-          <Card key={reclamo.id}>
-            <CardContent>
-              <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" gap={2}>
-                <div>
-                  <Typography variant="h6" sx={{ fontWeight: 700 }}>{reclamo.tipo}</Typography>
-                  <Typography color="text.secondary">
-                    {nombreCliente(reclamo.clienteId)} · {reclamo.agrupacionGeografica}
-                  </Typography>
-                  <Typography sx={{ mt: 1 }}>{reclamo.descripcion}</Typography>
-                </div>
-                <Stack direction="row" gap={1} flexWrap="wrap" alignItems="flex-start">
-                  <Chip label={reclamo.estado} color={reclamo.estado === 'Asignado' ? 'info' : 'default'} size="small" />
-                  <Chip label={reclamo.prioridad} color={reclamo.prioridad === 'Urgente' ? 'error' : 'default'} size="small" />
-                  <Chip icon={<AssignmentIndIcon />} label={nombreTecnico(reclamo.tecnicoId)} size="small" />
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={<AssignmentIndIcon />}
-                    onClick={() => abrirEdicionTecnico(reclamo)}
-                  >
-                    {reclamo.tecnicoId ? 'Cambiar técnico' : 'Asignar técnico'}
-                  </Button>
+          <Card
+            key={reclamo.id}
+            sx={{
+              borderRadius: 2.5,
+              borderColor: 'divider',
+              borderLeft: 4,
+              borderLeftColor: colorEstado[reclamo.estado] || 'divider',
+              transition: 'border-color 160ms ease, box-shadow 160ms ease',
+              '&:hover': { borderColor: 'primary.main', boxShadow: 4 },
+            }}
+          >
+            <CardContent sx={{ p: { xs: 2, sm: 2.5 }, '&:last-child': { pb: { xs: 2, sm: 2.5 } } }}>
+              <Stack direction={{ xs: 'column', md: 'row' }} spacing={{ xs: 2, md: 3 }}>
+                <Stack spacing={1.5} sx={{ flex: 1, minWidth: 0 }}>
+                  <Box>
+                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 800, letterSpacing: '0.08em' }}>
+                      Reclamo #{reclamo.id}
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 800, color: reclamo.prioridad === 'Urgente' ? 'error.main' : 'text.secondary', mt: 0.25 }}>
+                      Prioridad: {reclamo.prioridad}
+                    </Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 800 }}>{reclamo.tipo}</Typography>
+                    <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                      {nombreCliente(reclamo.clienteId)} · {reclamo.agrupacionGeografica}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ p: 1.5, borderRadius: 1.5, backgroundColor: 'action.hover' }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 700 }}>
+                      Descripción
+                    </Typography>
+                    <Typography color="text.primary">{reclamo.descripcion}</Typography>
+                  </Box>
+                </Stack>
+
+                <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
+
+                <Box
+                  sx={{
+                    width: { xs: '100%', md: 250 },
+                    flexShrink: 0,
+                    alignSelf: 'flex-start',
+                    height: 128,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    p: 1.5,
+                    borderRadius: 1.5,
+                    border: 1,
+                    borderColor: 'divider',
+                    backgroundColor: 'action.hover',
+                  }}
+                >
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75, fontWeight: 700, textAlign: 'center' }}>
+                      Estado del ticket
+                    </Typography>
+                    <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
+                      <Box sx={{ width: 11, height: 11, borderRadius: '50%', bgcolor: colorEstado[reclamo.estado] || 'text.secondary' }} />
+                      <Typography sx={{ fontWeight: 800, color: colorEstado[reclamo.estado] || 'text.primary' }}>
+                        {reclamo.estado}
+                      </Typography>
+                    </Stack>
+                  </Box>
+                </Box>
+
+                <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
+
+                <Stack spacing={1.5} alignItems="center" sx={{ width: { xs: '100%', md: 250 }, flexShrink: 0 }}>
+                  <Stack spacing={1}>
+                    <Box
+                      sx={{
+                        mt: 0,
+                        p: 1.5,
+                        height: 128,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        borderRadius: 1,
+                        width: '100%',
+                        border: 1,
+                        borderColor: 'divider',
+                        backgroundColor: 'action.hover',
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.35, textAlign: 'center' }}>
+                        Técnico
+                      </Typography>
+                      {reclamo.tecnicoId ? (
+                        <Stack spacing={0.75} alignItems="center" sx={{ width: '100%' }}>
+                          <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+                            <Stack direction="row" spacing={0.75} alignItems="center" sx={{ width: 'fit-content', maxWidth: '100%' }}>
+                              <Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: 'text.secondary', flexShrink: 0 }} />
+                              <AssignmentIndIcon sx={{ fontSize: 17, color: 'text.secondary' }} />
+                              <Typography variant="body2" sx={{ fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {nombreTecnico(reclamo.tecnicoId)}
+                              </Typography>
+                            </Stack>
+                          </Box>
+                          <Button
+                            size="small"
+                            variant="text"
+                            onClick={() => abrirEdicionTecnico(reclamo)}
+                            sx={{
+                              minWidth: 'auto',
+                              px: 0.5,
+                              flexShrink: 0,
+                              color: 'text.secondary',
+                              alignSelf: 'center',
+                              '&:hover': { color: 'text.primary', backgroundColor: 'action.hover' },
+                            }}
+                          >
+                            Modificar
+                          </Button>
+                        </Stack>
+                      ) : (
+                        <Button
+                          fullWidth
+                          size="small"
+                          variant="outlined"
+                          startIcon={<AssignmentIndIcon />}
+                          onClick={() => abrirEdicionTecnico(reclamo)}
+                          sx={{
+                            color: 'text.primary',
+                            borderColor: 'divider',
+                            '&:hover': { borderColor: 'text.primary', backgroundColor: 'action.hover' },
+                          }}
+                        >
+                          Asignar técnico
+                        </Button>
+                      )}
+                    </Box>
+                  </Stack>
+
+                  {reclamoEditado === reclamo.id && (
+                    <Stack spacing={1.5}>
+                      <FormControl fullWidth>
+                        <InputLabel id={`tecnico-${reclamo.id}-label`}>Técnico asignado</InputLabel>
+                        <Select
+                          labelId={`tecnico-${reclamo.id}-label`}
+                          value={tecnicoSeleccionado}
+                          label="Técnico asignado"
+                          onChange={(evento) => establecerTecnicoSeleccionado(evento.target.value)}
+                        >
+                          <MenuItem value="">Sin asignar</MenuItem>
+                          {tecnicos.map((tecnico) => (
+                            <MenuItem key={tecnico.id} value={tecnico.id}>{tecnico.nombre}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <Button
+                        variant="contained"
+                        startIcon={<SaveIcon />}
+                        onClick={() => {
+                          const tecnicoId = tecnicoSeleccionado ? Number(tecnicoSeleccionado) : null;
+                          establecerReclamos((actuales) => actuales.map((item) => (
+                            item.id === reclamo.id
+                              ? { ...item, tecnicoId, estado: tecnicoId ? 'Asignado' : 'Abierto' }
+                              : item
+                          )));
+                          establecerReclamoEditado(null);
+                        }}
+                      >
+                        Guardar asignación
+                      </Button>
+                    </Stack>
+                  )}
                 </Stack>
               </Stack>
-              {reclamoEditado === reclamo.id && (
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mt={2}>
-                  <FormControl fullWidth>
-                    <InputLabel id={`editar-tecnico-${reclamo.id}-label`}>Técnico asignado</InputLabel>
-                    <Select
-                      labelId={`editar-tecnico-${reclamo.id}-label`}
-                      value={tecnicoEditado}
-                      label="Técnico asignado"
-                      onChange={(evento) => establecerTecnicoEditado(evento.target.value)}
-                    >
-                      <MenuItem value="">Sin asignar</MenuItem>
-                      {tecnicos.map((tecnico) => (
-                        <MenuItem key={tecnico.id} value={tecnico.id}>{tecnico.nombre}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <Button variant="contained" startIcon={<SaveIcon />} onClick={() => guardarAsignacion(reclamo.id)}>
-                    Guardar asignación
-                  </Button>
-                  <Button color="inherit" onClick={() => establecerReclamoEditado(null)}>
-                    Cancelar
-                  </Button>
-                </Stack>
-              )}
             </CardContent>
           </Card>
         ))}

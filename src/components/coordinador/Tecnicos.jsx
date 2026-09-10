@@ -37,7 +37,7 @@ function Tecnicos() {
         <Typography color="text.secondary">Seleccioná un técnico para consultar su información.</Typography>
       </div>
 
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="stretch">
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="flex-start">
         <Stack spacing={1.25} sx={{ width: { xs: '100%', md: 300 }, flexShrink: 0 }}>
           {tecnicos.map((item) => (
             <Card
@@ -69,7 +69,7 @@ function Tecnicos() {
           ))}
         </Stack>
 
-        <Card sx={{ flex: 1, minWidth: 0 }}>
+        <Card sx={{ flex: 1, minWidth: 0, alignSelf: 'flex-start' }}>
           <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
             <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={2}>
               <Stack direction="row" spacing={2} alignItems="center">
@@ -92,24 +92,26 @@ function Tecnicos() {
                 variant="outlined"
                 endIcon={<ExpandMoreIcon sx={{ transform: fichaAbierta ? 'rotate(180deg)' : 'none' }} />}
                 onClick={() => establecerFichaAbierta((actual) => !actual)}
+                sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' }, minWidth: { sm: 174 } }}
               >
                 {fichaAbierta ? 'Ocultar ficha' : 'Ver ficha completa'}
               </Button>
             </Stack>
 
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} mt={3}>
-              <div>
+            <Divider sx={{ my: 2.5 }} />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              <Stack spacing={0.5} sx={{ flex: 1, p: 1.5, borderRadius: 1.5, backgroundColor: 'action.hover' }}>
                 <Typography variant="caption" color="text.secondary">Documento</Typography>
-                <Typography>{tecnico.documento}</Typography>
-              </div>
-              <div>
+                <Typography sx={{ fontWeight: 800 }}>{tecnico.documento}</Typography>
+              </Stack>
+              <Stack spacing={0.5} sx={{ flex: 1, p: 1.5, borderRadius: 1.5, backgroundColor: 'action.hover' }}>
                 <Typography variant="caption" color="text.secondary">Teléfono</Typography>
-                <Typography>{tecnico.telefono}</Typography>
-              </div>
-              <div>
+                <Typography sx={{ fontWeight: 800 }}>{tecnico.telefono}</Typography>
+              </Stack>
+              <Stack spacing={0.5} sx={{ flex: 1, p: 1.5, borderRadius: 1.5, backgroundColor: 'action.hover' }}>
                 <Typography variant="caption" color="text.secondary">Estado operativo</Typography>
-                <Typography>{ubicacion?.estado || 'Libre'}</Typography>
-              </div>
+                <Typography sx={{ fontWeight: 800 }}>{ubicacion?.estado || 'Libre'}</Typography>
+              </Stack>
             </Stack>
 
             {fichaAbierta && (

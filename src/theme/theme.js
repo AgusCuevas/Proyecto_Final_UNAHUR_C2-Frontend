@@ -8,7 +8,7 @@ export const appTheme = {
     secondary: '#8299C8',
     light: '#D8E0E9',
     soft: '#B0CAD5',
-    pageGradientLight: 'radial-gradient(circle at top right, #D8E0E9 0, #F3F6F8 48%, #B0CAD5 140%)',
+    pageGradientLight: 'radial-gradient(circle at top right, #E8F1F2 0, #F6F8F7 48%, #DCE9E7 140%)',
     pageGradientDark: 'radial-gradient(circle at top right, #536875 0, #243642 42%, #18242D 100%)',
   },
   layout: {
@@ -46,7 +46,7 @@ export const createAppTheme = (modo = 'light') => {
       text: '#536875',
       muted: '#536875',
       border: '#B0CAD5',
-      gradient: 'radial-gradient(circle at top right, #D8E0E9 0, #F3F6F8 48%, #B0CAD5 140%)',
+      gradient: 'radial-gradient(circle at top right, #E8F1F2 0, #F6F8F7 48%, #DCE9E7 140%)',
       shadow: '0 24px 70px rgba(83, 104, 117, 0.16)',
     };
 
@@ -58,28 +58,60 @@ export const createAppTheme = (modo = 'light') => {
     background: { default: colores.background, paper: colores.paper },
     text: { primary: colores.text, secondary: colores.muted },
   },
-  shape: { borderRadius: 14 },
+  shape: { borderRadius: 10 },
   typography: {
-    fontFamily: 'Inter, Roboto, sans-serif',
-    h4: { fontWeight: 800 },
+    fontFamily: 'Manrope, sans-serif',
+    h4: { fontWeight: 800, letterSpacing: '-0.02em' },
+    h5: { fontWeight: 800, letterSpacing: '-0.015em' },
+    h6: { fontWeight: 800, letterSpacing: '-0.01em' },
+    button: { fontWeight: 800, letterSpacing: '0.01em' },
   },
   components: {
+    MuiCssBaseline: {
+      styleOverrides: {
+        body: { backgroundImage: colores.gradient },
+      },
+    },
     MuiPaper: {
       styleOverrides: {
         root: {
           border: `1px solid ${colores.border}`,
           boxShadow: colores.shadow,
+          backgroundImage: 'none',
         },
       },
     },
     MuiButton: {
       styleOverrides: {
-        root: { textTransform: 'none', fontWeight: 700 },
+        root: {
+          textTransform: 'none',
+          minHeight: 42,
+          borderRadius: 8,
+          paddingInline: 18,
+          boxShadow: 'none',
+          '&:hover': { boxShadow: 'none' },
+        },
+        contained: { color: '#FFFFFF' },
+        sizeSmall: { minHeight: 36, paddingInline: 14 },
+      },
+    },
+    MuiIconButton: {
+      styleOverrides: { root: { borderRadius: 8 } },
+    },
+    MuiTextField: {
+      defaultProps: { size: 'small' },
+    },
+    MuiFormControl: {
+      defaultProps: { size: 'small' },
+    },
+    MuiInputBase: {
+      styleOverrides: {
+        root: { borderRadius: 8 },
       },
     },
     MuiCard: {
       styleOverrides: {
-        root: { borderRadius: 12 },
+        root: { borderRadius: 10, overflow: 'hidden' },
       },
     },
   },

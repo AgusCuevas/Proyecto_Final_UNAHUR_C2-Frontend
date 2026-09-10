@@ -48,22 +48,35 @@ function MisAsignaciones({ usuario }) {
   return (
     <Stack spacing={3}>
       <Paper sx={{ p: { xs: 2, md: 3 } }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }} justifyContent="space-between">
+        <Stack spacing={2.5}>
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 800 }}>Asignaciones de hoy</Typography>
-            <Typography color="text.secondary">{asignaciones.length} reclamos asociados a tu usuario.</Typography>
+            <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+              {asignaciones.length} reclamos asociados a tu usuario.
+            </Typography>
           </Box>
-          <FormControl size="small" sx={{ minWidth: 190 }}>
-            <InputLabel id="filtro-estado-label">Filtrar por estado</InputLabel>
-            <Select
-              labelId="filtro-estado-label"
-              value={filtro}
-              label="Filtrar por estado"
-              onChange={(event) => setFiltro(event.target.value)}
-            >
-              {estados.map((estado) => <MenuItem key={estado} value={estado}>{estado}</MenuItem>)}
-            </Select>
-          </FormControl>
+          <Stack
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: 'minmax(220px, 320px)' },
+              gap: 2,
+            }}
+          >
+            <FormControl fullWidth>
+              <InputLabel id="filtro-estado-label">Filtrar por estado</InputLabel>
+              <Select
+                labelId="filtro-estado-label"
+                value={filtro}
+                label="Filtrar por estado"
+                onChange={(event) => setFiltro(event.target.value)}
+              >
+                {estados.map((estado) => <MenuItem key={estado} value={estado}>{estado}</MenuItem>)}
+              </Select>
+            </FormControl>
+          </Stack>
+          <Typography variant="body2" color="text.secondary">
+            {asignacionesFiltradas.length} de {asignaciones.length} asignaciones visibles
+          </Typography>
         </Stack>
       </Paper>
 
