@@ -17,9 +17,22 @@ function MapaTecnicos() {
       const ubicacion = data.ubicacionesTecnicos.find(
         (item) => item.tecnicoId === tecnico.id,
       );
-      const estado = ubicacion?.estado || 'Libre';
+      const reclamoEnCurso = data.reclamos.find(
+        (reclamo) => reclamo.tecnicoId === tecnico.id && reclamo.estado === 'En progreso',
+      );
+      const reclamoAsignado = data.reclamos.find(
+        (reclamo) => reclamo.tecnicoId === tecnico.id
+          && reclamo.estado !== 'Finalizado'
+          && reclamo.estado !== 'En progreso',
+      );
+      const estado = reclamoEnCurso ? 'Activo' : reclamoAsignado ? 'Asignado' : 'Libre';
+      const cliente = data.clientes.find(
+        (item) => item.id === (reclamoEnCurso || reclamoAsignado)?.clienteId,
+      );
 
-      return ubicacion ? { ...tecnico, ubicacion, estado } : null;
+      return ubicacion
+        ? { ...tecnico, ubicacion, estado, reclamoEnCurso, reclamoAsignado, cliente }
+        : null;
     }), [data]);
 
   const tecnicosConUbicacion = tecnicos.filter(Boolean);
@@ -28,6 +41,7 @@ function MapaTecnicos() {
   );
   const activos = tecnicosConUbicacion.filter((tecnico) => tecnico.estado === 'Activo').length;
   const libres = tecnicosConUbicacion.filter((tecnico) => tecnico.estado === 'Libre').length;
+  const asignados = tecnicosConUbicacion.filter((tecnico) => tecnico.estado === 'Asignado').length;
 
   return (
     <Paper sx={{ p: { xs: 2, md: 3 } }}>
@@ -55,7 +69,7 @@ function MapaTecnicos() {
             '& .MuiButton-root': { flex: { xs: 1, sm: 'initial' }, minWidth: { sm: 82 } },
           }}
         >
-          {['Todos', 'Activo', 'Libre'].map((opcion) => (
+          {['Todos', 'Activo', 'Asignado', 'Libre'].map((opcion) => (
             <Button
               key={opcion}
               variant={filtro === opcion ? 'contained' : 'outlined'}
@@ -78,6 +92,7 @@ function MapaTecnicos() {
         sx={{ borderTop: 1, borderColor: 'divider' }}
       >
         <Chip icon={<LocationOnIcon />} label={`${activos} activos`} color="success" size="small" />
+        <Chip label={`${asignados} asignados`} color="warning" size="small" />
         <Chip label={`${libres} libres`} color="default" size="small" />
       </Stack>
 
@@ -93,15 +108,25 @@ function MapaTecnicos() {
               center={[tecnico.ubicacion.latitud, tecnico.ubicacion.longitud]}
               radius={10}
               pathOptions={{
-                color: tecnico.estado === 'Activo' ? '#16803c' : '#687586',
-                fillColor: tecnico.estado === 'Activo' ? '#2eaf5d' : '#a5afbc',
+                color: tecnico.estado === 'Activo' ? '#16803c' : tecnico.estado === 'Asignado' ? '#a66b00' : '#687586',
+                fillColor: tecnico.estado === 'Activo' ? '#2eaf5d' : tecnico.estado === 'Asignado' ? '#f2b233' : '#a5afbc',
                 fillOpacity: 0.9,
               }}
             >
               <Popup>
                 <strong>{tecnico.nombre}</strong><br />
                 Estado: {tecnico.estado}<br />
-                {tecnico.estado === 'Activo' ? 'Ubicación actual' : 'Disponible para asignar'}
+                {tecnico.reclamoEnCurso ? (
+                  <>
+                    Reclamo en curso: #{tecnico.reclamoEnCurso.id} - {tecnico.reclamoEnCurso.tipo}<br />
+                    Cliente: {tecnico.cliente?.nombre || 'Sin cliente'}
+                  </>
+                ) : tecnico.reclamoAsignado ? (
+                  <>
+                    Reclamo asignado: #{tecnico.reclamoAsignado.id} - {tecnico.reclamoAsignado.tipo}<br />
+                    Pendiente de iniciar
+                  </>
+                ) : 'Disponible para asignar'}
               </Popup>
             </CircleMarker>
           ))}

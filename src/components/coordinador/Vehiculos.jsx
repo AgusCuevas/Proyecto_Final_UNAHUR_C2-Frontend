@@ -4,33 +4,60 @@ import {
   Chip,
   Divider,
   Grid,
+  InputAdornment,
   Stack,
+  TextField,
   Typography,
 } from '@mui/material';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import BuildIcon from '@mui/icons-material/Build';
+import SearchIcon from '@mui/icons-material/Search';
 import SpeedIcon from '@mui/icons-material/Speed';
+import { useState } from 'react';
 import { useAppData } from '../../context/useAppData.js';
 
 const formatearFecha = (fecha) => new Date(`${fecha}T12:00:00`).toLocaleDateString('es-AR');
 
 function Vehiculos() {
   const { data } = useAppData();
+  const [busqueda, establecerBusqueda] = useState('');
   const tecnicos = data.usuarios.filter((usuario) => usuario.rol === 'Tecnico');
   const nombreTecnico = (tecnicoId) => tecnicos.find(
     (tecnico) => tecnico.id === tecnicoId,
   )?.nombre || 'Sin técnico asignado';
+  const textoBusqueda = busqueda.trim().toLowerCase();
+  const vehiculosFiltrados = data.vehiculos.filter((vehiculo) => (
+    !textoBusqueda
+      || [
+        vehiculo.patente,
+        vehiculo.marca,
+        vehiculo.modelo,
+        nombreTecnico(vehiculo.tecnicoAsignado),
+      ].some((campo) => campo?.toLowerCase().includes(textoBusqueda))
+  ));
 
   return (
     <Stack spacing={3}>
-      <div>
-        <Typography variant="h5" sx={{ fontWeight: 800 }}>Vehículos</Typography>
-        <Typography color="text.secondary">Estado general de la flota y asignaciones actuales.</Typography>
-      </div>
-
+      <TextField
+        value={busqueda}
+        onChange={(event) => establecerBusqueda(event.target.value)}
+        label="Buscar vehículo"
+        placeholder="Patente, marca, modelo o técnico"
+        fullWidth
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon />
+            </InputAdornment>
+          ),
+        }}
+      />
+      <Typography variant="body2" color="text.secondary">
+        Mostrando {vehiculosFiltrados.length} de {data.vehiculos.length} vehículos.
+      </Typography>
       <Grid container spacing={2}>
-        {data.vehiculos.map((vehiculo) => (
+        {vehiculosFiltrados.map((vehiculo) => (
           <Grid key={vehiculo.id} size={{ xs: 12, md: 6 }}>
             <Card sx={{ height: '100%' }}>
               <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
@@ -82,6 +109,9 @@ function Vehiculos() {
           </Grid>
         ))}
       </Grid>
+      {vehiculosFiltrados.length === 0 && (
+        <Typography color="text.secondary">No hay vehículos que coincidan con la búsqueda.</Typography>
+      )}
     </Stack>
   );
 }

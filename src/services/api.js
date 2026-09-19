@@ -23,4 +23,7 @@ export const reclamosApi = {
   actualizarAsignacion: async (reclamoId, tecnicoId) => (
     await apiClient.patch(`/reclamos/${reclamoId}/asignacion`, { tecnicoId })
   ).data,
+  actualizarEstado: async (reclamoId, cambios) => (
+    await apiClient.patch(`/reclamos/${reclamoId}/estado`, cambios)
+  ).data,
 };

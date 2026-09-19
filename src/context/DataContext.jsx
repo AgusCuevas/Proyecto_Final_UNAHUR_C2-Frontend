@@ -43,8 +43,19 @@ export function DataProvider({ children }) {
     return nuevoReclamo;
   };
 
+  const actualizarEstado = async (reclamoId, cambios) => {
+    const reclamoActualizado = await reclamosApi.actualizarEstado(reclamoId, cambios);
+    setData((actual) => ({
+      ...actual,
+      reclamos: actual.reclamos.map((reclamo) => (
+        reclamo.id === reclamoId ? reclamoActualizado : reclamo
+      )),
+    }));
+    return reclamoActualizado;
+  };
+
   return (
-    <DataContext.Provider value={{ data, error, actualizarAsignacion, crearReclamo }}>
+    <DataContext.Provider value={{ data, error, actualizarAsignacion, actualizarEstado, crearReclamo }}>
       {children}
     </DataContext.Provider>
   );

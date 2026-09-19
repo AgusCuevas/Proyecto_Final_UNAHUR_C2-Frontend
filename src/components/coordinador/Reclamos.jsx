@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import {
+  Autocomplete,
   Box,
   Button,
   Card,
   CardContent,
   Divider,
+  Dialog,
+  DialogContent,
+  DialogTitle,
   FormControl,
   InputLabel,
   MenuItem,
@@ -22,9 +26,11 @@ import { useAppData } from '../../context/useAppData.js';
 function Reclamos() {
   const [formularioAbierto, establecerFormularioAbierto] = useState(false);
   const [reclamoEditado, establecerReclamoEditado] = useState(null);
+  const [reclamoAbierto, establecerReclamoAbierto] = useState(null);
+  const [tecnicoAbierto, establecerTecnicoAbierto] = useState(null);
   const [tecnicoSeleccionado, establecerTecnicoSeleccionado] = useState('');
   const [filtros, establecerFiltros] = useState({
-    estado: 'Todos',
+    estado: 'Abierto',
     tecnicoId: 'Todos',
     desde: '',
     hasta: '',
@@ -48,6 +54,7 @@ function Reclamos() {
     Abierto: 'warning.main',
     Asignado: 'info.main',
     'En progreso': 'secondary.main',
+    Bloqueado: 'error.main',
     Finalizado: 'success.main',
   };
 
@@ -75,15 +82,20 @@ function Reclamos() {
       && coincideTecnico
       && (!desde || fechaCreacion >= desde)
       && (!hasta || fechaCreacion <= hasta);
-  });
+  }).sort((primero, segundo) => segundo.id - primero.id);
+
+  const tecnicoDelReclamo = tecnicoAbierto
+    ? tecnicos.find((tecnico) => tecnico.id === tecnicoAbierto.tecnicoId)
+    : null;
+  const tecnicoDelReclamoAbierto = reclamoAbierto
+    ? tecnicos.find((tecnico) => tecnico.id === reclamoAbierto.tecnicoId)
+    : null;
+
+  const abrirReclamo = (reclamo) => establecerReclamoAbierto(reclamo);
 
   return (
     <Stack spacing={3}>
       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={2}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <Typography variant="h5" sx={{ fontWeight: 800 }}>Reclamos</Typography>
-          <Typography color="text.secondary">Alta y asignación de reclamos del equipo técnico.</Typography>
-        </div>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
@@ -191,7 +203,7 @@ function Reclamos() {
                   label="Estado"
                     onChange={(evento) => actualizarFiltro('estado', evento.target.value)}
                 >
-                  {['Todos', 'Abierto', 'Asignado', 'En progreso', 'Finalizado'].map((estado) => (
+                  {['Todos', 'Abierto', 'Asignado', 'En progreso', 'Bloqueado', 'Finalizado'].map((estado) => (
                     <MenuItem key={estado} value={estado}>{estado}</MenuItem>
                   ))}
                 </Select>
@@ -245,6 +257,12 @@ function Reclamos() {
         {reclamosFiltrados.map((reclamo) => (
           <Card
             key={reclamo.id}
+            onClick={() => abrirReclamo(reclamo)}
+            onKeyDown={(evento) => {
+              if (evento.key === 'Enter' || evento.key === ' ') abrirReclamo(reclamo);
+            }}
+            role="button"
+            tabIndex={0}
             sx={{
               borderRadius: 2.5,
               borderColor: 'divider',
@@ -252,6 +270,7 @@ function Reclamos() {
               borderLeftColor: colorEstado[reclamo.estado] || 'divider',
               transition: 'border-color 160ms ease, box-shadow 160ms ease',
               '&:hover': { borderColor: 'primary.main', boxShadow: 4 },
+              cursor: 'pointer',
             }}
           >
             <CardContent sx={{ p: { xs: 2, sm: 2.5 }, '&:last-child': { pb: { xs: 2, sm: 2.5 } } }}>
@@ -269,12 +288,9 @@ function Reclamos() {
                       {nombreCliente(reclamo.clienteId)} · {reclamo.agrupacionGeografica}
                     </Typography>
                   </Box>
-                  <Box sx={{ p: 1.5, borderRadius: 1.5, backgroundColor: 'action.hover' }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 700 }}>
-                      Descripción
-                    </Typography>
-                    <Typography color="text.primary">{reclamo.descripcion}</Typography>
-                  </Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Seleccioná el reclamo para ver la información completa.
+                  </Typography>
                 </Stack>
 
                 <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
@@ -333,18 +349,36 @@ function Reclamos() {
                       {reclamo.tecnicoId ? (
                         <Stack spacing={0.75} alignItems="center" sx={{ width: '100%' }}>
                           <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
-                            <Stack direction="row" spacing={0.75} alignItems="center" sx={{ width: 'fit-content', maxWidth: '100%' }}>
+                            <Button
+                              variant="text"
+                              onClick={(evento) => {
+                                evento.stopPropagation();
+                                establecerTecnicoAbierto(reclamo);
+                              }}
+                              sx={{
+                                minWidth: 0,
+                                maxWidth: '100%',
+                                textTransform: 'none',
+                                color: 'text.primary',
+                                p: 0.5,
+                              }}
+                            >
+                              <Stack direction="row" spacing={0.75} alignItems="center" sx={{ maxWidth: '100%' }}>
                               <Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: 'text.secondary', flexShrink: 0 }} />
                               <AssignmentIndIcon sx={{ fontSize: 17, color: 'text.secondary' }} />
                               <Typography variant="body2" sx={{ fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 {nombreTecnico(reclamo.tecnicoId)}
                               </Typography>
-                            </Stack>
+                              </Stack>
+                            </Button>
                           </Box>
                           <Button
                             size="small"
                             variant="text"
-                            onClick={() => abrirEdicionTecnico(reclamo)}
+                            onClick={(evento) => {
+                              evento.stopPropagation();
+                              abrirEdicionTecnico(reclamo);
+                            }}
                             sx={{
                               minWidth: 'auto',
                               px: 0.5,
@@ -363,7 +397,10 @@ function Reclamos() {
                           size="small"
                           variant="outlined"
                           startIcon={<AssignmentIndIcon />}
-                          onClick={() => abrirEdicionTecnico(reclamo)}
+                          onClick={(evento) => {
+                            evento.stopPropagation();
+                            abrirEdicionTecnico(reclamo);
+                          }}
                           sx={{
                             color: 'text.primary',
                             borderColor: 'divider',
@@ -378,24 +415,29 @@ function Reclamos() {
 
                   {reclamoEditado === reclamo.id && (
                     <Stack spacing={1.5}>
-                      <FormControl fullWidth>
-                        <InputLabel id={`tecnico-${reclamo.id}-label`}>Técnico asignado</InputLabel>
-                        <Select
-                          labelId={`tecnico-${reclamo.id}-label`}
-                          value={tecnicoSeleccionado}
-                          label="Técnico asignado"
-                          onChange={(evento) => establecerTecnicoSeleccionado(evento.target.value)}
-                        >
-                          <MenuItem value="">Sin asignar</MenuItem>
-                          {tecnicos.map((tecnico) => (
-                            <MenuItem key={tecnico.id} value={tecnico.id}>{tecnico.nombre}</MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
+                      <Autocomplete
+                        options={tecnicos}
+                        value={tecnicos.find((tecnico) => tecnico.id === Number(tecnicoSeleccionado)) || null}
+                        onChange={(_, tecnico) => establecerTecnicoSeleccionado(tecnico?.id || '')}
+                        getOptionLabel={(tecnico) => tecnico.nombre}
+                        isOptionEqualToValue={(opcion, valor) => opcion.id === valor.id}
+                        noOptionsText="No se encontraron técnicos"
+                        clearText="Dejar sin asignar"
+                        openText="Mostrar técnicos"
+                        closeText="Cerrar lista"
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Técnico asignado"
+                            placeholder="Buscar por nombre"
+                          />
+                        )}
+                      />
                       <Button
                         variant="contained"
                         startIcon={<SaveIcon />}
-                        onClick={() => {
+                        onClick={(evento) => {
+                          evento.stopPropagation();
                           const tecnicoId = tecnicoSeleccionado ? Number(tecnicoSeleccionado) : null;
                           actualizarAsignacion(reclamo.id, tecnicoId);
                           establecerReclamoEditado(null);
@@ -414,6 +456,91 @@ function Reclamos() {
           <Typography color="text.secondary">No hay reclamos que coincidan con los filtros.</Typography>
         )}
       </Stack>
+
+      <Dialog
+        open={Boolean(tecnicoAbierto)}
+        onClose={() => establecerTecnicoAbierto(null)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle sx={{ fontWeight: 800 }}>Información del técnico</DialogTitle>
+        <DialogContent>
+          {tecnicoDelReclamo && (
+            <Stack spacing={1.5} sx={{ pt: 1 }}>
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>{tecnicoDelReclamo.nombre}</Typography>
+              <Typography><strong>Usuario:</strong> {tecnicoDelReclamo.usuario}</Typography>
+              <Typography><strong>Email:</strong> {tecnicoDelReclamo.email}</Typography>
+              <Typography><strong>Teléfono:</strong> {tecnicoDelReclamo.telefono}</Typography>
+              <Typography><strong>Documento:</strong> {tecnicoDelReclamo.documento}</Typography>
+              <Typography><strong>Dirección:</strong> {tecnicoDelReclamo.direccion}</Typography>
+              <Typography>
+                <strong>Reclamo asignado:</strong> #{tecnicoAbierto?.id} · {tecnicoAbierto?.tipo}
+              </Typography>
+            </Stack>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(reclamoAbierto)}
+        onClose={() => establecerReclamoAbierto(null)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle sx={{ fontWeight: 800 }}>
+          Reclamo #{reclamoAbierto?.id}
+        </DialogTitle>
+        <DialogContent>
+          {reclamoAbierto && (
+            <Stack spacing={2} sx={{ pt: 1 }}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Typography variant="h6" sx={{ fontWeight: 800 }}>{reclamoAbierto.tipo}</Typography>
+                <Typography sx={{ fontWeight: 800, color: colorEstado[reclamoAbierto.estado] }}>
+                  {reclamoAbierto.estado}
+                </Typography>
+              </Stack>
+              <Typography><strong>Cliente:</strong> {nombreCliente(reclamoAbierto.clienteId)}</Typography>
+              <Typography><strong>Prioridad:</strong> {reclamoAbierto.prioridad}</Typography>
+              <Typography><strong>Zona:</strong> {reclamoAbierto.agrupacionGeografica}</Typography>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Descripción</Typography>
+                <Typography>{reclamoAbierto.descripcion}</Typography>
+              </Box>
+              {reclamoAbierto.motivoBloqueo && (
+                <Typography color="error.main">
+                  <strong>Motivo del bloqueo:</strong> {reclamoAbierto.motivoBloqueo}
+                </Typography>
+              )}
+              {tecnicoDelReclamoAbierto && (
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Técnico</Typography>
+                  <Typography>{tecnicoDelReclamoAbierto.nombre}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {tecnicoDelReclamoAbierto.email} · {tecnicoDelReclamoAbierto.telefono}
+                  </Typography>
+                </Box>
+              )}
+              {reclamoAbierto.comentarioFinalizacion && (
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Comentario del técnico</Typography>
+                  <Typography>{reclamoAbierto.comentarioFinalizacion}</Typography>
+                </Box>
+              )}
+              {reclamoAbierto.imagen && (
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 0.75 }}>Evidencia cargada</Typography>
+                  <Box
+                    component="img"
+                    src={reclamoAbierto.imagen}
+                    alt={`Evidencia del reclamo #${reclamoAbierto.id}`}
+                    sx={{ width: '100%', maxHeight: 280, objectFit: 'contain', borderRadius: 1, border: 1, borderColor: 'divider' }}
+                  />
+                </Box>
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+      </Dialog>
     </Stack>
   );
 }

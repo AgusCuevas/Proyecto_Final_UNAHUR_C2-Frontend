@@ -5,6 +5,7 @@ import Login from './components/Login.jsx';
 import AdminHome from './components/admin/adminHome.jsx';
 import CoordinadorHome from './components/coordinador/coordinadorHome.jsx';
 import TecnicoHome from './components/tecnico/tecnicoHome.jsx';
+import ServicioEnCurso from './components/tecnico/ServicioEnCurso.jsx';
 import { createAppTheme } from './theme/theme.js';
 import { DataProvider } from './context/DataContext.jsx';
 import { useAppData } from './context/useAppData.js';
@@ -55,6 +56,12 @@ function AppContent({ modo, cambiarModo }) {
           path="/tecnicoHome"
           element={usuarioActual 
             ? <TecnicoHome usuario={usuarioActual} alCerrarSesion={volverAlLogin} alCambiarTema={cambiarModo} modo={modo} /> 
+            : <Navigate to="/" replace />}
+        />
+        <Route
+          path="/tecnicoHome/servicio-en-curso"
+          element={usuarioActual
+            ? <ServicioEnCurso usuario={usuarioActual} alCerrarSesion={volverAlLogin} alCambiarTema={cambiarModo} modo={modo} />
             : <Navigate to="/" replace />}
         />
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -47,4 +47,15 @@ mock?.onPatch(/\/reclamos\/\d+\/asignacion/).reply((config) => {
   return respuesta(config, reclamo);
 });
 
+mock?.onPatch(/\/reclamos\/\d+\/estado/).reply((config) => {
+  const reclamoId = Number(config.url.match(/reclamos\/(\d+)\/estado/)[1]);
+  const cambios = JSON.parse(config.data);
+  const reclamo = estadoMock.reclamos.find((item) => item.id === reclamoId);
+
+  if (!reclamo) return respuesta(config, { mensaje: 'Reclamo no encontrado' }, 404);
+
+  Object.assign(reclamo, cambios);
+  return respuesta(config, reclamo);
+});
+
 export const activarMockApi = () => mock;
