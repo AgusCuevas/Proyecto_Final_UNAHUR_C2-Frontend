@@ -3,23 +3,24 @@ import { Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import { CircleMarker, MapContainer, Popup, TileLayer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { datosIniciales } from '../../data/datosIniciales.js';
+import { useAppData } from '../../context/useAppData.js';
 
 const centroMapa = [-34.655, -58.63];
 
 function MapaTecnicos() {
   const [filtro, establecerFiltro] = useState('Todos');
+  const { data } = useAppData();
 
-  const tecnicos = useMemo(() => datosIniciales.usuarios
+  const tecnicos = useMemo(() => data.usuarios
     .filter((usuario) => usuario.rol === 'Tecnico' && usuario.activo)
     .map((tecnico) => {
-      const ubicacion = datosIniciales.ubicacionesTecnicos.find(
+      const ubicacion = data.ubicacionesTecnicos.find(
         (item) => item.tecnicoId === tecnico.id,
       );
       const estado = ubicacion?.estado || 'Libre';
 
       return ubicacion ? { ...tecnico, ubicacion, estado } : null;
-    }), []);
+    }), [data]);
 
   const tecnicosConUbicacion = tecnicos.filter(Boolean);
   const tecnicosVisibles = tecnicosConUbicacion.filter(

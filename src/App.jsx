@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
-import { CssBaseline, ThemeProvider } from '@mui/material';
+import { Box, CircularProgress, CssBaseline, ThemeProvider } from '@mui/material';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import Login from './components/Login.jsx';
 import AdminHome from './components/admin/adminHome.jsx';
 import CoordinadorHome from './components/coordinador/coordinadorHome.jsx';
 import TecnicoHome from './components/tecnico/tecnicoHome.jsx';
 import { createAppTheme } from './theme/theme.js';
+import { DataProvider } from './context/DataContext.jsx';
+import { useAppData } from './context/useAppData.js';
 
 const rutaPorRol = {
   Administrador: '/adminHome',
@@ -14,19 +16,10 @@ const rutaPorRol = {
 };
 
 // Componente principal de la aplicación.
-function App() {
+function AppContent({ modo, cambiarModo }) {
   const [usuarioActual, establecerUsuarioActual] = useState('');
-  const [modo, establecerModo] = useState(() => localStorage.getItem('modoTema') || 'light');
   const navegar = useNavigate();
-  const theme = useMemo(() => createAppTheme(modo), [modo]);
-
-  const cambiarModo = () => {
-    establecerModo((actual) => {
-      const nuevoModo = actual === 'light' ? 'dark' : 'light';
-      localStorage.setItem('modoTema', nuevoModo);
-      return nuevoModo;
-    });
-  };
+  const { data, error } = useAppData();
 
   // Función para manejar el inicio de sesión exitoso.
   const ingresar = (usuario, datosUsuario) => {
@@ -40,9 +33,10 @@ function App() {
     navegar('/');
   };
 
+  if (error) return <Box sx={{ p: 4 }}>{error}</Box>;
+  if (!data) return <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}><CircularProgress /></Box>;
+
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
       <Routes>
         <Route path="/" element={<Login alIniciarSesion={ingresar} />} />
         <Route
@@ -65,6 +59,26 @@ function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+  );
+}
+
+function App() {
+  const [modo, establecerModo] = useState(() => localStorage.getItem('modoTema') || 'light');
+  const theme = useMemo(() => createAppTheme(modo), [modo]);
+  const cambiarModo = () => {
+    establecerModo((actual) => {
+      const nuevoModo = actual === 'light' ? 'dark' : 'light';
+      localStorage.setItem('modoTema', nuevoModo);
+      return nuevoModo;
+    });
+  };
+
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <DataProvider>
+        <AppContent modo={modo} cambiarModo={cambiarModo} />
+      </DataProvider>
     </ThemeProvider>
   );
 }

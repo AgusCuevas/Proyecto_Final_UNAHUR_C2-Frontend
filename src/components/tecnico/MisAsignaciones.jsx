@@ -21,7 +21,7 @@ import DoneIcon from '@mui/icons-material/Done';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import PlaceIcon from '@mui/icons-material/Place';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import { datosIniciales } from '../../data/datosIniciales.js';
+import { useAppData } from '../../context/useAppData.js';
 
 // Define los posibles estados de los reclamos para filtrar las asignaciones del técnico.
 const estados = ['Todos', 'Asignado', 'En progreso', 'Finalizado'];
@@ -34,12 +34,13 @@ function formatearFecha(fecha) {
 // Muestra las asignaciones de un técnico, permitiendo filtrar por estado
 function MisAsignaciones({ usuario }) {
   const [filtro, setFiltro] = useState('Todos');
-  const tecnico = datosIniciales.usuarios.find((usuarioRegistrado) => usuarioRegistrado.usuario === usuario);
-  const asignaciones = datosIniciales.reclamos
+  const { data } = useAppData();
+  const tecnico = data.usuarios.find((usuarioRegistrado) => usuarioRegistrado.usuario === usuario);
+  const asignaciones = data.reclamos
     .filter((reclamo) => reclamo.tecnicoId === tecnico?.id)
     .map((reclamo) => ({
       reclamo,
-      cliente: datosIniciales.clientes.find((cliente) => cliente.id === reclamo.clienteId),
+      cliente: data.clientes.find((cliente) => cliente.id === reclamo.clienteId),
     }));
   const asignacionesFiltradas = asignaciones.filter(
     ({ reclamo }) => filtro === 'Todos' || reclamo.estado === filtro,

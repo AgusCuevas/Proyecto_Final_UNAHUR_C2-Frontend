@@ -12,19 +12,20 @@ import {
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import PersonIcon from '@mui/icons-material/Person';
-import { datosIniciales } from '../../data/datosIniciales.js';
+import { useAppData } from '../../context/useAppData.js';
 
 function Tecnicos() {
-  const tecnicos = datosIniciales.usuarios.filter(
+  const { data } = useAppData();
+  const tecnicos = data.usuarios.filter(
     (usuario) => usuario.rol === 'Tecnico' && usuario.activo,
   );
   const [tecnicoSeleccionado, establecerTecnicoSeleccionado] = useState(tecnicos[0]?.id);
   const [fichaAbierta, establecerFichaAbierta] = useState(false);
   const tecnico = tecnicos.find((item) => item.id === tecnicoSeleccionado) || tecnicos[0];
-  const vehiculo = datosIniciales.vehiculos.find(
+  const vehiculo = data.vehiculos.find(
     (item) => item.tecnicoAsignado === tecnico?.id,
   );
-  const ubicacion = datosIniciales.ubicacionesTecnicos.find(
+  const ubicacion = data.ubicacionesTecnicos.find(
     (item) => item.tecnicoId === tecnico?.id,
   );
 

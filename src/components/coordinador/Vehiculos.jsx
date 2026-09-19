@@ -11,12 +11,13 @@ import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import BuildIcon from '@mui/icons-material/Build';
 import SpeedIcon from '@mui/icons-material/Speed';
-import { datosIniciales } from '../../data/datosIniciales.js';
+import { useAppData } from '../../context/useAppData.js';
 
 const formatearFecha = (fecha) => new Date(`${fecha}T12:00:00`).toLocaleDateString('es-AR');
 
 function Vehiculos() {
-  const tecnicos = datosIniciales.usuarios.filter((usuario) => usuario.rol === 'Tecnico');
+  const { data } = useAppData();
+  const tecnicos = data.usuarios.filter((usuario) => usuario.rol === 'Tecnico');
   const nombreTecnico = (tecnicoId) => tecnicos.find(
     (tecnico) => tecnico.id === tecnicoId,
   )?.nombre || 'Sin técnico asignado';
@@ -29,7 +30,7 @@ function Vehiculos() {
       </div>
 
       <Grid container spacing={2}>
-        {datosIniciales.vehiculos.map((vehiculo) => (
+        {data.vehiculos.map((vehiculo) => (
           <Grid key={vehiculo.id} size={{ xs: 12, md: 6 }}>
             <Card sx={{ height: '100%' }}>
               <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>

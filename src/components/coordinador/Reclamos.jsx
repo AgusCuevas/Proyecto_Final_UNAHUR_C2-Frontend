@@ -17,12 +17,11 @@ import AddIcon from '@mui/icons-material/Add';
 import AssignmentIndIcon from '@mui/icons-material/AssignmentInd';
 import SaveIcon from '@mui/icons-material/Save';
 import CloseIcon from '@mui/icons-material/Close';
-import { datosIniciales } from '../../data/datosIniciales.js';
+import { useAppData } from '../../context/useAppData.js';
 
 function Reclamos() {
   const [formularioAbierto, establecerFormularioAbierto] = useState(false);
   const [reclamoEditado, establecerReclamoEditado] = useState(null);
-  const [reclamos, establecerReclamos] = useState(datosIniciales.reclamos);
   const [tecnicoSeleccionado, establecerTecnicoSeleccionado] = useState('');
   const [filtros, establecerFiltros] = useState({
     estado: 'Todos',
@@ -30,12 +29,14 @@ function Reclamos() {
     desde: '',
     hasta: '',
   });
+  const { data, actualizarAsignacion } = useAppData();
+  const reclamos = data.reclamos;
 
-  const tecnicos = datosIniciales.usuarios.filter(
+  const tecnicos = data.usuarios.filter(
     (usuario) => usuario.rol === 'Tecnico' && usuario.activo,
   );
 
-  const nombreCliente = (clienteId) => datosIniciales.clientes.find(
+  const nombreCliente = (clienteId) => data.clientes.find(
     (cliente) => cliente.id === clienteId,
   )?.nombre || 'Cliente no encontrado';
 
@@ -116,7 +117,7 @@ function Reclamos() {
                     defaultValue=""
                     label="Cliente"
                   >
-                    {datosIniciales.clientes.map((cliente) => (
+                    {data.clientes.map((cliente) => (
                       <MenuItem key={cliente.id} value={cliente.id}>
                         {cliente.nombre} - {cliente.zona}
                       </MenuItem>
@@ -396,11 +397,7 @@ function Reclamos() {
                         startIcon={<SaveIcon />}
                         onClick={() => {
                           const tecnicoId = tecnicoSeleccionado ? Number(tecnicoSeleccionado) : null;
-                          establecerReclamos((actuales) => actuales.map((item) => (
-                            item.id === reclamo.id
-                              ? { ...item, tecnicoId, estado: tecnicoId ? 'Asignado' : 'Abierto' }
-                              : item
-                          )));
+                          actualizarAsignacion(reclamo.id, tecnicoId);
                           establecerReclamoEditado(null);
                         }}
                       >

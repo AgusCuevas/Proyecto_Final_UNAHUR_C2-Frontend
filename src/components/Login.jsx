@@ -14,9 +14,10 @@ import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import PasswordIcon from '@mui/icons-material/Password';
 import { appTheme } from '../theme/theme.js';
-import { usuarios } from '../data/datosIniciales.js';
+import { useAppData } from '../context/useAppData.js';
 
 function Login({ alIniciarSesion }) {
+  const { data } = useAppData();
   // Estado para gestionar las credenciales del usuario y los errores de inicio de sesión.
   const [credenciales, setCredenciales] = useState({ usuario: '', contrasena: '' });
   const [mensajeError, setMensajeError] = useState('');
@@ -25,7 +26,7 @@ function Login({ alIniciarSesion }) {
   const enviarFormulario = (event) => {
     event.preventDefault();
     const usuario = credenciales.usuario.toLowerCase();
-    const usuarioEncontrado = usuarios.find(
+    const usuarioEncontrado = data.usuarios.find(
       (usuarioRegistrado) => usuarioRegistrado.usuario === usuario && usuarioRegistrado.activo,
     );
 
