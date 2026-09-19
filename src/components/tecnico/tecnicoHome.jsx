@@ -12,7 +12,7 @@ function TecnicoHome({ usuario, alCerrarSesion, alCambiarTema, modo }) {
   const contenidoPorSeccion = {
     'Mis asignaciones': <MisAsignaciones usuario={usuario} />,
     'Vehículo': <Vehiculo usuario={usuario} />,
-    'Jornada': <Jornada />,
+    'Jornada': <Jornada usuario={usuario} />,
   };
   const seleccionarOpcion = (opcion) => {
     if (opcion === 'Servicio en curso') {
