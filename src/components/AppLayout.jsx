@@ -22,6 +22,27 @@ import { appTheme } from '../theme/theme.js';
 
 const anchoMenu = 248;
 
+function MarcaGalacticApp({ compact = false }) {
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: compact ? 1 : 1.25 }}>
+      <Box
+        sx={{
+          width: compact ? 38 : 48,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        <Box component="img" src="/logo GalacticApp.png" alt="Logo de GalacticApp" sx={{ width: '100%', height: 'auto', display: 'block' }} />
+      </Box>
+      <Typography variant={compact ? 'h6' : 'subtitle1'} sx={{ fontWeight: 800, letterSpacing: '0.01em' }}>
+        {appTheme.brand.name}
+      </Typography>
+    </Box>
+  );
+}
+
 function AppLayout({ titulo, subtitulo, rol, usuario, opciones = [], alCerrarSesion, alSeleccionarOpcion, alCambiarTema, modo = 'light', children }) {
   const [menuAbierto, establecerMenuAbierto] = useState(false);
 
@@ -83,9 +104,7 @@ function AppLayout({ titulo, subtitulo, rol, usuario, opciones = [], alCerrarSes
           <IconButton color="inherit" edge="start" onClick={() => establecerMenuAbierto(true)} sx={{ display: { xs: 'inline-flex', md: 'none' }, mr: 1 }} aria-label="Abrir menú">
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: '0.04em', flexGrow: 1 }}>
-            {appTheme.brand.name}
-          </Typography>
+          <Box sx={{ flexGrow: 1 }}><MarcaGalacticApp compact /></Box>
           <IconButton color="inherit" onClick={alCambiarTema} aria-label="Cambiar modo de color" sx={{ mr: 1 }}>
             {modo === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
           </IconButton>

@@ -7,6 +7,7 @@ import {
   CardContent,
   Divider,
   Dialog,
+  DialogActions,
   DialogContent,
   DialogTitle,
   FormControl,
@@ -27,6 +28,7 @@ function Reclamos() {
   const [formularioAbierto, establecerFormularioAbierto] = useState(false);
   const [reclamoEditado, establecerReclamoEditado] = useState(null);
   const [reclamoAbierto, establecerReclamoAbierto] = useState(null);
+  const [imagenAbierta, establecerImagenAbierta] = useState(null);
   const [tecnicoAbierto, establecerTecnicoAbierto] = useState(null);
   const [tecnicoSeleccionado, establecerTecnicoSeleccionado] = useState('');
   const [filtros, establecerFiltros] = useState({
@@ -533,13 +535,47 @@ function Reclamos() {
                     component="img"
                     src={reclamoAbierto.imagen}
                     alt={`Evidencia del reclamo #${reclamoAbierto.id}`}
-                    sx={{ width: '100%', maxHeight: 280, objectFit: 'contain', borderRadius: 1, border: 1, borderColor: 'divider' }}
+                    onClick={() => establecerImagenAbierta({
+                      src: reclamoAbierto.imagen,
+                      alt: `Evidencia del reclamo #${reclamoAbierto.id}`,
+                    })}
+                    sx={{
+                      width: '100%',
+                      maxHeight: 280,
+                      objectFit: 'contain',
+                      borderRadius: 1,
+                      border: 1,
+                      borderColor: 'divider',
+                      cursor: 'zoom-in',
+                    }}
                   />
                 </Box>
               )}
             </Stack>
           )}
         </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(imagenAbierta)}
+        onClose={() => establecerImagenAbierta(null)}
+        fullWidth
+        maxWidth="lg"
+      >
+        <DialogTitle sx={{ fontWeight: 800 }}>Imagen del reclamo</DialogTitle>
+        <DialogContent sx={{ display: 'flex', justifyContent: 'center', p: { xs: 1.5, sm: 3 } }}>
+          {imagenAbierta && (
+            <Box
+              component="img"
+              src={imagenAbierta.src}
+              alt={imagenAbierta.alt}
+              sx={{ display: 'block', maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }}
+            />
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => establecerImagenAbierta(null)}>Cerrar</Button>
+        </DialogActions>
       </Dialog>
     </Stack>
   );

@@ -124,6 +124,7 @@ function MisAsignaciones({ usuario, soloEnCurso = false }) {
 function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, actualizarEstado }) {
   const [comentario, setComentario] = useState('');
   const [imagen, setImagen] = useState(null);
+  const [imagenAbierta, establecerImagenAbierta] = useState(null);
   const [dialogoAbierto, establecerDialogoAbierto] = useState(false);
   const [inconvenienteAbierto, establecerInconvenienteAbierto] = useState(false);
   const [motivoInconveniente, establecerMotivoInconveniente] = useState('');
@@ -202,15 +203,20 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
                   component="img"
                   src={reclamo.imagen}
                   alt={`Evidencia del reclamo #${reclamo.id}`}
+                  onClick={() => establecerImagenAbierta({
+                    src: reclamo.imagen,
+                    alt: `Evidencia del reclamo #${reclamo.id}`,
+                  })}
                   sx={{
                     display: 'block',
                     width: { xs: '100%', sm: 180 },
                     maxWidth: '100%',
                     height: 120,
-                    objectFit: 'cover',
+                    objectFit: 'contain',
                     borderRadius: 1,
                     border: 1,
                     borderColor: 'divider',
+                    cursor: 'zoom-in',
                   }}
                 />
               </Box>
@@ -318,6 +324,28 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
             </Button>
           </DialogActions>
         </Box>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(imagenAbierta)}
+        onClose={() => establecerImagenAbierta(null)}
+        fullWidth
+        maxWidth="lg"
+      >
+        <DialogTitle sx={{ fontWeight: 800 }}>Imagen del reclamo</DialogTitle>
+        <DialogContent sx={{ display: 'flex', justifyContent: 'center', p: { xs: 1.5, sm: 3 } }}>
+          {imagenAbierta && (
+            <Box
+              component="img"
+              src={imagenAbierta.src}
+              alt={imagenAbierta.alt}
+              sx={{ display: 'block', maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }}
+            />
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => establecerImagenAbierta(null)}>Cerrar</Button>
+        </DialogActions>
       </Dialog>
     </Accordion>
   );

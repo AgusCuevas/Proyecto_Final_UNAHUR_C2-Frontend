@@ -49,9 +49,21 @@ function Login({ alIniciarSesion }) {
             </Avatar>
           </Box>
           <Box sx={{ textAlign: 'center' }}>
-            <Typography variant="overline" color="primary.main" sx={{ fontWeight: 800, letterSpacing: 2 }}>
-              {appTheme.brand.name}
-            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1, mb: 0.5 }}>
+              <Box
+                sx={{
+                  width: 42,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Box component="img" src="/logo GalacticApp.png" alt="Logo de GalacticApp" sx={{ width: '100%', height: 'auto', display: 'block' }} />
+              </Box>
+              <Typography variant="h6" color="primary.main" sx={{ fontWeight: 800, letterSpacing: '0.01em' }}>
+                {appTheme.brand.name}
+              </Typography>
+            </Box>
             <Typography variant="h4" color="text.primary">
               Iniciar sesión
             </Typography>

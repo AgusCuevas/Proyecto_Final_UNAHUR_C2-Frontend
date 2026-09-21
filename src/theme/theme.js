@@ -2,7 +2,7 @@ import { createTheme } from '@mui/material/styles';
 
 export const appTheme = {
   brand: {
-    name: 'GALACTIC APP',
+    name: 'GalacticApp',
     primary: '#57A2BC',
     primaryDark: '#536875',
     secondary: '#8299C8',
