@@ -32,7 +32,7 @@ function Reclamos() {
   const [tecnicoAbierto, establecerTecnicoAbierto] = useState(null);
   const [tecnicoSeleccionado, establecerTecnicoSeleccionado] = useState('');
   const [filtros, establecerFiltros] = useState({
-    estado: 'Abierto',
+    estado: 'Todos',
     tecnicoId: 'Todos',
     desde: '',
     hasta: '',
@@ -97,7 +97,7 @@ function Reclamos() {
 
   return (
     <Stack spacing={3}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={2}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} gap={2} sx={{ justifyContent: 'space-between' }}>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
@@ -112,7 +112,7 @@ function Reclamos() {
       <Card>
           <CardContent>
             <Stack spacing={2}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="h6" sx={{ fontWeight: 800 }}>Alta de reclamo</Typography>
                 <Button
                   size="small"
@@ -317,7 +317,7 @@ function Reclamos() {
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75, fontWeight: 700, textAlign: 'center' }}>
                       Estado del ticket
                     </Typography>
-                    <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'center' }}>
                       <Box sx={{ width: 11, height: 11, borderRadius: '50%', bgcolor: colorEstado[reclamo.estado] || 'text.secondary' }} />
                       <Typography sx={{ fontWeight: 800, color: colorEstado[reclamo.estado] || 'text.primary' }}>
                         {reclamo.estado}
@@ -328,7 +328,13 @@ function Reclamos() {
 
                 <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
 
-                <Stack spacing={1.5} alignItems="center" sx={{ width: { xs: '100%', md: 250 }, flexShrink: 0 }}>
+                <Stack
+                  spacing={1.5}
+                  onClick={(evento) => evento.stopPropagation()}
+                  onMouseDown={(evento) => evento.stopPropagation()}
+                  onKeyDown={(evento) => evento.stopPropagation()}
+                  sx={{ width: { xs: '100%', md: 250 }, flexShrink: 0, alignItems: 'center' }}
+                >
                   <Stack spacing={1}>
                     <Box
                       sx={{
@@ -349,7 +355,7 @@ function Reclamos() {
                         Técnico
                       </Typography>
                       {reclamo.tecnicoId ? (
-                        <Stack spacing={0.75} alignItems="center" sx={{ width: '100%' }}>
+                        <Stack spacing={0.75} sx={{ width: '100%', alignItems: 'center' }}>
                           <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
                             <Button
                               variant="text"
@@ -365,7 +371,7 @@ function Reclamos() {
                                 p: 0.5,
                               }}
                             >
-                              <Stack direction="row" spacing={0.75} alignItems="center" sx={{ maxWidth: '100%' }}>
+                              <Stack direction="row" spacing={0.75} sx={{ maxWidth: '100%', alignItems: 'center' }}>
                               <Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: 'text.secondary', flexShrink: 0 }} />
                               <AssignmentIndIcon sx={{ fontSize: 17, color: 'text.secondary' }} />
                               <Typography variant="body2" sx={{ fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -473,8 +479,8 @@ function Reclamos() {
               <Typography><strong>Usuario:</strong> {tecnicoDelReclamo.usuario}</Typography>
               <Typography><strong>Email:</strong> {tecnicoDelReclamo.email}</Typography>
               <Typography><strong>Teléfono:</strong> {tecnicoDelReclamo.telefono}</Typography>
-              <Typography><strong>Documento:</strong> {tecnicoDelReclamo.documento}</Typography>
-              <Typography><strong>Dirección:</strong> {tecnicoDelReclamo.direccion}</Typography>
+              <Typography><strong>DNI:</strong> {tecnicoDelReclamo.documento}</Typography>
+              <Typography><strong>Domicilio:</strong> {tecnicoDelReclamo.direccion}</Typography>
               <Typography>
                 <strong>Reclamo asignado:</strong> #{tecnicoAbierto?.id} · {tecnicoAbierto?.tipo}
               </Typography>
@@ -495,7 +501,7 @@ function Reclamos() {
         <DialogContent>
           {reclamoAbierto && (
             <Stack spacing={2} sx={{ pt: 1 }}>
-              <Stack direction="row" spacing={1} alignItems="center">
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                 <Typography variant="h6" sx={{ fontWeight: 800 }}>{reclamoAbierto.tipo}</Typography>
                 <Typography sx={{ fontWeight: 800, color: colorEstado[reclamoAbierto.estado] }}>
                   {reclamoAbierto.estado}

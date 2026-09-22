@@ -43,7 +43,7 @@ function MarcaGalacticApp({ compact = false }) {
   );
 }
 
-function AppLayout({ titulo, subtitulo, rol, usuario, opciones = [], alCerrarSesion, alSeleccionarOpcion, alCambiarTema, modo = 'light', children }) {
+function AppLayout({ titulo, subtitulo, rol, usuario, nombre, opciones = [], alCerrarSesion, alSeleccionarOpcion, alCambiarTema, modo = 'light', children }) {
   const [menuAbierto, establecerMenuAbierto] = useState(false);
 
   const seleccionarOpcion = (opcion) => {
@@ -56,13 +56,15 @@ function AppLayout({ titulo, subtitulo, rol, usuario, opciones = [], alCerrarSes
       <Box sx={{ px: 2.5, pb: 2.5 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Avatar sx={{ flexShrink: 0, bgcolor: 'secondary.main', width: 50, height: 50, border: 3, borderColor: 'background.paper', boxShadow: 2 }}>
-            {usuario.charAt(0).toUpperCase()}
+            {(nombre || usuario).charAt(0).toUpperCase()}
           </Avatar>
           <Box sx={{ minWidth: 0 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {usuario}
+            <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+              {rol}
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35 }}>{rol}</Typography>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2, mt: 0.35, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {nombre || usuario}
+            </Typography>
           </Box>
         </Box>
       </Box>
@@ -141,7 +143,7 @@ function AppLayout({ titulo, subtitulo, rol, usuario, opciones = [], alCerrarSes
         onClose={() => establecerMenuAbierto(false)}
         ModalProps={{ keepMounted: true }}
         sx={{ display: { xs: 'block', md: 'none' } }}
-        PaperProps={{ sx: { width: anchoMenu, pt: 3 } }}
+        slotProps={{ paper: { sx: { width: anchoMenu, pt: 3 } } }}
       >
         {contenidoMenu}
       </Drawer>

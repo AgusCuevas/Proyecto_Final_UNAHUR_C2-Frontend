@@ -223,7 +223,7 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
             )}
           </Box>
 
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
             <PlaceIcon color="primary" fontSize="small" />
             <Typography variant="body2" sx={{ flexGrow: 1, minWidth: 0, overflowWrap: 'anywhere' }}>
               {cliente.direccion}
@@ -236,7 +236,7 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
           </Stack>
 
           {reclamo.estado === 'Asignado' && (
-            <Stack spacing={0.75} alignItems="flex-start">
+            <Stack spacing={0.75} sx={{ alignItems: 'flex-start' }}>
               <Button
                 variant="contained"
                 startIcon={<PlayArrowIcon />}
@@ -388,7 +388,7 @@ function FormularioFinalizar({ abierto, cerrar, formularioId, comentario, setCom
               fullWidth
             />
 
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
               <Button component="label" variant="outlined" startIcon={<AddPhotoAlternateIcon />}>
                 Cargar imagen
                 <input

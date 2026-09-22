@@ -5,7 +5,7 @@ import MisAsignaciones from './MisAsignaciones.jsx';
 import Vehiculo from './Vehiculo.jsx';
 import Jornada from './Jornada.jsx';
 
-function TecnicoHome({ usuario, alCerrarSesion, alCambiarTema, modo }) {
+function TecnicoHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
   const [seccion, establecerSeccion] = useState('Mis asignaciones');
   const navegar = useNavigate();
 
@@ -28,6 +28,7 @@ function TecnicoHome({ usuario, alCerrarSesion, alCambiarTema, modo }) {
       subtitulo="Consultá tus reclamos asignados y registrá el trabajo realizado."
       rol="Técnico"
       usuario={usuario}
+      nombre={nombre}
       opciones={['Mis asignaciones', 'Servicio en curso', 'Vehículo', 'Jornada']}
       alCerrarSesion={alCerrarSesion}
       alCambiarTema={alCambiarTema}

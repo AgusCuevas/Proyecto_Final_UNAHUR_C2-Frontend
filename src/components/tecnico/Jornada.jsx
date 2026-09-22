@@ -54,7 +54,7 @@ function Jornada({ usuario }) {
     <Stack spacing={3}>
       <Paper sx={{ p: { xs: 2, md: 3 } }}>
         <Stack spacing={2}>
-          <Stack direction="row" spacing={2} alignItems="center">
+          <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
             <AccessTimeIcon color="primary" fontSize="large" />
             <Stack spacing={0.5}>
               <Typography variant="h6" sx={{ fontWeight: 800 }}>Jornada de trabajo</Typography>
@@ -68,7 +68,7 @@ function Jornada({ usuario }) {
               <Alert severity="success">Jornada activa desde {new Date(jornadaActiva.inicio).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</Alert>
               <Typography variant="h5" sx={{ fontWeight: 800 }}>{formatearDuracion(jornadaActiva.inicio, marcaActual)}</Typography>
               <Typography variant="body2" color="text.secondary">Tiempo transcurrido</Typography>
-              <Stack component="form" onSubmit={cerrarJornada} direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'flex-start' }}>
+              <Stack component="form" onSubmit={cerrarJornada} direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'flex-start' } }}>
                 <TextField
                   label="Kilometraje final"
                   type="number"

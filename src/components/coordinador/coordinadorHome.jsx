@@ -5,7 +5,7 @@ import Reclamos from './Reclamos.jsx';
 import Tecnicos from './Tecnicos.jsx';
 import Vehiculos from './Vehiculos.jsx';
 
-function CoordinadorHome({ usuario, alCerrarSesion, alCambiarTema, modo }) {
+function CoordinadorHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
   const [seccion, establecerSeccion] = useState('Panel del coordinador');
 
   const contenidoPorSeccion = {
@@ -21,6 +21,7 @@ function CoordinadorHome({ usuario, alCerrarSesion, alCambiarTema, modo }) {
       subtitulo="Organizá los reclamos y coordiná las tareas del equipo."
       rol="Coordinador"
       usuario={usuario}
+      nombre={nombre}
       opciones={['Panel del coordinador', 'Reclamos', 'Técnicos', 'Vehículos']}
       alCerrarSesion={alCerrarSesion}
       alCambiarTema={alCambiarTema}

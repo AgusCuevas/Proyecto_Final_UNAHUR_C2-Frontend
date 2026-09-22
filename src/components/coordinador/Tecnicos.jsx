@@ -61,6 +61,9 @@ function Tecnicos() {
   const vehiculo = data.vehiculos.find(
     (item) => item.tecnicoAsignado === tecnico?.id,
   );
+  const formatearFecha = (fecha) => fecha
+    ? new Intl.DateTimeFormat('es-AR').format(new Date(`${fecha}T00:00:00`))
+    : 'No informada';
 
   return (
     <Stack spacing={3}>
@@ -71,12 +74,14 @@ function Tecnicos() {
           label="Buscar técnico"
           placeholder="Nombre, usuario o email"
           fullWidth
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            },
           }}
         />
         <FormControl sx={{ minWidth: { sm: 190 } }}>
@@ -100,7 +105,7 @@ function Tecnicos() {
       {tecnicosFiltrados.length === 0 ? (
         <Typography color="text.secondary">No hay técnicos que coincidan con los filtros.</Typography>
       ) : (
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="flex-start">
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ alignItems: 'flex-start' }}>
           <Stack spacing={1.25} sx={{ width: { xs: '100%', md: 300 }, flexShrink: 0 }}>
             {tecnicosVisibles.map((item) => (
               <Card
@@ -118,7 +123,7 @@ function Tecnicos() {
                 }}
               >
                 <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                  <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
                     <Avatar sx={{ bgcolor: 'secondary.main', width: 38, height: 38 }}>
                       {item.nombre.charAt(0)}
                     </Avatar>
@@ -134,8 +139,8 @@ function Tecnicos() {
 
           <Card sx={{ flex: 1, minWidth: 0, alignSelf: 'flex-start' }}>
           <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={2}>
-              <Stack direction="row" spacing={2} alignItems="center">
+            <Stack direction={{ xs: 'column', sm: 'row' }} gap={2} sx={{ justifyContent: 'space-between' }}>
+              <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
                 <Avatar sx={{ bgcolor: 'primary.main', width: 58, height: 58 }}>
                   <PersonIcon />
                 </Avatar>
@@ -164,7 +169,7 @@ function Tecnicos() {
             <Divider sx={{ my: 2.5 }} />
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
               <Stack spacing={0.5} sx={{ flex: 1, p: 1.5, borderRadius: 1.5, backgroundColor: 'action.hover' }}>
-                <Typography variant="caption" color="text.secondary">Documento</Typography>
+                <Typography variant="caption" color="text.secondary">DNI</Typography>
                 <Typography sx={{ fontWeight: 800 }}>{tecnico.documento}</Typography>
               </Stack>
               <Stack spacing={0.5} sx={{ flex: 1, p: 1.5, borderRadius: 1.5, backgroundColor: 'action.hover' }}>
@@ -173,7 +178,7 @@ function Tecnicos() {
               </Stack>
               <Stack spacing={0.5} sx={{ flex: 1, p: 1.5, borderRadius: 1.5, backgroundColor: 'action.hover' }}>
                 <Typography variant="caption" color="text.secondary">Estado operativo</Typography>
-                    <Typography sx={{ fontWeight: 800 }}>{tecnico.estado}</Typography>
+                <Typography sx={{ fontWeight: 800 }}>{tecnico.estado}</Typography>
               </Stack>
             </Stack>
 
@@ -182,16 +187,24 @@ function Tecnicos() {
                 <Divider />
                 <Typography variant="h6" sx={{ fontWeight: 800 }}>Ficha personal y vehículo</Typography>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3}>
-                  <div>
+                  <Stack spacing={0.35}>
                     <Typography variant="caption" color="text.secondary">Usuario</Typography>
                     <Typography>{tecnico.usuario}</Typography>
-                  </div>
-                  <div>
-                    <Typography variant="caption" color="text.secondary">Dirección</Typography>
-                    <Typography>{tecnico.direccion}</Typography>
-                  </div>
+                  </Stack>
+                  <Stack spacing={0.35}>
+                    <Typography variant="caption" color="text.secondary">Domicilio</Typography>
+                    <Typography>{tecnico.direccion || 'No informado'}</Typography>
+                  </Stack>
+                  <Stack spacing={0.35}>
+                    <Typography variant="caption" color="text.secondary">Fecha de nacimiento</Typography>
+                    <Typography>{formatearFecha(tecnico.fechaNacimiento)}</Typography>
+                  </Stack>
+                  <Stack spacing={0.35}>
+                    <Typography variant="caption" color="text.secondary">Fecha de vencimiento de registro</Typography>
+                    <Typography>{formatearFecha(tecnico.vencimientoRegistro)}</Typography>
+                  </Stack>
                 </Stack>
-                <Stack direction="row" spacing={1.5} alignItems="center">
+                <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
                   <DirectionsCarIcon color="primary" />
                   <div>
                     <Typography variant="caption" color="text.secondary">Vehículo asignado</Typography>

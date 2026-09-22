@@ -88,8 +88,7 @@ function MapaTecnicos() {
         pt={2.5}
         pb={2.5}
         mb={3.5}
-        flexWrap="wrap"
-        sx={{ borderTop: 1, borderColor: 'divider' }}
+        sx={{ borderTop: 1, borderColor: 'divider', flexWrap: 'wrap' }}
       >
         <Chip icon={<LocationOnIcon />} label={`${activos} activos`} color="success" size="small" />
         <Chip label={`${asignados} asignados`} color="warning" size="small" />

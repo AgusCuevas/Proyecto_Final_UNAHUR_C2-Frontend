@@ -45,12 +45,14 @@ function Vehiculos() {
         label="Buscar vehículo"
         placeholder="Patente, marca, modelo o técnico"
         fullWidth
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <SearchIcon />
-            </InputAdornment>
-          ),
+        slotProps={{
+          input: {
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          },
         }}
       />
       <Typography variant="body2" color="text.secondary">
@@ -61,8 +63,8 @@ function Vehiculos() {
           <Grid key={vehiculo.id} size={{ xs: 12, md: 6 }}>
             <Card sx={{ height: '100%' }}>
               <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={2}>
-                  <Stack direction="row" spacing={1.5} alignItems="center">
+                <Stack direction="row" gap={2} sx={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
                     <DirectionsCarIcon color="primary" fontSize="large" />
                     <div>
                       <Typography variant="h6" sx={{ fontWeight: 800 }}>
@@ -77,7 +79,7 @@ function Vehiculos() {
                 <Divider sx={{ my: 2 }} />
                 <Grid container spacing={2}>
                   <Grid size={{ xs: 6, sm: 4 }}>
-                    <Stack direction="row" spacing={0.75} alignItems="center">
+                    <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
                       <SpeedIcon fontSize="small" color="secondary" />
                       <Typography variant="caption" color="text.secondary">Kilómetros</Typography>
                     </Stack>
@@ -88,7 +90,7 @@ function Vehiculos() {
                     <Typography sx={{ fontWeight: 700 }}>{nombreTecnico(vehiculo.tecnicoAsignado)}</Typography>
                   </Grid>
                   <Grid size={{ xs: 12, sm: 4 }}>
-                    <Stack direction="row" spacing={0.75} alignItems="center">
+                    <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
                       <BuildIcon fontSize="small" color="secondary" />
                       <Typography variant="caption" color="text.secondary">Último service</Typography>
                     </Stack>
@@ -98,7 +100,7 @@ function Vehiculos() {
 
                 <Stack spacing={1.25} mt={2}>
                   <Typography variant="body2"><strong>Seguro:</strong> {vehiculo.seguro.compania} · Póliza {vehiculo.seguro.poliza}</Typography>
-                  <Stack direction="row" spacing={0.75} alignItems="center">
+                  <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
                     <EventAvailableIcon fontSize="small" color="secondary" />
                     <Typography variant="body2"><strong>Vencimiento:</strong> {formatearFecha(vehiculo.seguro.vence)}</Typography>
                   </Stack>

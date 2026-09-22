@@ -3,7 +3,7 @@ import { useState } from 'react';
 import AppLayout from '../AppLayout.jsx';
 
 // Componente principal para la pantalla del administrador.
-function AdminHome({ usuario, alCerrarSesion, alCambiarTema, modo }) {
+function AdminHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
   const [seccion, establecerSeccion] = useState('Panel de administración');
 
   return (
@@ -12,6 +12,7 @@ function AdminHome({ usuario, alCerrarSesion, alCambiarTema, modo }) {
       subtitulo="Gestioná usuarios, clientes y el historial de servicios."
       rol="Administrador"
       usuario={usuario}
+      nombre={nombre}
       opciones={['Panel de administración', 'Usuarios', 'Clientes', 'Reportes']}
       alCerrarSesion={alCerrarSesion}
       alCambiarTema={alCambiarTema}

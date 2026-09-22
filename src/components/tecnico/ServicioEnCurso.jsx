@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import AppLayout from '../AppLayout.jsx';
 import MisAsignaciones from './MisAsignaciones.jsx';
 
-function ServicioEnCurso({ usuario, alCerrarSesion, alCambiarTema, modo }) {
+function ServicioEnCurso({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
   const navegar = useNavigate();
 
   const seleccionarOpcion = (opcion) => {
@@ -16,6 +16,7 @@ function ServicioEnCurso({ usuario, alCerrarSesion, alCambiarTema, modo }) {
       subtitulo="Consultá el reclamo que estás realizando actualmente."
       rol="Técnico"
       usuario={usuario}
+      nombre={nombre}
       opciones={['Mis asignaciones', 'Servicio en curso', 'Vehículo', 'Jornada']}
       alCerrarSesion={alCerrarSesion}
       alCambiarTema={alCambiarTema}

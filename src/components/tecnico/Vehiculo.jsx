@@ -10,7 +10,7 @@ function Vehiculo({ usuario }) {
   return (
     <Paper sx={{ p: { xs: 2, md: 3 } }}>
       <Stack spacing={2}>
-        <Stack direction="row" spacing={2} alignItems="center">
+        <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
         <DirectionsCarIcon color="secondary" fontSize="large" />
         <Box>
           <Typography variant="h6" sx={{ fontWeight: 800 }}>Vehiculo asignado</Typography>

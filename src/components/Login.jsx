@@ -4,6 +4,7 @@ import {
   Avatar,
   Box,
   Button,
+  IconButton,
   InputAdornment,
   Paper,
   Stack,
@@ -13,6 +14,8 @@ import {
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import PasswordIcon from '@mui/icons-material/Password';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { appTheme } from '../theme/theme.js';
 import { useAppData } from '../context/useAppData.js';
 
@@ -21,6 +24,7 @@ function Login({ alIniciarSesion }) {
   // Estado para gestionar las credenciales del usuario y los errores de inicio de sesión.
   const [credenciales, setCredenciales] = useState({ usuario: '', contrasena: '' });
   const [mensajeError, setMensajeError] = useState('');
+  const [mostrarContrasena, setMostrarContrasena] = useState(false);
 
   // Envia el formulario de inicio de sesión.
   const enviarFormulario = (event) => {
@@ -81,16 +85,32 @@ function Login({ alIniciarSesion }) {
               onChange={(event) => setCredenciales({ ...credenciales, usuario: event.target.value })}
               required
               fullWidth
-              InputProps={{ startAdornment: <InputAdornment position="start"><AccountCircleIcon color="action" /></InputAdornment> }}
+              slotProps={{ input: { startAdornment: <InputAdornment position="start"><AccountCircleIcon color="action" /></InputAdornment> } }}
             />
             <TextField
               label="Contraseña"
-              type="password"
+              type={mostrarContrasena ? 'text' : 'password'}
               value={credenciales.contrasena}
               onChange={(event) => setCredenciales({ ...credenciales, contrasena: event.target.value })}
               required
               fullWidth
-              InputProps={{ startAdornment: <InputAdornment position="start"><PasswordIcon color="action" /></InputAdornment> }}
+              slotProps={{
+                input: {
+                  startAdornment: <InputAdornment position="start"><PasswordIcon color="action" /></InputAdornment>,
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        type="button"
+                        onClick={() => setMostrarContrasena((visible) => !visible)}
+                        edge="end"
+                        aria-label={mostrarContrasena ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                      >
+                        {mostrarContrasena ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                },
+              }}
             />
           </Stack>
 

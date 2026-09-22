@@ -19,18 +19,21 @@ const rutaPorRol = {
 // Componente principal de la aplicación.
 function AppContent({ modo, cambiarModo }) {
   const [usuarioActual, establecerUsuarioActual] = useState('');
+  const [nombreUsuarioActual, establecerNombreUsuarioActual] = useState('');
   const navegar = useNavigate();
   const { data, error } = useAppData();
 
   // Función para manejar el inicio de sesión exitoso.
   const ingresar = (usuario, datosUsuario) => {
     establecerUsuarioActual(usuario);
+    establecerNombreUsuarioActual(datosUsuario.nombre);
     navegar(rutaPorRol[datosUsuario.rol] || '/');
   };
 
   // Función para manejar el cierre de sesión.
   const volverAlLogin = () => {
     establecerUsuarioActual('');
+    establecerNombreUsuarioActual('');
     navegar('/');
   };
 
@@ -43,25 +46,25 @@ function AppContent({ modo, cambiarModo }) {
         <Route
           path="/adminHome"
           element={usuarioActual 
-            ? <AdminHome usuario={usuarioActual} alCerrarSesion={volverAlLogin} alCambiarTema={cambiarModo} modo={modo} /> 
+            ? <AdminHome usuario={usuarioActual} nombre={nombreUsuarioActual} alCerrarSesion={volverAlLogin} alCambiarTema={cambiarModo} modo={modo} /> 
             : <Navigate to="/" replace />}
         />
         <Route
           path="/coordinadorHome"
           element={usuarioActual 
-            ? <CoordinadorHome usuario={usuarioActual} alCerrarSesion={volverAlLogin} alCambiarTema={cambiarModo} modo={modo} /> 
+            ? <CoordinadorHome usuario={usuarioActual} nombre={nombreUsuarioActual} alCerrarSesion={volverAlLogin} alCambiarTema={cambiarModo} modo={modo} /> 
             : <Navigate to="/" replace />}
         />
         <Route
           path="/tecnicoHome"
           element={usuarioActual 
-            ? <TecnicoHome usuario={usuarioActual} alCerrarSesion={volverAlLogin} alCambiarTema={cambiarModo} modo={modo} /> 
+            ? <TecnicoHome usuario={usuarioActual} nombre={nombreUsuarioActual} alCerrarSesion={volverAlLogin} alCambiarTema={cambiarModo} modo={modo} /> 
             : <Navigate to="/" replace />}
         />
         <Route
           path="/tecnicoHome/servicio-en-curso"
           element={usuarioActual
-            ? <ServicioEnCurso usuario={usuarioActual} alCerrarSesion={volverAlLogin} alCambiarTema={cambiarModo} modo={modo} />
+            ? <ServicioEnCurso usuario={usuarioActual} nombre={nombreUsuarioActual} alCerrarSesion={volverAlLogin} alCambiarTema={cambiarModo} modo={modo} />
             : <Navigate to="/" replace />}
         />
         <Route path="*" element={<Navigate to="/" replace />} />
