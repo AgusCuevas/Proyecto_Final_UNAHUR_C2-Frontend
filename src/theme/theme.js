@@ -101,6 +101,9 @@ export const createAppTheme = (modo = 'light') => {
     MuiTextField: {
       defaultProps: { size: 'small' },
     },
+    MuiInputLabel: {
+      defaultProps: { shrink: true },
+    },
     MuiFormControl: {
       defaultProps: { size: 'small' },
     },

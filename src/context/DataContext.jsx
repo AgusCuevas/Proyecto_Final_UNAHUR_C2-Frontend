@@ -67,6 +67,19 @@ export function DataProvider({ children }) {
     return reclamoActualizado;
   };
 
+  const actualizarAsignacionVehiculo = (vehiculoId, tecnicoId) => {
+    let vehiculoActualizado;
+    setData((actual) => {
+      const vehiculos = actual.vehiculos.map((vehiculo) => {
+        if (vehiculo.id !== vehiculoId) return vehiculo;
+        vehiculoActualizado = { ...vehiculo, tecnicoAsignado: tecnicoId || null };
+        return vehiculoActualizado;
+      });
+      return { ...actual, vehiculos };
+    });
+    return vehiculoActualizado;
+  };
+
   const iniciarJornada = (tecnicoId) => {
     const jornada = {
       id: Date.now(),
@@ -122,6 +135,7 @@ export function DataProvider({ children }) {
       error,
       actualizarAsignacion,
       actualizarEstado,
+      actualizarAsignacionVehiculo,
       crearReclamo,
       iniciarJornada,
       finalizarJornada,

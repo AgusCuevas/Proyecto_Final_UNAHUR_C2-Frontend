@@ -226,23 +226,21 @@ function Reclamos() {
                 </Select>
               </FormControl>
               <Stack spacing={0.75} sx={{ flex: 1, minWidth: 0 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ pl: 0.5 }}>
-                  Desde fecha y hora
-                </Typography>
                 <TextField
                   fullWidth
                   type="datetime-local"
+                  label="Desde fecha y hora"
+                  InputLabelProps={{ shrink: true }}
                   value={filtros.desde}
                   onChange={(evento) => actualizarFiltro('desde', evento.target.value)}
                 />
               </Stack>
               <Stack spacing={0.75} sx={{ flex: 1, minWidth: 0 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ pl: 0.5 }}>
-                  Hasta fecha y hora
-                </Typography>
                 <TextField
                   fullWidth
                   type="datetime-local"
+                  label="Hasta fecha y hora"
+                  InputLabelProps={{ shrink: true }}
                   value={filtros.hasta}
                   onChange={(evento) => actualizarFiltro('hasta', evento.target.value)}
                 />
