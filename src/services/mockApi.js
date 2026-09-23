@@ -22,6 +22,21 @@ mock?.onGet('/vehiculos').reply((config) => respuesta(config, estadoMock.vehicul
 mock?.onGet('/ubicaciones-tecnicos').reply((config) => respuesta(config, estadoMock.ubicacionesTecnicos));
 mock?.onGet('/reclamos').reply((config) => respuesta(config, estadoMock.reclamos));
 
+mock?.onPatch(/\/vehiculos\/\d+\/kilometraje/).reply((config) => {
+  const vehiculoId = Number(config.url.match(/vehiculos\/(\d+)\/kilometraje/)[1]);
+  const { kilometraje } = JSON.parse(config.data);
+  const vehiculo = estadoMock.vehiculos.find((item) => item.id === vehiculoId);
+
+  if (!vehiculo) return respuesta(config, { mensaje: 'Vehículo no encontrado' }, 404);
+  if (!Number.isFinite(Number(kilometraje)) || Number(kilometraje) < vehiculo.kilometraje.actual) {
+    return respuesta(config, { mensaje: 'El kilometraje debe ser válido y no menor al actual.' }, 400);
+  }
+
+  vehiculo.kilometraje.actual = Number(kilometraje);
+  vehiculo.kilometraje.actualizadoEn = new Date().toISOString();
+  return respuesta(config, vehiculo);
+});
+
 mock?.onPost('/reclamos').reply((config) => {
   const nuevoReclamo = JSON.parse(config.data);
   const reclamo = {

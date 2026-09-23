@@ -11,6 +11,9 @@ export const clientesApi = {
 
 export const vehiculosApi = {
   listar: async () => (await apiClient.get('/vehiculos')).data,
+  actualizarKilometraje: async (vehiculoId, kilometraje) => (
+    await apiClient.patch(`/vehiculos/${vehiculoId}/kilometraje`, { kilometraje })
+  ).data,
 };
 
 export const ubicacionesApi = {

@@ -1,6 +1,7 @@
 import { Box, Paper, Stack, Typography } from '@mui/material';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import { useAppData } from '../../context/useAppData.js';
+import RegistroKilometraje from './RegistroKilometraje.jsx';
 
 function Vehiculo({ usuario }) {
   const { data } = useAppData();
@@ -19,12 +20,19 @@ function Vehiculo({ usuario }) {
           <Typography variant="body2">Kilometraje actual: {vehiculo?.kilometraje.actual} km</Typography>
         </Box>
         </Stack>
-        <Stack spacing={0.5}>
-          <Typography variant="body2"><strong>Seguro:</strong> {vehiculo?.seguro.compania} · Póliza {vehiculo?.seguro.poliza}</Typography>
-          <Typography variant="body2"><strong>Vencimiento:</strong> {vehiculo?.seguro.vence}</Typography>
-          <Typography variant="body2"><strong>Último service:</strong> {vehiculo?.ultimoService}</Typography>
-          <Typography variant="body2" color="text.secondary">{vehiculo?.detalle}</Typography>
-        </Stack>
+        {vehiculo ? (
+          <>
+            <Stack spacing={0.5}>
+              <Typography variant="body2"><strong>Seguro:</strong> {vehiculo.seguro.compania} · Póliza {vehiculo.seguro.poliza}</Typography>
+              <Typography variant="body2"><strong>Vencimiento:</strong> {vehiculo.seguro.vence}</Typography>
+              <Typography variant="body2"><strong>Último service:</strong> {vehiculo.ultimoService}</Typography>
+              <Typography variant="body2" color="text.secondary">{vehiculo.detalle}</Typography>
+            </Stack>
+            <RegistroKilometraje vehiculo={vehiculo} compacto />
+          </>
+        ) : (
+          <Typography color="text.secondary">No tenés un vehículo asignado.</Typography>
+        )}
       </Stack>
     </Paper>
   );

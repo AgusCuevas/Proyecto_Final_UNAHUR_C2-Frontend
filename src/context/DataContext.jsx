@@ -22,7 +22,14 @@ export function DataProvider({ children }) {
     ])
       .then(([usuarios, clientes, vehiculos, reclamos, ubicacionesTecnicos]) => {
         const jornadas = JSON.parse(localStorage.getItem('jornadasTecnicos') || '[]');
-        setData({ usuarios, clientes, vehiculos, reclamos, ubicacionesTecnicos, jornadas });
+        const vehiculosConRegistro = vehiculos.map((vehiculo) => {
+          const registro = JSON.parse(localStorage.getItem(`kilometrajeVehiculo:${vehiculo.id}`) || 'null');
+          return registro ? {
+            ...vehiculo,
+            kilometraje: { ...vehiculo.kilometraje, ...registro },
+          } : vehiculo;
+        });
+        setData({ usuarios, clientes, vehiculos: vehiculosConRegistro, reclamos, ubicacionesTecnicos, jornadas });
       })
       .catch(() => setError('No se pudieron cargar los datos de la aplicación.'));
   }, []);
@@ -77,6 +84,18 @@ export function DataProvider({ children }) {
       });
       return { ...actual, vehiculos };
     });
+    return vehiculoActualizado;
+  };
+
+  const actualizarKilometraje = async (vehiculoId, kilometraje) => {
+    const vehiculoActualizado = await vehiculosApi.actualizarKilometraje(vehiculoId, kilometraje);
+    localStorage.setItem(`kilometrajeVehiculo:${vehiculoId}`, JSON.stringify(vehiculoActualizado.kilometraje));
+    setData((actual) => ({
+      ...actual,
+      vehiculos: actual.vehiculos.map((vehiculo) => (
+        vehiculo.id === vehiculoId ? vehiculoActualizado : vehiculo
+      )),
+    }));
     return vehiculoActualizado;
   };
 
@@ -136,6 +155,7 @@ export function DataProvider({ children }) {
       actualizarAsignacion,
       actualizarEstado,
       actualizarAsignacionVehiculo,
+      actualizarKilometraje,
       crearReclamo,
       iniciarJornada,
       finalizarJornada,
