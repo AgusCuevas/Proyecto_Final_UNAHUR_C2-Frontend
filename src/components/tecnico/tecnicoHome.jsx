@@ -9,6 +9,8 @@ import Jornada from './Jornada.jsx';
 import RegistroKilometraje from './RegistroKilometraje.jsx';
 import { useAppData } from '../../context/useAppData.js';
 
+const semanaEnMilisegundos = 7 * 24 * 60 * 60 * 1000;
+
 function TecnicoHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
   const [seccion, establecerSeccion] = useState('Mis asignaciones');
   const { data } = useAppData();
@@ -17,8 +19,18 @@ function TecnicoHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
   const vehiculo = data.vehiculos.find((vehiculoRegistrado) => vehiculoRegistrado.tecnicoAsignado === tecnico?.id);
   const [avisoKilometrajeAbierto, establecerAvisoKilometrajeAbierto] = useState(() => {
     const ultimoRegistro = vehiculo?.kilometraje?.actualizadoEn;
-    return Boolean(vehiculo && (!ultimoRegistro || Date.now() - new Date(ultimoRegistro).getTime() >= 7 * 24 * 60 * 60 * 1000));
+    const ultimoAviso = localStorage.getItem(`avisoKilometrajeTecnico:${tecnico?.id}`);
+    const pasoUnaSemanaDesdeElAviso = !ultimoAviso
+      || Date.now() - new Date(ultimoAviso).getTime() >= semanaEnMilisegundos;
+    const pasoUnaSemanaDesdeElRegistro = !ultimoRegistro
+      || Date.now() - new Date(ultimoRegistro).getTime() >= semanaEnMilisegundos;
+    return Boolean(vehiculo && pasoUnaSemanaDesdeElAviso && pasoUnaSemanaDesdeElRegistro);
   });
+
+  const cerrarAvisoKilometraje = () => {
+    localStorage.setItem(`avisoKilometrajeTecnico:${tecnico.id}`, new Date().toISOString());
+    establecerAvisoKilometrajeAbierto(false);
+  };
 
   const contenidoPorSeccion = {
     'Mis asignaciones': <MisAsignaciones usuario={usuario} />,
@@ -49,10 +61,10 @@ function TecnicoHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
       >
         {contenidoPorSeccion[seccion]}
       </AppLayout>
-      <Dialog open={avisoKilometrajeAbierto} onClose={() => establecerAvisoKilometrajeAbierto(false)} fullWidth maxWidth="sm">
+      <Dialog open={avisoKilometrajeAbierto} onClose={cerrarAvisoKilometraje} fullWidth maxWidth="sm">
         <DialogTitle sx={{ pr: 6 }}>
           Registrar kilometraje semanal
-          <IconButton onClick={() => establecerAvisoKilometrajeAbierto(false)} aria-label="Cerrar aviso" sx={{ position: 'absolute', right: 8, top: 8 }}>
+          <IconButton onClick={cerrarAvisoKilometraje} aria-label="Cerrar aviso" sx={{ position: 'absolute', right: 8, top: 8 }}>
             <CloseIcon />
           </IconButton>
         </DialogTitle>
@@ -64,7 +76,7 @@ function TecnicoHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
             {vehiculo && (
               <RegistroKilometraje
                 vehiculo={vehiculo}
-                alGuardar={() => establecerAvisoKilometrajeAbierto(false)}
+                alGuardar={cerrarAvisoKilometraje}
               />
             )}
           </Stack>
