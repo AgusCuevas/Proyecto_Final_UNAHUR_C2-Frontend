@@ -5,6 +5,7 @@ import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import BuildCircleIcon from '@mui/icons-material/BuildCircle';
 import { useAppData } from '../../context/useAppData.js';
+import RegistroKilometraje from './RegistroKilometraje.jsx';
 
 function Vehiculo({ usuario }) {
   const { data, registrarControlVehiculo, actualizarEstadoVehiculo } = useAppData();
@@ -128,6 +129,7 @@ function Vehiculo({ usuario }) {
           <Typography variant="body2"><strong>Último service:</strong> {vehiculo?.ultimoService}</Typography>
           <Typography variant="body2" color="text.secondary">{vehiculo?.detalle}</Typography>
         </Stack>
+        {vehiculo && <RegistroKilometraje vehiculo={vehiculo} compacto />}
       </Stack>
     </Paper>
   );

@@ -17,7 +17,7 @@ function ServicioEnCurso({ usuario, nombre, alCerrarSesion, alCambiarTema, modo 
       rol="Técnico"
       usuario={usuario}
       nombre={nombre}
-      opciones={['Mis asignaciones', 'Servicio en curso', 'Vehículo', 'Jornada']}
+      opciones={['Mis asignaciones', 'Servicio en curso', 'Vehículo', 'Resumen de servicios']}
       alCerrarSesion={alCerrarSesion}
       alCambiarTema={alCambiarTema}
       modo={modo}

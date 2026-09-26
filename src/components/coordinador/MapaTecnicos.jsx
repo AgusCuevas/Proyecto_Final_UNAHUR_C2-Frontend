@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Box, Button, Chip, Paper, Stack } from '@mui/material';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
-import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet';
+import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useAppData } from '../../context/useAppData.js';
+import { calcularRecorridoKm, obtenerParadasTecnico } from '../../services/recorrido.js';
 
 const centroMapa = [-34.655, -58.63];
 
@@ -19,7 +20,12 @@ function AjustarVistaMapa({ tecnico }) {
 
 function MapaTecnicos({ tecnicoId = null }) {
   const [filtro, establecerFiltro] = useState('Todos');
-  const { data } = useAppData();
+  const { data, actualizarUbicaciones } = useAppData();
+
+  useEffect(() => {
+    const intervalo = setInterval(() => actualizarUbicaciones().catch(() => undefined), 300000);
+    return () => clearInterval(intervalo);
+  }, [actualizarUbicaciones]);
 
   const tecnicos = useMemo(() => data.usuarios
     .filter((usuario) => usuario.rol === 'Tecnico' && usuario.activo)
@@ -50,6 +56,10 @@ function MapaTecnicos({ tecnicoId = null }) {
     (tecnico) => filtro === 'Todos' || tecnico.estado === filtro || tecnico.id === tecnicoId,
   );
   const tecnicoDestacado = tecnicosConUbicacion.find((tecnico) => tecnico.id === tecnicoId);
+  const recorridos = tecnicosVisibles.map((tecnico) => {
+    const paradas = obtenerParadasTecnico(tecnico.id, data, tecnico.ubicacion);
+    return { tecnico, paradas, kilometros: calcularRecorridoKm(paradas) };
+  });
   const activos = tecnicosConUbicacion.filter((tecnico) => tecnico.estado === 'Activo').length;
   const libres = tecnicosConUbicacion.filter((tecnico) => tecnico.estado === 'Libre').length;
   const asignados = tecnicosConUbicacion.filter((tecnico) => tecnico.estado === 'Asignado').length;
@@ -130,8 +140,22 @@ function MapaTecnicos({ tecnicoId = null }) {
                     Pendiente de iniciar
                   </>
                 ) : 'Disponible para asignar'}
+                <br />
+                Recorrido sugerido: {Math.round(recorridos.find((item) => item.tecnico.id === tecnico.id)?.kilometros || 0)} km
               </Popup>
             </CircleMarker>
+          ))}
+          {recorridos.map((recorrido) => recorrido.paradas.length > 1 && (
+            <Polyline
+              key={`ruta-${recorrido.tecnico.id}`}
+              positions={recorrido.paradas.map((parada) => [parada.latitud, parada.longitud])}
+              pathOptions={{
+                color: recorrido.tecnico.id === tecnicoId ? '#155e75' : '#8299C8',
+                weight: recorrido.tecnico.id === tecnicoId ? 5 : 3,
+                opacity: recorrido.tecnico.id === tecnicoId ? 0.9 : 0.55,
+                dashArray: recorrido.tecnico.id === tecnicoId ? undefined : '8 8',
+              }}
+            />
           ))}
         </MapContainer>
       </Box>

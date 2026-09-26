@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   clientesApi,
+  jornadasApi,
   reclamosApi,
   ubicacionesApi,
   usuariosApi,
@@ -22,7 +23,20 @@ export function DataProvider({ children }) {
     ])
       .then(([usuarios, clientes, vehiculos, reclamos, ubicacionesTecnicos]) => {
         const jornadas = JSON.parse(localStorage.getItem('jornadasTecnicos') || '[]');
-        setData({ usuarios, clientes, vehiculos, reclamos, ubicacionesTecnicos, jornadas });
+        const vehiculosConRegistro = vehiculos.map((vehiculo) => {
+          const registro = JSON.parse(localStorage.getItem(`kilometrajeVehiculo:${vehiculo.id}`) || 'null');
+          return registro ? {
+            ...vehiculo,
+            kilometraje: { ...vehiculo.kilometraje, ...registro },
+          } : vehiculo;
+        });
+        const ubicacionesGuardadas = JSON.parse(localStorage.getItem('ubicacionesTecnicosActuales') || '{}');
+        const ubicacionesCombinadas = ubicacionesTecnicos.map((ubicacion) => (
+          ubicacionesGuardadas[ubicacion.tecnicoId]
+            ? { ...ubicacion, ...ubicacionesGuardadas[ubicacion.tecnicoId] }
+            : ubicacion
+        ));
+        setData({ usuarios, clientes, vehiculos: vehiculosConRegistro, reclamos, ubicacionesTecnicos: ubicacionesCombinadas, jornadas });
       })
       .catch(() => setError('No se pudieron cargar los datos de la aplicación.'));
   }, []);
@@ -112,6 +126,7 @@ export function DataProvider({ children }) {
           }
       )),
     }));
+    vehiculosApi.registrarControl(vehiculoId, control).catch(() => undefined);
   };
 
   const actualizarEstadoVehiculo = (vehiculoId, enServicio) => {
@@ -123,12 +138,46 @@ export function DataProvider({ children }) {
     }));
   };
 
+  const registrarUbicacionTecnico = (tecnicoId, latitud, longitud) => {
+    const ubicacion = { tecnicoId, latitud, longitud, actualizadoEn: new Date().toISOString() };
+    const ubicacionesGuardadas = JSON.parse(localStorage.getItem('ubicacionesTecnicosActuales') || '{}');
+    ubicacionesGuardadas[tecnicoId] = ubicacion;
+    localStorage.setItem('ubicacionesTecnicosActuales', JSON.stringify(ubicacionesGuardadas));
+    setData((actual) => ({
+      ...actual,
+      ubicacionesTecnicos: actual.ubicacionesTecnicos.map((item) => (
+        item.tecnicoId === tecnicoId ? { ...item, ...ubicacion } : item
+      )),
+    }));
+    ubicacionesApi.actualizar(tecnicoId, { latitud, longitud }).catch(() => undefined);
+  };
+
+  const actualizarUbicaciones = async () => {
+    const ubicaciones = await ubicacionesApi.listar();
+    setData((actual) => ({ ...actual, ubicacionesTecnicos: ubicaciones }));
+    return ubicaciones;
+  };
+
+  const actualizarKilometraje = async (vehiculoId, kilometraje) => {
+    const vehiculoActualizado = await vehiculosApi.actualizarKilometraje(vehiculoId, kilometraje);
+    localStorage.setItem(`kilometrajeVehiculo:${vehiculoId}`, JSON.stringify(vehiculoActualizado.kilometraje));
+    setData((actual) => ({
+      ...actual,
+      vehiculos: actual.vehiculos.map((vehiculo) => (
+        vehiculo.id === vehiculoId ? vehiculoActualizado : vehiculo
+      )),
+    }));
+    return vehiculoActualizado;
+  };
+
   const iniciarJornada = (tecnicoId) => {
+    const vehiculo = data.vehiculos.find((item) => item.tecnicoAsignado === tecnicoId);
     const jornada = {
       id: Date.now(),
       tecnicoId,
       inicio: new Date().toISOString(),
       fin: null,
+      kilometrajeInicial: vehiculo?.kilometraje.actual || 0,
       kilometrajeFinal: null,
       activa: true,
     };
@@ -139,6 +188,7 @@ export function DataProvider({ children }) {
       ]);
       return { ...actual, jornadas };
     });
+    jornadasApi.crear(jornada).catch(() => undefined);
     return jornada;
   };
 
@@ -170,6 +220,7 @@ export function DataProvider({ children }) {
       ));
       return { ...actual, jornadas, vehiculos };
     });
+    jornadasApi.finalizar(jornadaId, controlFinal).catch(() => undefined);
     return jornadaFinalizada;
   };
 
@@ -183,6 +234,9 @@ export function DataProvider({ children }) {
       actualizarControlVehiculo,
       registrarControlVehiculo,
       actualizarEstadoVehiculo,
+      registrarUbicacionTecnico,
+      actualizarUbicaciones,
+      actualizarKilometraje,
       crearReclamo,
       iniciarJornada,
       finalizarJornada,

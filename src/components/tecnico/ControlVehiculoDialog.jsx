@@ -17,11 +17,20 @@ import {
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import SaveIcon from '@mui/icons-material/Save';
 
+function archivoComoDataUrl(archivo) {
+  return new Promise((resolve, reject) => {
+    const lector = new FileReader();
+    lector.onload = () => resolve(lector.result);
+    lector.onerror = reject;
+    lector.readAsDataURL(archivo);
+  });
+}
+
 function ControlVehiculoDialog({ abierto, titulo, kilometrajeMinimo = 0, cerrar, confirmar }) {
   const [kilometraje, establecerKilometraje] = useState('');
   const [litros, establecerLitros] = useState('');
   const [estado, establecerEstado] = useState('Activo');
-  const [foto, establecerFoto] = useState(null);
+  const [fotos, establecerFotos] = useState([]);
   const [vistaPrevia, establecerVistaPrevia] = useState('');
   const [error, establecerError] = useState('');
 
@@ -29,16 +38,16 @@ function ControlVehiculoDialog({ abierto, titulo, kilometrajeMinimo = 0, cerrar,
     establecerKilometraje('');
     establecerLitros('');
     establecerEstado('Activo');
-    establecerFoto(null);
+    establecerFotos([]);
     establecerVistaPrevia('');
     establecerError('');
     cerrar();
   };
 
   const seleccionarFoto = (event) => {
-    const archivo = event.target.files?.[0] || null;
-    establecerFoto(archivo);
-    establecerVistaPrevia(archivo ? URL.createObjectURL(archivo) : '');
+    const archivos = Array.from(event.target.files || []);
+    establecerFotos(archivos);
+    establecerVistaPrevia(archivos[0] ? URL.createObjectURL(archivos[0]) : '');
   };
 
   const guardar = async (event) => {
@@ -49,10 +58,16 @@ function ControlVehiculoDialog({ abierto, titulo, kilometrajeMinimo = 0, cerrar,
       establecerError(`El kilometraje debe ser igual o mayor a ${kilometrajeMinimo} km.`);
       return;
     }
-    if (litros === '' || combustible < 0 || !foto) {
-      establecerError('Completá los litros y adjuntá una foto del tablero.');
+    if (litros === '' || combustible < 0 || !fotos.length) {
+      establecerError('Completá los litros y adjuntá al menos una foto del tablero.');
       return;
     }
+    const imagenes = await Promise.all(fotos.map(async (foto, indice) => ({
+      id: Date.now() + indice,
+      fecha: new Date().toISOString(),
+      imagen: await archivoComoDataUrl(foto),
+      nombre: foto.name,
+    })));
     await confirmar({
       kilometraje: km,
       litros: combustible,
@@ -60,9 +75,10 @@ function ControlVehiculoDialog({ abierto, titulo, kilometrajeMinimo = 0, cerrar,
       foto: {
         id: Date.now(),
         fecha: new Date().toISOString(),
-        imagen: URL.createObjectURL(foto),
-        nombre: foto.name,
+        imagen: imagenes[0].imagen,
+        nombre: fotos[0].name,
       },
+      fotos: imagenes,
     });
     cerrarDialogo();
   };
@@ -111,10 +127,10 @@ function ControlVehiculoDialog({ abierto, titulo, kilometrajeMinimo = 0, cerrar,
               </Select>
             </FormControl>
             <Button component="label" variant="outlined" startIcon={<CameraAltIcon />}>
-              Foto del tablero y medidor
-              <input hidden type="file" accept="image/*" capture="environment" onChange={seleccionarFoto} />
+              Fotos del vehículo y medidor
+              <input hidden type="file" accept="image/*" multiple capture="environment" onChange={seleccionarFoto} />
             </Button>
-            {foto && <Typography variant="body2" color="text.secondary">{foto.name}</Typography>}
+            {fotos.length > 0 && <Typography variant="body2" color="text.secondary">{fotos.length} foto{fotos.length === 1 ? '' : 's'} seleccionada{fotos.length === 1 ? '' : 's'}</Typography>}
             {vistaPrevia && (
               <img src={vistaPrevia} alt="Vista previa del tablero" style={{ width: 180, height: 120, objectFit: 'cover', borderRadius: 8 }} />
             )}
