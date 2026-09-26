@@ -60,16 +60,16 @@ export const createAppTheme = (modo = 'light') => {
   },
   shape: { borderRadius: 10 },
   typography: {
-    fontFamily: 'Manrope, sans-serif',
-    h4: { fontWeight: 800, letterSpacing: '-0.02em' },
-    h5: { fontWeight: 800, letterSpacing: '-0.015em' },
-    h6: { fontWeight: 800, letterSpacing: '-0.01em' },
-    button: { fontWeight: 800, letterSpacing: '0.01em' },
+    fontFamily: 'Roboto, Arial, sans-serif',
+    h4: { fontWeight: 700, letterSpacing: 0, lineHeight: 1.15 },
+    h5: { fontWeight: 700, letterSpacing: 0, lineHeight: 1.2 },
+    h6: { fontWeight: 700, letterSpacing: 0, lineHeight: 1.25 },
+    button: { fontWeight: 700, letterSpacing: 0 },
   },
   components: {
     MuiCssBaseline: {
       styleOverrides: {
-        body: { backgroundImage: colores.gradient },
+        body: { backgroundImage: colores.gradient, backgroundAttachment: 'fixed' },
       },
     },
     MuiPaper: {
@@ -114,7 +114,7 @@ export const createAppTheme = (modo = 'light') => {
     },
     MuiCard: {
       styleOverrides: {
-        root: { borderRadius: 10, overflow: 'hidden' },
+        root: { borderRadius: 8, overflow: 'hidden' },
       },
     },
   },

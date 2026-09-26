@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, Divider, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Button, Divider, Paper, Stack, Typography } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import LoginIcon from '@mui/icons-material/Login';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useAppData } from '../../context/useAppData.js';
+import ControlVehiculoDialog from './ControlVehiculoDialog.jsx';
 
 function formatearDuracion(inicio, fin = new Date()) {
   const minutos = Math.max(0, Math.floor((new Date(fin) - new Date(inicio)) / 60000));
@@ -12,10 +13,10 @@ function formatearDuracion(inicio, fin = new Date()) {
 }
 
 function Jornada({ usuario }) {
-  const { data, iniciarJornada, finalizarJornada } = useAppData();
+  const { data, iniciarJornada, finalizarJornada, registrarControlVehiculo } = useAppData();
   const [ahora, establecerAhora] = useState(null);
-  const [kilometrajeFinal, establecerKilometrajeFinal] = useState('');
   const [error, establecerError] = useState('');
+  const [controlFinalAbierto, establecerControlFinalAbierto] = useState(false);
   const tecnico = data.usuarios.find((usuarioRegistrado) => usuarioRegistrado.usuario === usuario);
   const vehiculo = data.vehiculos.find((vehiculoRegistrado) => vehiculoRegistrado.tecnicoAsignado === tecnico?.id);
   const jornadas = data.jornadas
@@ -38,15 +39,10 @@ function Jornada({ usuario }) {
     iniciarJornada(tecnico.id);
   };
 
-  const cerrarJornada = (event) => {
-    event.preventDefault();
-    const kilometros = Number(kilometrajeFinal);
-    if (!kilometrajeFinal || kilometros < vehiculo.kilometraje.actual) {
-      establecerError(`Ingresá un kilometraje igual o mayor a ${vehiculo.kilometraje.actual} km.`);
-      return;
-    }
-    finalizarJornada(jornadaActiva.id, kilometros);
-    establecerKilometrajeFinal('');
+  const cerrarJornada = (control) => {
+    if (!vehiculo) return;
+    registrarControlVehiculo(vehiculo.id, control);
+    finalizarJornada(jornadaActiva.id, control);
     establecerError('');
   };
 
@@ -68,21 +64,9 @@ function Jornada({ usuario }) {
               <Alert severity="success">Jornada activa desde {new Date(jornadaActiva.inicio).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</Alert>
               <Typography variant="h5" sx={{ fontWeight: 800 }}>{formatearDuracion(jornadaActiva.inicio, marcaActual)}</Typography>
               <Typography variant="body2" color="text.secondary">Tiempo transcurrido</Typography>
-              <Stack component="form" onSubmit={cerrarJornada} direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'flex-start' } }}>
-                <TextField
-                  label="Kilometraje final"
-                  type="number"
-                  value={kilometrajeFinal}
-                  onChange={(event) => establecerKilometrajeFinal(event.target.value)}
-                  inputProps={{ min: vehiculo?.kilometraje.actual || 0 }}
-                  helperText={`Actual: ${vehiculo?.kilometraje.actual || 0} km`}
-                  size="small"
-                  required
-                />
-                <Button type="submit" variant="contained" color="primary" startIcon={<LogoutIcon />} sx={{ minHeight: 40 }}>
+              <Button variant="contained" color="primary" startIcon={<LogoutIcon />} onClick={() => establecerControlFinalAbierto(true)} sx={{ alignSelf: 'flex-start' }}>
                   Finalizar jornada
-                </Button>
-              </Stack>
+              </Button>
               {error && <Alert severity="error">{error}</Alert>}
             </Stack>
           ) : (
@@ -92,6 +76,14 @@ function Jornada({ usuario }) {
           )}
         </Stack>
       </Paper>
+
+      <ControlVehiculoDialog
+        abierto={controlFinalAbierto}
+        titulo="Control final de jornada"
+        kilometrajeMinimo={vehiculo?.kilometraje.actual || 0}
+        cerrar={() => establecerControlFinalAbierto(false)}
+        confirmar={cerrarJornada}
+      />
 
       <Paper sx={{ p: { xs: 2, md: 3 } }}>
         <Typography variant="h6" sx={{ fontWeight: 800 }}>Resumen de servicios por jornada</Typography>
@@ -111,6 +103,11 @@ function Jornada({ usuario }) {
               <Typography variant="body2" color="text.secondary">
                 Duración: {formatearDuracion(jornada.inicio, jornada.fin || marcaActual)} · Kilometraje final: {jornada.kilometrajeFinal || 'Pendiente'} km
               </Typography>
+              {jornada.controlFinal && (
+                <Typography variant="body2" color="text.secondary">
+                  Control final: {jornada.controlFinal.litros} litros · Estado: {jornada.controlFinal.estado} · Foto registrada
+                </Typography>
+              )}
               <Typography variant="body2">
                 Servicios: {servicios.length ? servicios.map((servicio) => `#${servicio}`).join(', ') : 'Ninguno'}
               </Typography>

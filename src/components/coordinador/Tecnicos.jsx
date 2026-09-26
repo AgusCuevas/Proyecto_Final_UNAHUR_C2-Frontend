@@ -19,7 +19,9 @@ import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import SearchIcon from '@mui/icons-material/Search';
 import PersonIcon from '@mui/icons-material/Person';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
 import { useAppData } from '../../context/useAppData.js';
+import MapaTecnicos from './MapaTecnicos.jsx';
 
 function Tecnicos() {
   const { data } = useAppData();
@@ -56,6 +58,7 @@ function Tecnicos() {
   const tecnicosVisibles = tecnicosFiltrados.slice(0, cantidadVisible);
   const [tecnicoSeleccionado, establecerTecnicoSeleccionado] = useState(tecnicos[0]?.id);
   const [fichaAbierta, establecerFichaAbierta] = useState(false);
+  const [tecnicoEnMapa, establecerTecnicoEnMapa] = useState(null);
   const tecnico = tecnicosFiltrados.find((item) => item.id === tecnicoSeleccionado)
     || tecnicosFiltrados[0];
   const vehiculo = data.vehiculos.find(
@@ -105,7 +108,8 @@ function Tecnicos() {
       {tecnicosFiltrados.length === 0 ? (
         <Typography color="text.secondary">No hay técnicos que coincidan con los filtros.</Typography>
       ) : (
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ alignItems: 'flex-start' }}>
+        <>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ alignItems: 'flex-start' }}>
           <Stack spacing={1.25} sx={{ width: { xs: '100%', md: 300 }, flexShrink: 0 }}>
             {tecnicosVisibles.map((item) => (
               <Card
@@ -137,7 +141,8 @@ function Tecnicos() {
             ))}
           </Stack>
 
-          <Card sx={{ flex: 1, minWidth: 0, alignSelf: 'flex-start' }}>
+          <Stack spacing={2} sx={{ flex: 1, minWidth: 0 }}>
+          <Card sx={{ width: '100%', alignSelf: 'flex-start' }}>
           <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
             <Stack direction={{ xs: 'column', sm: 'row' }} gap={2} sx={{ justifyContent: 'space-between' }}>
               <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
@@ -163,6 +168,15 @@ function Tecnicos() {
                 sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' }, minWidth: { sm: 174 } }}
               >
                 {fichaAbierta ? 'Ocultar ficha' : 'Ver ficha completa'}
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<LocationOnIcon />}
+                onClick={() => establecerTecnicoEnMapa(tecnico.id)}
+                sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
+              >
+                Ubicar en mapa
               </Button>
             </Stack>
 
@@ -217,7 +231,10 @@ function Tecnicos() {
             )}
           </CardContent>
           </Card>
-        </Stack>
+          {tecnicoEnMapa && <MapaTecnicos tecnicoId={tecnicoEnMapa} />}
+          </Stack>
+          </Stack>
+        </>
       )}
       {tecnicosVisibles.length < tecnicosFiltrados.length && (
         <Button

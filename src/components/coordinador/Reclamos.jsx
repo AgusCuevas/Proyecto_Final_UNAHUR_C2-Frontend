@@ -10,34 +10,41 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
   FormControl,
   InputLabel,
   MenuItem,
+  Pagination,
   Select,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
 import AssignmentIndIcon from '@mui/icons-material/AssignmentInd';
 import SaveIcon from '@mui/icons-material/Save';
 import CloseIcon from '@mui/icons-material/Close';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import EditNoteIcon from '@mui/icons-material/EditNote';
 import { useAppData } from '../../context/useAppData.js';
 
-function Reclamos() {
-  const [formularioAbierto, establecerFormularioAbierto] = useState(false);
+function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
   const [reclamoEditado, establecerReclamoEditado] = useState(null);
   const [reclamoAbierto, establecerReclamoAbierto] = useState(null);
+  const [reclamoExpandido, establecerReclamoExpandido] = useState(null);
   const [imagenAbierta, establecerImagenAbierta] = useState(null);
   const [tecnicoAbierto, establecerTecnicoAbierto] = useState(null);
+  const [edicionNotasAbierta, establecerEdicionNotasAbierta] = useState(false);
+  const [notasCoordinador, establecerNotasCoordinador] = useState('');
   const [tecnicoSeleccionado, establecerTecnicoSeleccionado] = useState('');
+  const [pagina, establecerPagina] = useState(1);
   const [filtros, establecerFiltros] = useState({
-    estado: 'Todos',
+    estado: 'Abierto',
     tecnicoId: 'Todos',
     desde: '',
     hasta: '',
   });
-  const { data, actualizarAsignacion } = useAppData();
+  const { data, actualizarAsignacion, actualizarEstado } = useAppData();
   const reclamos = data.reclamos;
 
   const tecnicos = data.usuarios.filter(
@@ -69,6 +76,7 @@ function Reclamos() {
 
   const actualizarFiltro = (campo, valor) => {
     establecerFiltros((actuales) => ({ ...actuales, [campo]: valor }));
+    establecerPagina(1);
   };
 
   const reclamosFiltrados = reclamos.filter((reclamo) => {
@@ -85,6 +93,9 @@ function Reclamos() {
       && (!desde || fechaCreacion >= desde)
       && (!hasta || fechaCreacion <= hasta);
   }).sort((primero, segundo) => segundo.id - primero.id);
+  const cantidadPaginas = Math.ceil(reclamosFiltrados.length / 10);
+  const paginaActual = Math.min(pagina, Math.max(cantidadPaginas, 1));
+  const reclamosVisibles = reclamosFiltrados.slice((paginaActual - 1) * 10, paginaActual * 10);
 
   const tecnicoDelReclamo = tecnicoAbierto
     ? tecnicos.find((tecnico) => tecnico.id === tecnicoAbierto.tecnicoId)
@@ -93,21 +104,35 @@ function Reclamos() {
     ? tecnicos.find((tecnico) => tecnico.id === reclamoAbierto.tecnicoId)
     : null;
 
-  const abrirReclamo = (reclamo) => establecerReclamoAbierto(reclamo);
+  const abrirReclamo = (reclamo) => establecerReclamoExpandido((actual) => (
+    actual?.id === reclamo.id ? null : reclamo
+  ));
+
+  const abrirEdicionNotas = (reclamo) => {
+    establecerReclamoAbierto(reclamo);
+    establecerNotasCoordinador(reclamo.notasCoordinador || '');
+    establecerEdicionNotasAbierta(true);
+  };
+
+  const guardarNotas = async (event) => {
+    event.preventDefault();
+    if (!reclamoAbierto) return;
+    const reclamoActualizado = await actualizarEstado(reclamoAbierto.id, {
+      notasCoordinador: notasCoordinador.trim(),
+    });
+    establecerReclamoAbierto(reclamoActualizado);
+    establecerReclamoExpandido((actual) => (
+      actual?.id === reclamoActualizado.id ? reclamoActualizado : actual
+    ));
+    establecerEdicionNotasAbierta(false);
+  };
+
+  const obtenerImagenes = (reclamo) => (
+    reclamo?.imagenes?.length ? reclamo.imagenes : reclamo?.imagen ? [reclamo.imagen] : []
+  );
 
   return (
     <Stack spacing={3}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} gap={2} sx={{ justifyContent: 'space-between' }}>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => establecerFormularioAbierto((actual) => !actual)}
-          sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' }, ml: { sm: 'auto' }, flexShrink: 0 }}
-        >
-          Nuevo reclamo
-        </Button>
-      </Stack>
-
       {formularioAbierto && (
       <Card>
           <CardContent>
@@ -253,8 +278,8 @@ function Reclamos() {
         </CardContent>
       </Card>
 
-      <Stack spacing={2}>
-        {reclamosFiltrados.map((reclamo) => (
+      <Stack spacing={1}>
+        {reclamosVisibles.map((reclamo) => (
           <Card
             key={reclamo.id}
             onClick={() => abrirReclamo(reclamo)}
@@ -264,33 +289,28 @@ function Reclamos() {
             role="button"
             tabIndex={0}
             sx={{
-              borderRadius: 2.5,
+              width: '100%',
+              borderRadius: 1.5,
               borderColor: 'divider',
               borderLeft: 4,
               borderLeftColor: colorEstado[reclamo.estado] || 'divider',
-              transition: 'border-color 160ms ease, box-shadow 160ms ease',
-              '&:hover': { borderColor: 'primary.main', boxShadow: 4 },
+              transition: 'transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease',
+              '&:hover': { borderColor: 'primary.main', boxShadow: 4, transform: 'translateY(-3px)' },
               cursor: 'pointer',
             }}
           >
-            <CardContent sx={{ p: { xs: 2, sm: 2.5 }, '&:last-child': { pb: { xs: 2, sm: 2.5 } } }}>
-              <Stack direction={{ xs: 'column', md: 'row' }} spacing={{ xs: 2, md: 3 }}>
-                <Stack spacing={1.5} sx={{ flex: 1, minWidth: 0 }}>
-                  <Box>
-                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 800, letterSpacing: '0.08em' }}>
+            <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={0} sx={{ alignItems: 'stretch' }}>
+                <Stack spacing={0} sx={{ flex: 1, minWidth: 0 }}>
+                  <Box sx={{ p: { xs: 1, sm: 1.25 } }}>
+                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 800, letterSpacing: '0.08em', mr: 1 }}>
                       Reclamo #{reclamo.id}
                     </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 800, color: reclamo.prioridad === 'Urgente' ? 'error.main' : 'text.secondary', mt: 0.25 }}>
+                    <Typography component="span" variant="caption" sx={{ fontWeight: 800, color: reclamo.prioridad === 'Urgente' ? 'error.main' : 'text.secondary' }}>
                       Prioridad: {reclamo.prioridad}
                     </Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 800 }}>{reclamo.tipo}</Typography>
-                    <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-                      {nombreCliente(reclamo.clienteId)} · {reclamo.agrupacionGeografica}
-                    </Typography>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1.2 }}>{reclamo.tipo}</Typography>
                   </Box>
-                  <Typography variant="body2" color="text.secondary">
-                    Seleccioná el reclamo para ver la información completa.
-                  </Typography>
                 </Stack>
 
                 <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
@@ -299,12 +319,13 @@ function Reclamos() {
                   sx={{
                     width: { xs: '100%', md: 250 },
                     flexShrink: 0,
-                    alignSelf: 'flex-start',
-                    height: 128,
+                    alignSelf: 'stretch',
+                    height: { xs: 64, sm: 72 },
+                    minHeight: 0,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    p: 1.5,
+                    p: 1,
                     borderRadius: 1.5,
                     border: 1,
                     borderColor: 'divider',
@@ -312,7 +333,7 @@ function Reclamos() {
                   }}
                 >
                   <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75, fontWeight: 700, textAlign: 'center' }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.25, fontWeight: 700, textAlign: 'center' }}>
                       Estado del ticket
                     </Typography>
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'center' }}>
@@ -327,18 +348,19 @@ function Reclamos() {
                 <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
 
                 <Stack
-                  spacing={1.5}
+                  spacing={0}
                   onClick={(evento) => evento.stopPropagation()}
                   onMouseDown={(evento) => evento.stopPropagation()}
                   onKeyDown={(evento) => evento.stopPropagation()}
-                  sx={{ width: { xs: '100%', md: 250 }, flexShrink: 0, alignItems: 'center' }}
+                  sx={{ width: { xs: '100%', md: 250 }, flexShrink: 0, alignItems: 'center', justifyContent: 'center' }}
                 >
-                  <Stack spacing={1}>
+                  <Stack spacing={0}>
                     <Box
                       sx={{
                         mt: 0,
-                        p: 1.5,
-                        height: 128,
+                        p: 1,
+                        height: { xs: 64, sm: 72 },
+                        minHeight: 0,
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'center',
@@ -353,8 +375,8 @@ function Reclamos() {
                         Técnico
                       </Typography>
                       {reclamo.tecnicoId ? (
-                        <Stack spacing={0.75} sx={{ width: '100%', alignItems: 'center' }}>
-                          <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+                        <Stack direction="row" spacing={0.5} sx={{ width: '100%', alignItems: 'center', justifyContent: 'center' }}>
+                          <Box sx={{ minWidth: 0, display: 'flex', justifyContent: 'center' }}>
                             <Button
                               variant="text"
                               onClick={(evento) => {
@@ -455,11 +477,67 @@ function Reclamos() {
                   )}
                 </Stack>
               </Stack>
+              {reclamoExpandido?.id === reclamo.id && (
+                <Box sx={{ p: { xs: 1.5, sm: 2 }, borderTop: 1, borderColor: 'divider', backgroundColor: 'action.hover' }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Detalle del reclamo</Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5 }}>{reclamo.descripcion}</Typography>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 0.25, sm: 2 }} sx={{ mt: 1 }}>
+                    <Typography variant="body2" color="text.secondary">Cliente: {nombreCliente(reclamo.clienteId)}</Typography>
+                    <Typography variant="body2" color="text.secondary">Zona: {reclamo.agrupacionGeografica}</Typography>
+                    <Typography variant="body2" color="text.secondary">Fecha: {reclamo.fechaProgramada || 'No informada'}</Typography>
+                  </Stack>
+                  {reclamo.notasCoordinador && (
+                    <Typography variant="body2" sx={{ mt: 1 }}>
+                      <strong>Notas del coordinador:</strong> {reclamo.notasCoordinador}
+                    </Typography>
+                  )}
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mt: 1.5 }}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={(evento) => {
+                        evento.stopPropagation();
+                        establecerReclamoAbierto(reclamo);
+                      }}
+                    >
+                      Ver reclamo completo
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      startIcon={<EditNoteIcon />}
+                      onClick={(evento) => {
+                        evento.stopPropagation();
+                        abrirEdicionNotas(reclamo);
+                      }}
+                    >
+                      Editar notas
+                    </Button>
+                  </Stack>
+                </Box>
+              )}
             </CardContent>
           </Card>
         ))}
         {!reclamosFiltrados.length && (
           <Typography color="text.secondary">No hay reclamos que coincidan con los filtros.</Typography>
+        )}
+        {cantidadPaginas > 1 && (
+          <Stack sx={{ alignItems: 'center', pt: 1 }}>
+            <Pagination
+              count={cantidadPaginas}
+              page={paginaActual}
+              onChange={(_, nuevaPagina) => establecerPagina(nuevaPagina)}
+              color="primary"
+              shape="rounded"
+              showFirstButton
+              showLastButton
+              aria-label="Paginación de reclamos"
+            />
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75 }}>
+              Página {paginaActual} de {cantidadPaginas}
+            </Typography>
+          </Stack>
         )}
       </Stack>
 
@@ -532,20 +610,19 @@ function Reclamos() {
                   <Typography>{reclamoAbierto.comentarioFinalizacion}</Typography>
                 </Box>
               )}
-              {reclamoAbierto.imagen && (
+              {obtenerImagenes(reclamoAbierto).length > 0 && (
                 <Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 0.75 }}>Evidencia cargada</Typography>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 0.75 }}>
+                    Evidencia del técnico ({obtenerImagenes(reclamoAbierto).length} foto{obtenerImagenes(reclamoAbierto).length === 1 ? '' : 's'})
+                  </Typography>
                   <Box
                     component="img"
-                    src={reclamoAbierto.imagen}
+                    src={obtenerImagenes(reclamoAbierto)[0]}
                     alt={`Evidencia del reclamo #${reclamoAbierto.id}`}
-                    onClick={() => establecerImagenAbierta({
-                      src: reclamoAbierto.imagen,
-                      alt: `Evidencia del reclamo #${reclamoAbierto.id}`,
-                    })}
+                    onClick={() => establecerImagenAbierta({ imagenes: obtenerImagenes(reclamoAbierto), indice: 0 })}
                     sx={{
                       width: '100%',
-                      maxHeight: 280,
+                      maxHeight: 220,
                       objectFit: 'contain',
                       borderRadius: 1,
                       border: 1,
@@ -553,11 +630,48 @@ function Reclamos() {
                       cursor: 'zoom-in',
                     }}
                   />
+                  <Typography variant="caption" color="text.secondary">Seleccioná la imagen para abrir el carrusel.</Typography>
+                </Box>
+              )}
+              {reclamoAbierto.notasCoordinador && (
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Notas del coordinador</Typography>
+                  <Typography>{reclamoAbierto.notasCoordinador}</Typography>
                 </Box>
               )}
             </Stack>
           )}
         </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={edicionNotasAbierta}
+        onClose={() => establecerEdicionNotasAbierta(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <Box component="form" onSubmit={guardarNotas}>
+          <DialogTitle sx={{ fontWeight: 800 }}>Agregar notas al reclamo #{reclamoAbierto?.id}</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+              Las evidencias, comentarios y controles cargados por el técnico no se pueden modificar desde aquí.
+            </Typography>
+            <TextField
+              autoFocus
+              fullWidth
+              multiline
+              minRows={4}
+              label="Notas del coordinador"
+              value={notasCoordinador}
+              onChange={(evento) => establecerNotasCoordinador(evento.target.value)}
+              placeholder="Agregá una observación interna"
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => establecerEdicionNotasAbierta(false)}>Cancelar</Button>
+            <Button type="submit" variant="contained" startIcon={<SaveIcon />}>Guardar notas</Button>
+          </DialogActions>
+        </Box>
       </Dialog>
 
       <Dialog
@@ -569,12 +683,33 @@ function Reclamos() {
         <DialogTitle sx={{ fontWeight: 800 }}>Imagen del reclamo</DialogTitle>
         <DialogContent sx={{ display: 'flex', justifyContent: 'center', p: { xs: 1.5, sm: 3 } }}>
           {imagenAbierta && (
-            <Box
-              component="img"
-              src={imagenAbierta.src}
-              alt={imagenAbierta.alt}
-              sx={{ display: 'block', maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }}
-            />
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+              <IconButton
+                onClick={() => establecerImagenAbierta((actual) => ({ ...actual, indice: Math.max(0, actual.indice - 1) }))}
+                disabled={imagenAbierta.indice === 0}
+                aria-label="Foto anterior"
+              >
+                <ChevronLeftIcon />
+              </IconButton>
+              <Box
+                component="img"
+                src={imagenAbierta.imagenes[imagenAbierta.indice]}
+                alt={`Evidencia ${imagenAbierta.indice + 1}`}
+                sx={{ display: 'block', maxWidth: 'calc(100% - 96px)', maxHeight: '70vh', objectFit: 'contain' }}
+              />
+              <IconButton
+                onClick={() => establecerImagenAbierta((actual) => ({ ...actual, indice: Math.min(actual.imagenes.length - 1, actual.indice + 1) }))}
+                disabled={imagenAbierta.indice === imagenAbierta.imagenes.length - 1}
+                aria-label="Foto siguiente"
+              >
+                <ChevronRightIcon />
+              </IconButton>
+            </Stack>
+          )}
+          {imagenAbierta && (
+            <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mt: 1 }}>
+              Foto {imagenAbierta.indice + 1} de {imagenAbierta.imagenes.length}
+            </Typography>
           )}
         </DialogContent>
         <DialogActions>

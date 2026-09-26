@@ -80,6 +80,49 @@ export function DataProvider({ children }) {
     return vehiculoActualizado;
   };
 
+  const actualizarControlVehiculo = (vehiculoId, kilometraje, foto) => {
+    setData((actual) => ({
+      ...actual,
+      vehiculos: actual.vehiculos.map((vehiculo) => (
+        vehiculo.id !== vehiculoId
+          ? vehiculo
+          : {
+            ...vehiculo,
+            kilometraje: { ...vehiculo.kilometraje, actual: Number(kilometraje) },
+            fotosControl: foto
+              ? [...(vehiculo.fotosControl || []), foto]
+              : vehiculo.fotosControl || [],
+          }
+      )),
+    }));
+  };
+
+  const registrarControlVehiculo = (vehiculoId, control) => {
+    setData((actual) => ({
+      ...actual,
+      vehiculos: actual.vehiculos.map((vehiculo) => (
+        vehiculo.id !== vehiculoId
+          ? vehiculo
+          : {
+            ...vehiculo,
+            kilometraje: { ...vehiculo.kilometraje, actual: control.kilometraje },
+            enServicio: control.estado === 'Activo',
+            controles: [...(vehiculo.controles || []), control],
+            ultimoControl: control,
+          }
+      )),
+    }));
+  };
+
+  const actualizarEstadoVehiculo = (vehiculoId, enServicio) => {
+    setData((actual) => ({
+      ...actual,
+      vehiculos: actual.vehiculos.map((vehiculo) => (
+        vehiculo.id === vehiculoId ? { ...vehiculo, enServicio } : vehiculo
+      )),
+    }));
+  };
+
   const iniciarJornada = (tecnicoId) => {
     const jornada = {
       id: Date.now(),
@@ -99,7 +142,7 @@ export function DataProvider({ children }) {
     return jornada;
   };
 
-  const finalizarJornada = (jornadaId, kilometrajeFinal) => {
+  const finalizarJornada = (jornadaId, controlFinal) => {
     let jornadaFinalizada;
     setData((actual) => {
       const jornadas = guardarJornadas(actual.jornadas.map((jornada) => {
@@ -107,7 +150,8 @@ export function DataProvider({ children }) {
         jornadaFinalizada = {
           ...jornada,
           fin: new Date().toISOString(),
-          kilometrajeFinal: Number(kilometrajeFinal),
+          kilometrajeFinal: Number(controlFinal.kilometraje),
+          controlFinal,
           activa: false,
         };
         return jornadaFinalizada;
@@ -118,8 +162,8 @@ export function DataProvider({ children }) {
             ...vehiculo,
             kilometraje: {
               ...vehiculo.kilometraje,
-              actual: Number(kilometrajeFinal),
-              final: Number(kilometrajeFinal),
+              actual: Number(controlFinal.kilometraje),
+              final: Number(controlFinal.kilometraje),
             },
           }
           : vehiculo
@@ -136,6 +180,9 @@ export function DataProvider({ children }) {
       actualizarAsignacion,
       actualizarEstado,
       actualizarAsignacionVehiculo,
+      actualizarControlVehiculo,
+      registrarControlVehiculo,
+      actualizarEstadoVehiculo,
       crearReclamo,
       iniciarJornada,
       finalizarJornada,

@@ -8,6 +8,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   MenuItem,
   Stack,
   Table,
@@ -111,6 +112,16 @@ function AdminHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
     }), {});
     return { servicios, jornadas, dias: dias.size, horas: horas.toFixed(1), tipos };
   }, [data.jornadas, data.reclamos, filtrosReporte]);
+
+  const rendimientoPeriodo = useMemo(() => tecnicos.map((tecnico) => {
+    const trabajos = reporte.servicios.filter((servicio) => servicio.tecnicoId === tecnico.id).length;
+    const jornadas = reporte.jornadas.filter((jornada) => jornada.tecnicoId === tecnico.id);
+    const horas = jornadas.reduce((total, jornada) => (
+      total + (jornada.fin ? (new Date(jornada.fin) - new Date(jornada.inicio)) / 3600000 : 0)
+    ), 0);
+    const dias = new Set(jornadas.map((jornada) => new Date(jornada.inicio).toLocaleDateString('es-AR'))).size;
+    return { ...tecnico, trabajos, horas: Number(horas.toFixed(1)), dias };
+  }), [reporte, tecnicos]);
 
   const actualizarFiltroReporte = (campo, valor) => {
     establecerFiltrosReporte((actual) => ({ ...actual, [campo]: valor }));
@@ -294,6 +305,8 @@ function AdminHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
       <Card>
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>Detalle de productividad</Typography>
+          <GraficosRendimiento rendimiento={rendimientoPeriodo} tecnicoId={filtrosReporte.tecnicoId} />
+          <Divider sx={{ my: 3 }} />
           <TablaRendimiento rendimiento={rendimiento} />
         </CardContent>
       </Card>
@@ -349,6 +362,71 @@ function AdminHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
 
 function TablaRendimiento({ rendimiento }) {
   return <Table size="small"><TableHead><TableRow><TableCell>Técnico</TableCell><TableCell>Trabajos realizados</TableCell><TableCell>Horas de servicio</TableCell><TableCell>Estado</TableCell></TableRow></TableHead><TableBody>{rendimiento.map((tecnico) => <TableRow key={tecnico.id}><TableCell sx={{ fontWeight: 700 }}>{tecnico.nombre}</TableCell><TableCell>{tecnico.trabajos}</TableCell><TableCell>{tecnico.horas} h</TableCell><TableCell><Chip size="small" label={tecnico.activo ? 'Activo' : 'Inactivo'} color={tecnico.activo ? 'success' : 'default'} /></TableCell></TableRow>)}</TableBody></Table>;
+}
+
+function GraficosRendimiento({ rendimiento, tecnicoId }) {
+  const datosGrupales = rendimiento.map((tecnico) => ({
+    etiqueta: tecnico.nombre,
+    valor: tecnico.trabajos,
+    detalle: `${tecnico.trabajos} servicios`,
+  }));
+  const tecnico = rendimiento.find((item) => item.id === Number(tecnicoId));
+  const datosIndividuales = tecnico
+    ? [
+      { etiqueta: 'Servicios finalizados', valor: tecnico.trabajos, detalle: `${tecnico.trabajos}` },
+      { etiqueta: 'Horas trabajadas', valor: tecnico.horas, detalle: `${tecnico.horas} h` },
+      { etiqueta: 'Días trabajados', valor: tecnico.dias, detalle: `${tecnico.dias}` },
+    ]
+    : [];
+
+  return (
+    <Stack spacing={2.5}>
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+        <GraficoBarras
+          titulo="Desempeño grupal"
+          subtitulo="Servicios finalizados por técnico en el período seleccionado."
+          datos={datosGrupales}
+          color="primary.main"
+        />
+        <GraficoBarras
+          titulo={tecnico ? `Desempeño individual: ${tecnico.nombre}` : 'Desempeño individual'}
+          subtitulo={tecnico ? 'Resumen de actividad del técnico filtrado.' : 'Elegí un técnico para ver su resumen individual.'}
+          datos={datosIndividuales}
+          color="secondary.main"
+        />
+      </Stack>
+    </Stack>
+  );
+}
+
+function GraficoBarras({ titulo, subtitulo, datos, color }) {
+  const maximo = Math.max(1, ...datos.map((dato) => dato.valor));
+
+  return (
+    <Box sx={{ flex: 1, minWidth: 0, p: 2, border: 1, borderColor: 'divider', borderRadius: 1.5, backgroundColor: 'action.hover' }}>
+      <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>{titulo}</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{subtitulo}</Typography>
+      {datos.length === 0 ? (
+        <Typography variant="body2" color="text.secondary">No hay datos para mostrar.</Typography>
+      ) : (
+        <Stack spacing={1.5}>
+          {datos.map((dato) => (
+            <Box key={dato.etiqueta}>
+              <Stack direction="row" spacing={1} sx={{ justifyContent: 'space-between', mb: 0.5 }}>
+                <Typography variant="body2" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {dato.etiqueta}
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 700, flexShrink: 0 }}>{dato.detalle}</Typography>
+              </Stack>
+              <Box sx={{ height: 10, borderRadius: 5, backgroundColor: 'background.paper', overflow: 'hidden' }}>
+                <Box sx={{ height: '100%', width: `${(dato.valor / maximo) * 100}%`, minWidth: dato.valor > 0 ? 6 : 0, borderRadius: 5, backgroundColor: color, transition: 'width 240ms ease' }} />
+              </Box>
+            </Box>
+          ))}
+        </Stack>
+      )}
+    </Box>
+  );
 }
 
 function GestionVehiculos({ vehiculoNuevo, establecerVehiculoNuevo, agregarVehiculo }) {

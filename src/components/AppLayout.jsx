@@ -10,6 +10,7 @@ import {
   ListItem,
   ListItemButton,
   ListItemText,
+  Stack,
   Toolbar,
   Typography,
 } from '@mui/material';
@@ -20,7 +21,7 @@ import LightModeIcon from '@mui/icons-material/LightMode';
 import { useState } from 'react';
 import { appTheme } from '../theme/theme.js';
 
-const anchoMenu = 248;
+const anchoMenu = 264;
 
 function MarcaGalacticApp({ compact = false }) {
   return (
@@ -43,7 +44,7 @@ function MarcaGalacticApp({ compact = false }) {
   );
 }
 
-function AppLayout({ titulo, subtitulo, rol, usuario, nombre, opciones = [], alCerrarSesion, alSeleccionarOpcion, alCambiarTema, modo = 'light', children }) {
+function AppLayout({ titulo, subtitulo, rol, usuario, nombre, opciones = [], alCerrarSesion, alSeleccionarOpcion, alCambiarTema, modo = 'light', accionTitulo, children }) {
   const [menuAbierto, establecerMenuAbierto] = useState(false);
 
   const seleccionarOpcion = (opcion) => {
@@ -53,7 +54,7 @@ function AppLayout({ titulo, subtitulo, rol, usuario, nombre, opciones = [], alC
 
   const contenidoMenu = (
     <>
-      <Box sx={{ px: 2.5, pb: 2.5 }}>
+      <Box sx={{ px: 2.5, pb: 2.5, pt: { xs: 1, md: 0 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Avatar sx={{ flexShrink: 0, bgcolor: 'secondary.main', width: 50, height: 50, border: 3, borderColor: 'background.paper', boxShadow: 2 }}>
             {(nombre || usuario).charAt(0).toUpperCase()}
@@ -69,20 +70,34 @@ function AppLayout({ titulo, subtitulo, rol, usuario, nombre, opciones = [], alC
         </Box>
       </Box>
       <Divider />
-      <List sx={{ px: 1.25, py: 1.5 }}>
+      <List sx={{ px: 1.5, py: 2 }}>
         {opciones.map((opcion) => (
           <ListItem key={opcion} disablePadding>
             <ListItemButton
               selected={opcion === titulo}
               onClick={() => seleccionarOpcion(opcion)}
               sx={{
-                borderRadius: 2,
-                mb: 0.5,
+                borderRadius: 1,
+                mb: 0.75,
+                minHeight: 44,
+                px: 1.5,
+                position: 'relative',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  left: 0,
+                  top: 9,
+                  bottom: 9,
+                  width: 3,
+                  borderRadius: 3,
+                  backgroundColor: 'transparent',
+                },
                 '&.Mui-selected': {
                   color: modo === 'dark' ? 'text.primary' : 'primary.dark',
                   backgroundColor: modo === 'dark'
                     ? 'rgba(87, 162, 188, 0.28)'
                     : 'rgba(87, 162, 188, 0.14)',
+                  '&::before': { backgroundColor: 'primary.main' },
                   '&:hover': {
                     backgroundColor: modo === 'dark'
                       ? 'rgba(87, 162, 188, 0.36)'
@@ -130,7 +145,8 @@ function AppLayout({ titulo, subtitulo, rol, usuario, nombre, opciones = [], alC
             display: { xs: 'none', md: 'block' },
             borderRight: 1,
             borderColor: 'divider',
-            backgroundColor: 'background.paper',
+            backgroundColor: modo === 'dark' ? 'background.paper' : 'rgba(255, 255, 255, 0.72)',
+            backdropFilter: modo === 'dark' ? 'none' : 'blur(14px)',
           },
         }}
       >
@@ -149,10 +165,13 @@ function AppLayout({ titulo, subtitulo, rol, usuario, nombre, opciones = [], alC
       </Drawer>
 
       <Box component="main" sx={{ flexGrow: 1, minWidth: 0, p: { xs: 2, sm: 3, md: 5 }, pt: { xs: 10, md: 13 } }}>
-        <Box sx={{ maxWidth: 1480, mx: 'auto', width: '100%' }}>
-          <Typography variant="h4" color="text.primary" sx={{ fontWeight: 800, fontSize: { xs: '1.8rem', sm: '2.125rem' } }}>
-            {titulo}
-          </Typography>
+        <Box sx={{ maxWidth: 1320, mx: 'auto', width: '100%' }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: { xs: 'stretch', sm: 'center' }, justifyContent: 'space-between' }}>
+            <Typography variant="h4" color="text.primary" sx={{ fontWeight: 800, fontSize: { xs: '1.8rem', sm: '2.125rem' } }}>
+              {titulo}
+            </Typography>
+            {accionTitulo}
+          </Stack>
           <Typography color="text.secondary" sx={{ mt: 0.75, mb: { xs: 3, md: 4.5 }, maxWidth: 720 }}>
             {subtitulo}
           </Typography>
