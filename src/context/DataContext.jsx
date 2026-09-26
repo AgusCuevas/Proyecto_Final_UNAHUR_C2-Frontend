@@ -46,6 +46,40 @@ export function DataProvider({ children }) {
     return jornadas;
   };
 
+  const crearCliente = async (cliente) => {
+    const nuevoCliente = await clientesApi.crear(cliente);
+    setData((actual) => ({ ...actual, clientes: [...actual.clientes, nuevoCliente] }));
+    return nuevoCliente;
+  };
+
+  const actualizarCliente = async (clienteId, cambios) => {
+    const clienteActualizado = await clientesApi.actualizar(clienteId, cambios);
+    setData((actual) => ({
+      ...actual,
+      clientes: actual.clientes.map((cliente) => (
+        String(cliente.id) === String(clienteId) ? clienteActualizado : cliente
+      )),
+    }));
+    return clienteActualizado;
+  };
+
+  const crearUsuario = async (usuario) => {
+    const nuevoUsuario = await usuariosApi.crear(usuario);
+    setData((actual) => ({ ...actual, usuarios: [...actual.usuarios, nuevoUsuario] }));
+    return nuevoUsuario;
+  };
+
+  const actualizarUsuario = async (usuarioId, cambios) => {
+    const usuarioActualizado = await usuariosApi.actualizar(usuarioId, cambios);
+    setData((actual) => ({
+      ...actual,
+      usuarios: actual.usuarios.map((usuario) => (
+        String(usuario.id) === String(usuarioId) ? usuarioActualizado : usuario
+      )),
+    }));
+    return usuarioActualizado;
+  };
+
   const actualizarAsignacion = async (reclamoId, tecnicoId) => {
     const reclamoActualizado = await reclamosApi.actualizarAsignacion(reclamoId, tecnicoId);
     setData((actual) => ({
@@ -237,6 +271,10 @@ export function DataProvider({ children }) {
       registrarUbicacionTecnico,
       actualizarUbicaciones,
       actualizarKilometraje,
+      crearCliente,
+      actualizarCliente,
+      crearUsuario,
+      actualizarUsuario,
       crearReclamo,
       iniciarJornada,
       finalizarJornada,

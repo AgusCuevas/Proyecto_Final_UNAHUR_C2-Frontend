@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import {
+  Alert,
   Autocomplete,
   Box,
   Button,
   Card,
   CardContent,
+  Chip,
   Divider,
   Dialog,
   DialogActions,
@@ -29,6 +31,17 @@ import EditNoteIcon from '@mui/icons-material/EditNote';
 import { useAppData } from '../../context/useAppData.js';
 
 function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
+  const formularioNuevoInicial = {
+    clienteId: '',
+    tipo: '',
+    prioridad: 'Normal',
+    descripcion: '',
+    fechaProgramada: '',
+    tecnicoId: '',
+  };
+  const [formularioNuevo, establecerFormularioNuevo] = useState(formularioNuevoInicial);
+  const [errorAlta, establecerErrorAlta] = useState('');
+  const [guardandoAlta, establecerGuardandoAlta] = useState(false);
   const [reclamoEditado, establecerReclamoEditado] = useState(null);
   const [reclamoAbierto, establecerReclamoAbierto] = useState(null);
   const [reclamoExpandido, establecerReclamoExpandido] = useState(null);
@@ -44,7 +57,7 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
     desde: '',
     hasta: '',
   });
-  const { data, actualizarAsignacion, actualizarEstado } = useAppData();
+  const { data, actualizarAsignacion, actualizarEstado, crearReclamo: crearReclamoData } = useAppData();
   const reclamos = data.reclamos;
 
   const tecnicos = data.usuarios.filter(
@@ -65,6 +78,13 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
     'En progreso': 'secondary.main',
     Bloqueado: 'error.main',
     Finalizado: 'success.main',
+  };
+  const colorChipEstado = {
+    Abierto: 'warning',
+    Asignado: 'info',
+    'En progreso': 'secondary',
+    Bloqueado: 'error',
+    Finalizado: 'success',
   };
 
   const abrirEdicionTecnico = (reclamo) => {
@@ -127,6 +147,32 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
     establecerEdicionNotasAbierta(false);
   };
 
+  const guardarNuevoReclamo = async (event) => {
+    event.preventDefault();
+    const cliente = data.clientes.find((item) => String(item.id) === formularioNuevo.clienteId);
+    if (!cliente) return;
+
+    establecerErrorAlta('');
+    establecerGuardandoAlta(true);
+    try {
+      await crearReclamoData({
+        clienteId: Number(cliente.id),
+        tipo: formularioNuevo.tipo.trim(),
+        prioridad: formularioNuevo.prioridad,
+        descripcion: formularioNuevo.descripcion.trim(),
+        fechaProgramada: formularioNuevo.fechaProgramada || new Date().toISOString().slice(0, 10),
+        agrupacionGeografica: cliente.zona || '',
+        tecnicoId: formularioNuevo.tecnicoId ? Number(formularioNuevo.tecnicoId) : null,
+      });
+      establecerFormularioNuevo(formularioNuevoInicial);
+      establecerFormularioAbierto(false);
+    } catch {
+      establecerErrorAlta('No se pudo guardar el reclamo. Revisá los datos e intentá nuevamente.');
+    } finally {
+      establecerGuardandoAlta(false);
+    }
+  };
+
   const obtenerImagenes = (reclamo) => (
     reclamo?.imagenes?.length ? reclamo.imagenes : reclamo?.imagen ? [reclamo.imagen] : []
   );
@@ -136,6 +182,7 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
       {formularioAbierto && (
       <Card>
           <CardContent>
+            <Box component="form" onSubmit={guardarNuevoReclamo}>
             <Stack spacing={2}>
               <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="h6" sx={{ fontWeight: 800 }}>Alta de reclamo</Typography>
@@ -153,12 +200,13 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                   <InputLabel id="cliente-label">Cliente</InputLabel>
                   <Select
                     labelId="cliente-label"
-                    defaultValue=""
+                    value={formularioNuevo.clienteId}
+                    onChange={(evento) => establecerFormularioNuevo((actual) => ({ ...actual, clienteId: evento.target.value }))}
                     label="Cliente"
                   >
-                    {data.clientes.map((cliente) => (
+                    {data.clientes.filter((cliente) => cliente.activo !== false).map((cliente) => (
                       <MenuItem key={cliente.id} value={cliente.id}>
-                        {cliente.nombre} - {cliente.zona}
+                        {cliente.nombre}{cliente.zona ? ` - ${cliente.zona}` : ''}
                       </MenuItem>
                     ))}
                   </Select>
@@ -168,12 +216,15 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                   required
                   label="Tipo de reclamo"
                   placeholder="Ej: Sin servicio"
+                  value={formularioNuevo.tipo}
+                  onChange={(evento) => establecerFormularioNuevo((actual) => ({ ...actual, tipo: evento.target.value }))}
                 />
                 <FormControl fullWidth required>
                   <InputLabel id="prioridad-label">Prioridad</InputLabel>
                   <Select
                     labelId="prioridad-label"
-                    defaultValue="Normal"
+                    value={formularioNuevo.prioridad}
+                    onChange={(evento) => establecerFormularioNuevo((actual) => ({ ...actual, prioridad: evento.target.value }))}
                     label="Prioridad"
                   >
                     {['Normal', 'Alta', 'Urgente'].map((prioridad) => (
@@ -187,25 +238,40 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                 multiline
                 minRows={3}
                 label="Descripción"
+                value={formularioNuevo.descripcion}
+                onChange={(evento) => establecerFormularioNuevo((actual) => ({ ...actual, descripcion: evento.target.value }))}
               />
-              <FormControl fullWidth>
-                <InputLabel id="tecnico-label">Asignar técnico</InputLabel>
-                <Select
-                  labelId="tecnico-label"
-                    defaultValue=""
-                  label="Asignar técnico"
-                  startAdornment={<AssignmentIndIcon sx={{ mr: 1, color: 'text.secondary' }} />}
-                >
-                  <MenuItem value="">Sin asignar</MenuItem>
-                  {tecnicos.map((tecnico) => (
-                    <MenuItem key={tecnico.id} value={tecnico.id}>{tecnico.nombre}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <Button variant="contained" startIcon={<SaveIcon />} sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}>
-                Guardar reclamo
+              <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                <TextField
+                  fullWidth
+                  type="date"
+                  label="Fecha programada"
+                  InputLabelProps={{ shrink: true }}
+                  value={formularioNuevo.fechaProgramada}
+                  onChange={(evento) => establecerFormularioNuevo((actual) => ({ ...actual, fechaProgramada: evento.target.value }))}
+                />
+                <FormControl fullWidth>
+                  <InputLabel id="tecnico-label">Asignar técnico</InputLabel>
+                  <Select
+                    labelId="tecnico-label"
+                    value={formularioNuevo.tecnicoId}
+                    onChange={(evento) => establecerFormularioNuevo((actual) => ({ ...actual, tecnicoId: evento.target.value }))}
+                    label="Asignar técnico"
+                    startAdornment={<AssignmentIndIcon sx={{ mr: 1, color: 'text.secondary' }} />}
+                  >
+                    <MenuItem value="">Sin asignar</MenuItem>
+                    {tecnicos.map((tecnico) => (
+                      <MenuItem key={tecnico.id} value={tecnico.id}>{tecnico.nombre}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Stack>
+              {errorAlta && <Alert severity="error">{errorAlta}</Alert>}
+              <Button type="submit" variant="contained" disabled={guardandoAlta} startIcon={<SaveIcon />} sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}>
+                {guardandoAlta ? 'Guardando…' : 'Guardar reclamo'}
               </Button>
             </Stack>
+            </Box>
           </CardContent>
       </Card>
           )}
@@ -295,21 +361,31 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
               borderLeft: 4,
               borderLeftColor: colorEstado[reclamo.estado] || 'divider',
               transition: 'transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease',
-              '&:hover': { borderColor: 'primary.main', boxShadow: 4, transform: 'translateY(-3px)' },
+              '&:hover': { borderColor: 'primary.main', boxShadow: 3, transform: 'translateY(-2px)' },
               cursor: 'pointer',
             }}
           >
             <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={0} sx={{ alignItems: 'stretch' }}>
                 <Stack spacing={0} sx={{ flex: 1, minWidth: 0 }}>
-                  <Box sx={{ p: { xs: 1, sm: 1.25 } }}>
-                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 800, letterSpacing: '0.08em', mr: 1 }}>
+                  <Box sx={{ p: { xs: 1.5, sm: 2 } }}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', mb: 0.5 }}>
+                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 800, letterSpacing: '0.08em' }}>
                       Reclamo #{reclamo.id}
                     </Typography>
-                    <Typography component="span" variant="caption" sx={{ fontWeight: 800, color: reclamo.prioridad === 'Urgente' ? 'error.main' : 'text.secondary' }}>
-                      Prioridad: {reclamo.prioridad}
-                    </Typography>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1.2 }}>{reclamo.tipo}</Typography>
+                    <Chip
+                      size="small"
+                      label={`Prioridad ${reclamo.prioridad}`}
+                      color={reclamo.prioridad === 'Urgente' ? 'error' : reclamo.prioridad === 'Alta' ? 'warning' : 'default'}
+                    />
+                    </Stack>
+                    <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.2 }}>{reclamo.tipo}</Typography>
+                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={{ xs: 0.25, md: 1.5 }} sx={{ mt: 0.5 }}>
+                      <Typography variant="body2" color="text.secondary">{nombreCliente(reclamo.clienteId)}</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {reclamo.fechaProgramada || (reclamo.creadoEn ? new Date(reclamo.creadoEn).toLocaleDateString('es-AR') : 'Sin fecha')}
+                      </Typography>
+                    </Stack>
                   </Box>
                 </Stack>
 
@@ -317,32 +393,18 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
 
                 <Box
                   sx={{
-                    width: { xs: '100%', md: 250 },
+                    width: { xs: '100%', md: 150 },
                     flexShrink: 0,
-                    alignSelf: 'stretch',
-                    height: { xs: 64, sm: 72 },
-                    minHeight: 0,
                     display: 'flex',
-                    alignItems: 'center',
+                    flexDirection: 'column',
+                    alignItems: { xs: 'flex-start', md: 'center' },
                     justifyContent: 'center',
-                    p: 1,
-                    borderRadius: 1.5,
-                    border: 1,
-                    borderColor: 'divider',
-                    backgroundColor: 'action.hover',
+                    gap: 0.75,
+                    py: 1,
                   }}
                 >
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.25, fontWeight: 700, textAlign: 'center' }}>
-                      Estado del ticket
-                    </Typography>
-                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'center' }}>
-                      <Box sx={{ width: 11, height: 11, borderRadius: '50%', bgcolor: colorEstado[reclamo.estado] || 'text.secondary' }} />
-                      <Typography sx={{ fontWeight: 800, color: colorEstado[reclamo.estado] || 'text.primary' }}>
-                        {reclamo.estado}
-                      </Typography>
-                    </Stack>
-                  </Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>Estado</Typography>
+                  <Chip size="small" label={reclamo.estado} color={colorChipEstado[reclamo.estado] || 'default'} />
                 </Box>
 
                 <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
@@ -352,26 +414,20 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                   onClick={(evento) => evento.stopPropagation()}
                   onMouseDown={(evento) => evento.stopPropagation()}
                   onKeyDown={(evento) => evento.stopPropagation()}
-                  sx={{ width: { xs: '100%', md: 250 }, flexShrink: 0, alignItems: 'center', justifyContent: 'center' }}
+                  sx={{ width: { xs: '100%', md: 220 }, flexShrink: 0, alignItems: 'stretch', justifyContent: 'center' }}
                 >
                   <Stack spacing={0}>
                     <Box
                       sx={{
-                        mt: 0,
-                        p: 1,
-                        height: { xs: 64, sm: 72 },
-                        minHeight: 0,
+                        px: 1,
+                        py: 0.75,
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'center',
-                        borderRadius: 1,
                         width: '100%',
-                        border: 1,
-                        borderColor: 'divider',
-                        backgroundColor: 'action.hover',
                       }}
                     >
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.35, textAlign: 'center' }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.35, textAlign: { xs: 'left', md: 'center' } }}>
                         Técnico
                       </Typography>
                       {reclamo.tecnicoId ? (

@@ -20,18 +20,21 @@ import {
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import CloseIcon from '@mui/icons-material/Close';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import GroupIcon from '@mui/icons-material/Group';
 import QueryStatsIcon from '@mui/icons-material/QueryStats';
 import SupportAgentIcon from '@mui/icons-material/SupportAgent';
 import { useMemo, useState } from 'react';
 import AppLayout from '../AppLayout.jsx';
+import Clientes from './Clientes.jsx';
+import UsuariosAdmin from './UsuariosAdmin.jsx';
 import MapaTecnicos from '../coordinador/MapaTecnicos.jsx';
 import Reclamos from '../coordinador/Reclamos.jsx';
 import Vehiculos from '../coordinador/Vehiculos.jsx';
 import { useAppData } from '../../context/useAppData.js';
 
-const secciones = ['Panel de administración', 'Usuarios', 'Reclamos', 'Vehículos', 'Reportes'];
+const secciones = ['Panel de administración', 'Usuarios', 'Clientes', 'Reclamos', 'Vehículos', 'Reportes'];
 
 function TarjetaMetrica({ icono, etiqueta, valor, color = 'primary.main' }) {
   return (
@@ -52,24 +55,20 @@ function TarjetaMetrica({ icono, etiqueta, valor, color = 'primary.main' }) {
 // Componente principal para la pantalla del administrador.
 function AdminHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
   const [seccion, establecerSeccion] = useState('Panel de administración');
-  const [usuarioNuevo, establecerUsuarioNuevo] = useState({ nombre: '', documento: '', direccion: '', telefono: '', email: '', fechaNacimiento: '', usuario: '', contrasena: '', rol: 'Tecnico' });
-  const [dialogoUsuarioAbierto, establecerDialogoUsuarioAbierto] = useState(false);
-  const [usuariosExtra, establecerUsuariosExtra] = useState(() => (
-    JSON.parse(localStorage.getItem('usuariosAdministracion') || '[]')
-  ));
-  const [servicios, establecerServicios] = useState(() => (
-    JSON.parse(localStorage.getItem('serviciosAdministracion') || '[]')
-  ));
+  const [formularioReclamoAbierto, establecerFormularioReclamoAbierto] = useState(false);
   const [vehiculosExtra, establecerVehiculosExtra] = useState(() => (
     JSON.parse(localStorage.getItem('vehiculosAdministracion') || '[]')
   ));
   const [vehiculoNuevo, establecerVehiculoNuevo] = useState({ patente: '', marca: '', modelo: '', kilometrajeInicial: '', kilometrajeActual: '', companiaSeguro: '', poliza: '', venceSeguro: '', ultimoService: '', detalle: '' });
-  const [servicioNuevo, establecerServicioNuevo] = useState({ cliente: '', tipo: 'Instalación' });
   const [filtrosReporte, establecerFiltrosReporte] = useState({ tecnicoId: 'Todos', desde: '', hasta: '' });
-  const { data } = useAppData();
+  const { data, actualizarAsignacion } = useAppData();
+
+  const ordenesServicio = useMemo(() => (
+    data.reclamos.filter((r) => r.esOrden || r.tipo === 'Instalación' || r.tipo === 'Baja de servicio')
+  ), [data.reclamos]);
 
   const tecnicos = data.usuarios.filter((item) => item.rol === 'Tecnico');
-  const usuarios = [...data.usuarios, ...usuariosExtra];
+  const usuarios = data.usuarios;
   const reclamosFinalizados = data.reclamos.filter((reclamo) => reclamo.estado === 'Finalizado');
   const reclamosPendientes = data.reclamos.filter((reclamo) => reclamo.estado !== 'Finalizado');
 
@@ -127,64 +126,6 @@ function AdminHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
     establecerFiltrosReporte((actual) => ({ ...actual, [campo]: valor }));
   };
 
-  const guardarUsuarios = (nuevosUsuarios) => {
-    establecerUsuariosExtra(nuevosUsuarios);
-    localStorage.setItem('usuariosAdministracion', JSON.stringify(nuevosUsuarios));
-  };
-
-  const agregarUsuario = (evento) => {
-    evento.preventDefault();
-    if (!usuarioNuevo.nombre.trim() || !usuarioNuevo.usuario.trim()) return;
-    guardarUsuarios([...usuariosExtra, {
-      id: `local-${Date.now()}`,
-      ...usuarioNuevo,
-      activo: true,
-    }]);
-    establecerUsuarioNuevo({ nombre: '', documento: '', direccion: '', telefono: '', email: '', fechaNacimiento: '', usuario: '', contrasena: '', rol: 'Tecnico' });
-    establecerDialogoUsuarioAbierto(false);
-  };
-
-  const cambiarEstadoUsuario = (id) => {
-    guardarUsuarios(usuariosExtra.map((item) => (
-      item.id === id ? { ...item, activo: !item.activo } : item
-    )));
-  };
-
-  const agregarServicio = (evento) => {
-    evento.preventDefault();
-    if (!servicioNuevo.cliente.trim()) return;
-    const serviciosActualizados = [...servicios, {
-      id: Date.now(),
-      ...servicioNuevo,
-      tecnicoId: null,
-      estado: 'Pendiente de asignación',
-      creadoEn: new Date().toISOString(),
-    }];
-    establecerServicios(serviciosActualizados);
-    localStorage.setItem('serviciosAdministracion', JSON.stringify(serviciosActualizados));
-    establecerServicioNuevo({ cliente: '', tipo: 'Instalación' });
-  };
-
-  const cambiarEstadoServicio = (id) => {
-    const serviciosActualizados = servicios.map((servicio) => (
-      servicio.id === id
-        ? { ...servicio, estado: servicio.estado === 'Pendiente de asignación' ? 'Asignado' : 'Pendiente de asignación' }
-        : servicio
-    ));
-    establecerServicios(serviciosActualizados);
-    localStorage.setItem('serviciosAdministracion', JSON.stringify(serviciosActualizados));
-  };
-
-  const asignarTecnicoServicio = (id, tecnicoId) => {
-    const serviciosActualizados = servicios.map((servicio) => (
-      servicio.id === id
-        ? { ...servicio, tecnicoId: tecnicoId ? Number(tecnicoId) : null, estado: tecnicoId ? 'Asignado' : 'Pendiente de asignación' }
-        : servicio
-    ));
-    establecerServicios(serviciosActualizados);
-    localStorage.setItem('serviciosAdministracion', JSON.stringify(serviciosActualizados));
-  };
-
   const agregarVehiculo = (evento) => {
     evento.preventDefault();
     if (!vehiculoNuevo.patente.trim() || !vehiculoNuevo.marca.trim() || !vehiculoNuevo.modelo.trim()) return;
@@ -215,7 +156,7 @@ function AdminHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
         <TarjetaMetrica icono={<AssignmentIcon fontSize="large" />} etiqueta="Reclamos pendientes" valor={reclamosPendientes.length} color="warning.main" />
         <TarjetaMetrica icono={<SupportAgentIcon fontSize="large" />} etiqueta="Técnicos activos" valor={tecnicos.filter((item) => item.activo).length} color="success.main" />
         <TarjetaMetrica icono={<GroupIcon fontSize="large" />} etiqueta="Usuarios registrados" valor={usuarios.length} color="info.main" />
-        <TarjetaMetrica icono={<QueryStatsIcon fontSize="large" />} etiqueta="Servicios gestionados" valor={servicios.length} color="secondary.main" />
+        <TarjetaMetrica icono={<QueryStatsIcon fontSize="large" />} etiqueta="Servicios gestionados" valor={ordenesServicio.length} color="secondary.main" />
       </Box>
       <MapaTecnicos />
       <Card>
@@ -227,59 +168,19 @@ function AdminHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
           <TablaRendimiento rendimiento={rendimiento} />
         </CardContent>
       </Card>
-      <GestionServicios
-        servicioNuevo={servicioNuevo}
-        establecerServicioNuevo={establecerServicioNuevo}
-        agregarServicio={agregarServicio}
-        servicios={servicios}
-        tecnicos={tecnicos}
-        asignarTecnicoServicio={asignarTecnicoServicio}
-        cambiarEstadoServicio={cambiarEstadoServicio}
+    </Stack>
+  );
+
+  const contenidoReclamos = (
+    <Stack spacing={3}>
+      <Reclamos
+        formularioAbierto={formularioReclamoAbierto}
+        establecerFormularioAbierto={establecerFormularioReclamoAbierto}
       />
     </Stack>
   );
 
-  const contenidoUsuarios = (
-    <Stack spacing={3}>
-      <Card>
-        <CardContent><Button variant="contained" startIcon={<AddIcon />} onClick={() => establecerDialogoUsuarioAbierto(true)}>Nuevo usuario</Button></CardContent>
-      </Card>
-      <Dialog open={dialogoUsuarioAbierto} onClose={() => establecerDialogoUsuarioAbierto(false)} fullWidth maxWidth="md">
-        <DialogTitle>Alta completa de usuario</DialogTitle>
-        <Box component="form" onSubmit={agregarUsuario}>
-          <DialogContent sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
-            <TextField required label="Nombre y apellido" value={usuarioNuevo.nombre} onChange={(evento) => establecerUsuarioNuevo({ ...usuarioNuevo, nombre: evento.target.value })} />
-            <TextField required label="DNI" value={usuarioNuevo.documento} onChange={(evento) => establecerUsuarioNuevo({ ...usuarioNuevo, documento: evento.target.value })} />
-            <TextField required label="Domicilio" value={usuarioNuevo.direccion} onChange={(evento) => establecerUsuarioNuevo({ ...usuarioNuevo, direccion: evento.target.value })} />
-            <TextField label="Teléfono" value={usuarioNuevo.telefono} onChange={(evento) => establecerUsuarioNuevo({ ...usuarioNuevo, telefono: evento.target.value })} />
-            <TextField type="email" label="Correo electrónico" value={usuarioNuevo.email} onChange={(evento) => establecerUsuarioNuevo({ ...usuarioNuevo, email: evento.target.value })} />
-            <TextField type="date" label="Fecha de nacimiento" InputLabelProps={{ shrink: true }} value={usuarioNuevo.fechaNacimiento} onChange={(evento) => establecerUsuarioNuevo({ ...usuarioNuevo, fechaNacimiento: evento.target.value })} />
-            <TextField required label="Usuario" value={usuarioNuevo.usuario} onChange={(evento) => establecerUsuarioNuevo({ ...usuarioNuevo, usuario: evento.target.value })} />
-            <TextField required type="password" label="Contraseña" value={usuarioNuevo.contrasena} onChange={(evento) => establecerUsuarioNuevo({ ...usuarioNuevo, contrasena: evento.target.value })} />
-            <TextField select required label="Rol" value={usuarioNuevo.rol} onChange={(evento) => establecerUsuarioNuevo({ ...usuarioNuevo, rol: evento.target.value })}>
-              <MenuItem value="Tecnico">Técnico</MenuItem><MenuItem value="Coordinador">Coordinador</MenuItem><MenuItem value="Administrador">Administrador</MenuItem>
-            </TextField>
-          </DialogContent>
-          <DialogActions><Button onClick={() => establecerDialogoUsuarioAbierto(false)}>Cancelar</Button><Button type="submit" variant="contained">Guardar usuario</Button></DialogActions>
-        </Box>
-      </Dialog>
-      <Card>
-        <CardContent>
-          <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>Usuarios del sistema</Typography>
-          <Table size="small">
-            <TableHead><TableRow><TableCell>Nombre</TableCell><TableCell>Usuario</TableCell><TableCell>Rol</TableCell><TableCell>Estado</TableCell><TableCell align="right">Acción</TableCell></TableRow></TableHead>
-            <TableBody>{usuarios.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell>{item.nombre}</TableCell><TableCell>{item.usuario}</TableCell><TableCell>{item.rol}</TableCell>
-                <TableCell><Chip size="small" label={item.activo ? 'Activo' : 'Inactivo'} color={item.activo ? 'success' : 'default'} /></TableCell>
-                <TableCell align="right">{String(item.id).startsWith('local-') && <Button size="small" onClick={() => cambiarEstadoUsuario(item.id)}>{item.activo ? 'Dar de baja' : 'Reactivar'}</Button>}</TableCell>
-              </TableRow>
-            ))}</TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </Stack>
-  );
+  const contenidoUsuarios = <UsuariosAdmin />;
 
   const contenidoReportes = (
     <Stack spacing={3}>
@@ -324,7 +225,8 @@ function AdminHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
   const contenidoPorSeccion = {
     'Panel de administración': contenidoPanel,
     Usuarios: contenidoUsuarios,
-    Reclamos: <Reclamos />,
+    Clientes: <Clientes />,
+    Reclamos: contenidoReclamos,
     Vehículos: (
       <Stack spacing={3}>
         <GestionVehiculos
@@ -354,6 +256,25 @@ function AdminHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
       alCambiarTema={alCambiarTema}
       modo={modo}
       alSeleccionarOpcion={establecerSeccion}
+      accionTitulo={seccion === 'Reclamos' && (
+        <Stack direction="row" spacing={1.5} sx={{ alignSelf: { xs: 'stretch', sm: 'center' }, flexShrink: 0 }}>
+          <Button
+            variant={formularioReclamoAbierto === 'reclamo' ? 'outlined' : 'contained'}
+            startIcon={formularioReclamoAbierto === 'reclamo' ? <CloseIcon /> : <AddIcon />}
+            onClick={() => establecerFormularioReclamoAbierto((actual) => (actual === 'reclamo' ? false : 'reclamo'))}
+          >
+            {formularioReclamoAbierto === 'reclamo' ? 'Cerrar alta' : 'Nuevo reclamo'}
+          </Button>
+          <Button
+            variant={formularioReclamoAbierto === 'orden' ? 'outlined' : 'contained'}
+            color="secondary"
+            startIcon={formularioReclamoAbierto === 'orden' ? <CloseIcon /> : <AddIcon />}
+            onClick={() => establecerFormularioReclamoAbierto((actual) => (actual === 'orden' ? false : 'orden'))}
+          >
+            {formularioReclamoAbierto === 'orden' ? 'Cerrar alta' : 'Registrar orden'}
+          </Button>
+        </Stack>
+      )}
     >
       {contenidoPorSeccion[seccion]}
     </AppLayout>
@@ -433,10 +354,6 @@ function GestionVehiculos({ vehiculoNuevo, establecerVehiculoNuevo, agregarVehic
   const [dialogoAbierto, establecerDialogoAbierto] = useState(false);
   const actualizar = (campo, valor) => establecerVehiculoNuevo({ ...vehiculoNuevo, [campo]: valor });
   return <Card><CardContent><Button variant="contained" startIcon={<AddIcon />} onClick={() => establecerDialogoAbierto(true)}>Nuevo vehículo</Button><Dialog open={dialogoAbierto} onClose={() => establecerDialogoAbierto(false)} fullWidth maxWidth="md"><DialogTitle>Alta completa de vehículo</DialogTitle><Box component="form" onSubmit={(evento) => { agregarVehiculo(evento); establecerDialogoAbierto(false); }}><DialogContent sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}><TextField required label="Patente" value={vehiculoNuevo.patente} onChange={(evento) => actualizar('patente', evento.target.value)} /><TextField required label="Marca" value={vehiculoNuevo.marca} onChange={(evento) => actualizar('marca', evento.target.value)} /><TextField required label="Modelo" value={vehiculoNuevo.modelo} onChange={(evento) => actualizar('modelo', evento.target.value)} /><TextField required type="number" label="Kilometraje inicial" value={vehiculoNuevo.kilometrajeInicial} onChange={(evento) => actualizar('kilometrajeInicial', evento.target.value)} /><TextField required type="number" label="Kilometraje actual" value={vehiculoNuevo.kilometrajeActual} onChange={(evento) => actualizar('kilometrajeActual', evento.target.value)} /><TextField required label="Compañía de seguro" value={vehiculoNuevo.companiaSeguro} onChange={(evento) => actualizar('companiaSeguro', evento.target.value)} /><TextField required label="Número de póliza" value={vehiculoNuevo.poliza} onChange={(evento) => actualizar('poliza', evento.target.value)} /><TextField required type="date" label="Vencimiento del seguro" InputLabelProps={{ shrink: true }} value={vehiculoNuevo.venceSeguro} onChange={(evento) => actualizar('venceSeguro', evento.target.value)} /><TextField required type="date" label="Último service" InputLabelProps={{ shrink: true }} value={vehiculoNuevo.ultimoService} onChange={(evento) => actualizar('ultimoService', evento.target.value)} /><TextField multiline minRows={2} label="Detalle" value={vehiculoNuevo.detalle} onChange={(evento) => actualizar('detalle', evento.target.value)} /></DialogContent><DialogActions><Button onClick={() => establecerDialogoAbierto(false)}>Cancelar</Button><Button type="submit" variant="contained">Guardar vehículo</Button></DialogActions></Box></Dialog></CardContent></Card>;
-}
-
-function GestionServicios({ servicioNuevo, establecerServicioNuevo, agregarServicio, servicios, tecnicos, asignarTecnicoServicio }) {
-  return <Card><CardContent><Typography variant="h6" sx={{ fontWeight: 800 }}>Instalaciones y bajas de servicio</Typography><Typography color="text.secondary" variant="body2" sx={{ mt: 0.5, mb: 2 }}>Registrá las órdenes que luego deberán ser asignadas por el administrador o el coordinador.</Typography><Stack component="form" onSubmit={agregarServicio} direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}><TextField required fullWidth label="Cliente o domicilio" value={servicioNuevo.cliente} onChange={(evento) => establecerServicioNuevo({ ...servicioNuevo, cliente: evento.target.value })} /><TextField select label="Tipo de servicio" value={servicioNuevo.tipo} onChange={(evento) => establecerServicioNuevo({ ...servicioNuevo, tipo: evento.target.value })}><MenuItem value="Instalación">Instalación</MenuItem><MenuItem value="Baja de servicio">Baja de servicio</MenuItem></TextField><Button type="submit" variant="contained" startIcon={<AddIcon />} sx={{ minWidth: 170 }}>Registrar orden</Button></Stack>{servicios.length === 0 ? <Typography color="text.secondary">Todavía no hay órdenes registradas.</Typography> : servicios.map((servicio) => <Stack key={servicio.id} direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ py: 1.25, borderTop: 1, borderColor: 'divider', alignItems: { sm: 'center' } }}><Typography sx={{ flex: 1, fontWeight: 700 }}>{servicio.tipo}: {servicio.cliente}</Typography><TextField select size="small" label="Técnico" value={servicio.tecnicoId || ''} onChange={(evento) => asignarTecnicoServicio(servicio.id, evento.target.value)} sx={{ minWidth: 190 }}><MenuItem value="">Sin asignar</MenuItem>{tecnicos.filter((tecnico) => tecnico.activo).map((tecnico) => <MenuItem key={tecnico.id} value={tecnico.id}>{tecnico.nombre}</MenuItem>)}</TextField><Chip size="small" label={servicio.estado} color={servicio.estado === 'Asignado' ? 'success' : 'warning'} /></Stack>)}</CardContent></Card>;
 }
 
 export default AdminHome;
