@@ -20,6 +20,7 @@ import DarkModeIcon from '@mui/icons-material/DarkMode';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import { useState } from 'react';
 import { appTheme } from '../theme/theme.js';
+import { useAppData } from '../context/useAppData.js';
 
 const anchoMenu = 264;
 
@@ -46,6 +47,17 @@ function MarcaGalacticApp({ compact = false }) {
 
 function AppLayout({ titulo, subtitulo, rol, usuario, nombre, opciones = [], alCerrarSesion, alSeleccionarOpcion, alCambiarTema, modo = 'light', accionTitulo, children }) {
   const [menuAbierto, establecerMenuAbierto] = useState(false);
+  const { data } = useAppData();
+
+  const tecnico = rol === 'Técnico'
+    ? data?.usuarios?.find((u) => u.usuario === usuario)
+    : null;
+  const jornadaActiva = tecnico
+    ? data?.jornadas?.find((j) => j.tecnicoId === tecnico.id && j.activa)
+    : null;
+  const horaInicioJornada = jornadaActiva?.inicio
+    ? new Date(jornadaActiva.inicio).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+    : '';
 
   const seleccionarOpcion = (opcion) => {
     alSeleccionarOpcion?.(opcion);
@@ -53,7 +65,7 @@ function AppLayout({ titulo, subtitulo, rol, usuario, nombre, opciones = [], alC
   };
 
   const contenidoMenu = (
-    <>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <Box sx={{ px: 2.5, pb: 2.5, pt: { xs: 1, md: 0 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Avatar sx={{ flexShrink: 0, bgcolor: 'secondary.main', width: 50, height: 50, border: 3, borderColor: 'background.paper', boxShadow: 2 }}>
@@ -111,7 +123,74 @@ function AppLayout({ titulo, subtitulo, rol, usuario, nombre, opciones = [], alC
           </ListItem>
         ))}
       </List>
-    </>
+
+      {/* Indicador de Jornada para Técnico abajo a la izquierda en el menú lateral */}
+      {rol === 'Técnico' && (
+        <Box sx={{ mt: 'auto', p: 2, pb: 2.5 }}>
+          <Box
+            onClick={() => seleccionarOpcion('Resumen de servicios')}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.25,
+              px: 1.75,
+              py: 1.25,
+              borderRadius: 2,
+              cursor: 'pointer',
+              border: 1,
+              borderColor: jornadaActiva ? 'success.main' : 'divider',
+              backgroundColor: jornadaActiva
+                ? (modo === 'dark' ? 'rgba(46, 125, 50, 0.2)' : 'rgba(46, 125, 50, 0.08)')
+                : 'action.hover',
+              transition: 'all 200ms ease',
+              '&:hover': {
+                backgroundColor: jornadaActiva
+                  ? (modo === 'dark' ? 'rgba(46, 125, 50, 0.3)' : 'rgba(46, 125, 50, 0.15)')
+                  : 'action.selected',
+                transform: 'translateY(-1px)',
+              },
+            }}
+          >
+            <Box
+              sx={{
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                bgcolor: jornadaActiva ? 'success.main' : 'text.disabled',
+                flexShrink: 0,
+                boxShadow: jornadaActiva ? '0 0 0 3px rgba(46, 125, 50, 0.25)' : 'none',
+                ...(jornadaActiva && {
+                  animation: 'pulsoJornada 2s infinite',
+                  '@keyframes pulsoJornada': {
+                    '0%': { transform: 'scale(0.95)', boxShadow: '0 0 0 0 rgba(46, 125, 50, 0.7)' },
+                    '70%': { transform: 'scale(1)', boxShadow: '0 0 0 6px rgba(46, 125, 50, 0)' },
+                    '100%': { transform: 'scale(0.95)', boxShadow: '0 0 0 0 rgba(46, 125, 50, 0)' },
+                  },
+                }),
+              }}
+            />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  color: jornadaActiva ? 'success.main' : 'text.secondary',
+                  lineHeight: 1.2,
+                }}
+              >
+                {jornadaActiva ? 'Jornada activa' : 'Sin jornada activa'}
+              </Typography>
+              {jornadaActiva && horaInicioJornada && (
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.72rem', display: 'block' }}>
+                  Desde las {horaInicioJornada}
+                </Typography>
+              )}
+            </Box>
+          </Box>
+        </Box>
+      )}
+    </Box>
   );
 
   return (
@@ -142,7 +221,8 @@ function AppLayout({ titulo, subtitulo, rol, usuario, nombre, opciones = [], alC
             width: anchoMenu,
             boxSizing: 'border-box',
             pt: 11,
-            display: { xs: 'none', md: 'block' },
+            display: { xs: 'none', md: 'flex' },
+            flexDirection: 'column',
             borderRight: 1,
             borderColor: 'divider',
             backgroundColor: modo === 'dark' ? 'background.paper' : 'rgba(255, 255, 255, 0.72)',
@@ -159,10 +239,57 @@ function AppLayout({ titulo, subtitulo, rol, usuario, nombre, opciones = [], alC
         onClose={() => establecerMenuAbierto(false)}
         ModalProps={{ keepMounted: true }}
         sx={{ display: { xs: 'block', md: 'none' } }}
-        slotProps={{ paper: { sx: { width: anchoMenu, pt: 3 } } }}
+        slotProps={{ paper: { sx: { width: anchoMenu, pt: 3, display: 'flex', flexDirection: 'column' } } }}
       >
         {contenidoMenu}
       </Drawer>
+
+      {/* Indicador flotante en mobile para Técnico (abajo a la izquierda) */}
+      {rol === 'Técnico' && (
+        <Box
+          onClick={() => seleccionarOpcion('Resumen de servicios')}
+          sx={{
+            display: { xs: 'flex', md: 'none' },
+            position: 'fixed',
+            bottom: 16,
+            left: 16,
+            zIndex: 1100,
+            alignItems: 'center',
+            gap: 1,
+            px: 1.75,
+            py: 0.85,
+            borderRadius: 9999,
+            cursor: 'pointer',
+            bgcolor: modo === 'dark' ? 'background.paper' : '#ffffff',
+            border: 1.5,
+            borderColor: jornadaActiva ? 'success.main' : 'divider',
+            boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
+          }}
+        >
+          <Box
+            sx={{
+              width: 9,
+              height: 9,
+              borderRadius: '50%',
+              bgcolor: jornadaActiva ? 'success.main' : 'text.disabled',
+              boxShadow: jornadaActiva ? '0 0 0 2px rgba(46, 125, 50, 0.25)' : 'none',
+              ...(jornadaActiva && {
+                animation: 'pulsoJornada 2s infinite',
+              }),
+            }}
+          />
+          <Typography
+            variant="body2"
+            sx={{
+              fontWeight: 800,
+              color: jornadaActiva ? 'success.main' : 'text.secondary',
+              fontSize: '0.85rem',
+            }}
+          >
+            {jornadaActiva ? 'Jornada activa' : 'Sin jornada activa'}
+          </Typography>
+        </Box>
+      )}
 
       <Box component="main" sx={{ flexGrow: 1, minWidth: 0, p: { xs: 2, sm: 3, md: 5 }, pt: { xs: 10, md: 13 } }}>
         <Box sx={{ maxWidth: 1320, mx: 'auto', width: '100%' }}>

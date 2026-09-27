@@ -22,7 +22,26 @@ export function DataProvider({ children }) {
       ubicacionesApi.listar(),
     ])
       .then(([usuarios, clientes, vehiculos, reclamos, ubicacionesTecnicos]) => {
-        const jornadas = JSON.parse(localStorage.getItem('jornadasTecnicos') || '[]');
+        const jornadasGuardadas = localStorage.getItem('jornadasTecnicos');
+        let jornadas = [];
+        try {
+          jornadas = jornadasGuardadas ? JSON.parse(jornadasGuardadas) : [];
+        } catch {
+          jornadas = [];
+        }
+        if (!jornadas || jornadas.length === 0) {
+          jornadas = [
+            {
+              id: 1,
+              tecnicoId: 3,
+              inicio: new Date(Date.now() - 2 * 3600000).toISOString(),
+              fin: null,
+              kilometrajeInicial: 45100,
+              kilometrajeFinal: null,
+              activa: true,
+            },
+          ];
+        }
         const vehiculosConRegistro = vehiculos.map((vehiculo) => {
           const registro = JSON.parse(localStorage.getItem(`kilometrajeVehiculo:${vehiculo.id}`) || 'null');
           return registro ? {

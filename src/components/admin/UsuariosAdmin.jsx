@@ -49,6 +49,7 @@ const estaActivo = (usuario) => usuario.activo !== false;
 function UsuariosAdmin() {
   const { data, crearUsuario, actualizarUsuario } = useAppData();
   const [busqueda, establecerBusqueda] = useState('');
+  const [filtroRol, establecerFiltroRol] = useState('Todos');
   const [filtroEstado, establecerFiltroEstado] = useState('Todos');
   const [dialogoFormularioAbierto, establecerDialogoFormularioAbierto] = useState(false);
   const [dialogoDetalleAbierto, establecerDialogoDetalleAbierto] = useState(false);
@@ -64,11 +65,12 @@ function UsuariosAdmin() {
     .filter((usuario) => {
       const coincideEstado = filtroEstado === 'Todos'
         || (filtroEstado === 'Activos' ? estaActivo(usuario) : !estaActivo(usuario));
+      const coincideRol = filtroRol === 'Todos' || usuario.rol === filtroRol;
       const texto = [usuario.nombre, usuario.usuario, usuario.documento, usuario.email, usuario.rol]
         .filter(Boolean)
         .join(' ')
         .toLocaleLowerCase('es');
-      return coincideEstado && texto.includes(termino);
+      return coincideEstado && coincideRol && texto.includes(termino);
     })
     .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
 
@@ -154,40 +156,115 @@ function UsuariosAdmin() {
 
       <Card>
         <CardContent>
-          <Stack
-            direction={{ xs: 'column', md: 'row' }}
-            spacing={2}
-            sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
-          >
-            <TextField
-              fullWidth
-              label="Buscar usuarios"
-              placeholder="Nombre, usuario, documento, correo o rol"
-              value={busqueda}
-              onChange={(evento) => establecerBusqueda(evento.target.value)}
-              sx={{ maxWidth: { md: 520 } }}
-              slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> } }}
-            />
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+          <Stack spacing={2}>
+            <Stack
+              direction={{ xs: 'column', md: 'row' }}
+              spacing={2}
+              sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
+            >
               <TextField
-                select
-                label="Estado"
-                value={filtroEstado}
-                onChange={(evento) => establecerFiltroEstado(evento.target.value)}
-                sx={{ minWidth: 150 }}
-              >
-                <MenuItem value="Todos">Todos</MenuItem>
-                <MenuItem value="Activos">Activos</MenuItem>
-                <MenuItem value="Inactivos">Inactivos</MenuItem>
-              </TextField>
+                fullWidth
+                label="Buscar usuarios"
+                placeholder="Nombre, usuario, documento, correo o rol"
+                value={busqueda}
+                onChange={(evento) => establecerBusqueda(evento.target.value)}
+                sx={{ maxWidth: { md: 520 } }}
+                slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> } }}
+              />
               <Button
                 variant="contained"
                 startIcon={<AddIcon />}
                 onClick={() => abrirFormulario()}
-                sx={{ whiteSpace: 'nowrap' }}
+                sx={{ whiteSpace: 'nowrap', alignSelf: { xs: 'stretch', sm: 'auto' } }}
               >
                 Nuevo usuario
               </Button>
+            </Stack>
+
+            <Stack
+              direction={{ xs: 'column', lg: 'row' }}
+              spacing={2}
+              sx={{ alignItems: { xs: 'stretch', lg: 'center' }, pt: 0.5, flexWrap: 'wrap' }}
+            >
+              {/* Filtro por Tipo de Usuario (Rol) */}
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, minWidth: 95 }}>
+                  Tipo de usuario:
+                </Typography>
+                <Stack
+                  direction="row"
+                  spacing={0.5}
+                  aria-label="Filtrar usuarios por rol"
+                  sx={{
+                    width: { xs: '100%', sm: 'fit-content' },
+                    flexWrap: 'wrap',
+                    p: 0.5,
+                    border: 1,
+                    borderColor: 'divider',
+                    borderRadius: 1.5,
+                    backgroundColor: 'action.hover',
+                    '& .MuiButton-root': {
+                      flex: { xs: 1, sm: 'initial' },
+                      minWidth: { sm: 64 },
+                      minHeight: 32,
+                      px: 1.25,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                    },
+                  }}
+                >
+                  {['Todos', 'Administrador', 'Coordinador', 'Tecnico'].map((rol) => (
+                    <Button
+                      key={rol}
+                      size="small"
+                      variant={filtroRol === rol ? 'contained' : 'outlined'}
+                      onClick={() => establecerFiltroRol(rol)}
+                    >
+                      {rol === 'Tecnico' ? 'Técnico' : rol}
+                    </Button>
+                  ))}
+                </Stack>
+              </Stack>
+
+              {/* Filtro por Estado */}
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, minWidth: 50 }}>
+                  Estado:
+                </Typography>
+                <Stack
+                  direction="row"
+                  spacing={0.5}
+                  aria-label="Filtrar por estado"
+                  sx={{
+                    width: { xs: '100%', sm: 'fit-content' },
+                    flexWrap: 'wrap',
+                    p: 0.5,
+                    border: 1,
+                    borderColor: 'divider',
+                    borderRadius: 1.5,
+                    backgroundColor: 'action.hover',
+                    '& .MuiButton-root': {
+                      flex: { xs: 1, sm: 'initial' },
+                      minWidth: { sm: 64 },
+                      minHeight: 32,
+                      px: 1.25,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                    },
+                  }}
+                >
+                  {['Todos', 'Activos', 'Inactivos'].map((estado) => (
+                    <Button
+                      key={estado}
+                      size="small"
+                      variant={filtroEstado === estado ? 'contained' : 'outlined'}
+                      onClick={() => establecerFiltroEstado(estado)}
+                    >
+                      {estado}
+                    </Button>
+                  ))}
+                </Stack>
+              </Stack>
             </Stack>
           </Stack>
         </CardContent>
