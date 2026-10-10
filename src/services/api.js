@@ -1,5 +1,9 @@
 import { apiClient } from './apiClient.js';
 
+export const authApi = {
+  iniciarSesion: async (credenciales) => (await apiClient.post('/auth/login', credenciales)).data,
+};
+
 export const usuariosApi = {
   listar: async () => (await apiClient.get('/usuarios')).data,
   buscarPorUsuario: async (usuario) => (await apiClient.get('/usuarios', { params: { usuario } })).data[0],

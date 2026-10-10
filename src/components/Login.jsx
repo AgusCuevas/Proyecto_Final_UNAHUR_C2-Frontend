@@ -17,30 +17,29 @@ import PasswordIcon from '@mui/icons-material/Password';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { appTheme } from '../theme/theme.js';
-import { useAppData } from '../context/useAppData.js';
+import { authApi } from '../services/api.js';
 
 function Login({ alIniciarSesion }) {
-  const { data } = useAppData();
   // Estado para gestionar las credenciales del usuario y los errores de inicio de sesión.
   const [credenciales, setCredenciales] = useState({ usuario: '', contrasena: '' });
   const [mensajeError, setMensajeError] = useState('');
   const [mostrarContrasena, setMostrarContrasena] = useState(false);
 
   // Envia el formulario de inicio de sesión.
-  const enviarFormulario = (event) => {
+  const enviarFormulario = async (event) => {
     event.preventDefault();
-    const usuario = credenciales.usuario.toLowerCase();
-    const usuarioEncontrado = data.usuarios.find(
-      (usuarioRegistrado) => usuarioRegistrado.usuario === usuario && usuarioRegistrado.activo,
-    );
-
-    if (!usuarioEncontrado || usuarioEncontrado.contrasena !== credenciales.contrasena) {
+    try {
+      const respuesta = await authApi.iniciarSesion({
+        usuario: credenciales.usuario.toLowerCase(),
+        contrasena: credenciales.contrasena,
+      });
+      sessionStorage.setItem('galacticappToken', respuesta.token);
+      window.dispatchEvent(new Event('auth-changed'));
+      setMensajeError('');
+      alIniciarSesion(respuesta.usuario.usuario, respuesta.usuario);
+    } catch {
       setMensajeError('Usuario o contraseña incorrectos.');
-      return;
     }
-
-    setMensajeError('');
-    alIniciarSesion(usuario, usuarioEncontrado);
   };
 
   return (

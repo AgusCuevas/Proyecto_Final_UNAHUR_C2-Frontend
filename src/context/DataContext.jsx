@@ -10,24 +10,39 @@ import {
 import { DataContext } from './dataContext.js';
 
 export function DataProvider({ children }) {
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(() => (sessionStorage.getItem('galacticappToken') ? null : {
+    usuarios: [], clientes: [], vehiculos: [], reclamos: [], ubicacionesTecnicos: [], jornadas: [],
+  }));
   const [error, setError] = useState('');
 
   useEffect(() => {
-    Promise.all([
+    const cargarDatos = () => {
+      if (!sessionStorage.getItem('galacticappToken')) return;
+      Promise.allSettled([
       usuariosApi.listar(),
       clientesApi.listar(),
       vehiculosApi.listar(),
       reclamosApi.listar(),
       ubicacionesApi.listar(),
-    ])
-      .then(([usuarios, clientes, vehiculos, reclamos, ubicacionesTecnicos]) => {
+      ]).then((resultados) => {
+        if (resultados.every((resultado) => resultado.status === 'rejected')) {
+          setError('No se pudieron cargar los datos de la aplicación.');
+          return;
+        }
+        const valor = (indice, valorPorDefecto = []) => (
+          resultados[indice].status === 'fulfilled' ? resultados[indice].value : valorPorDefecto
+        );
+        const usuarios = valor(0);
+        const clientes = valor(1);
+        const vehiculos = valor(2);
+        const reclamos = valor(3);
+        const ubicacionesTecnicos = valor(4);
         const jornadasGuardadas = localStorage.getItem('jornadasTecnicos');
-        let jornadas = [];
+        let jornadas;
         try {
           jornadas = jornadasGuardadas ? JSON.parse(jornadasGuardadas) : [];
         } catch {
-          jornadas = [];
+          jornadas = null;
         }
         if (!jornadas || jornadas.length === 0) {
           jornadas = [
@@ -56,8 +71,11 @@ export function DataProvider({ children }) {
             : ubicacion
         ));
         setData({ usuarios, clientes, vehiculos: vehiculosConRegistro, reclamos, ubicacionesTecnicos: ubicacionesCombinadas, jornadas });
-      })
-      .catch(() => setError('No se pudieron cargar los datos de la aplicación.'));
+      });
+    };
+    cargarDatos();
+    window.addEventListener('auth-changed', cargarDatos);
+    return () => window.removeEventListener('auth-changed', cargarDatos);
   }, []);
 
   const guardarJornadas = (jornadas) => {

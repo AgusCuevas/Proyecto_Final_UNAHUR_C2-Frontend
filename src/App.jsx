@@ -9,6 +9,11 @@ import ServicioEnCurso from './components/tecnico/ServicioEnCurso.jsx';
 import { createAppTheme } from './theme/theme.js';
 import { DataProvider } from './context/DataContext.jsx';
 import { useAppData } from './context/useAppData.js';
+import BadRequest400 from './components/errors/BadRequest400.jsx';
+import Forbidden403 from './components/errors/Forbidden403.jsx';
+import NotFound404 from './components/errors/NotFound404.jsx';
+import ServerError500 from './components/errors/ServerError500.jsx';
+import ServiceUnavailable503 from './components/errors/ServiceUnavailable503.jsx';
 
 const rutaPorRol = {
   Administrador: '/adminHome',
@@ -32,6 +37,7 @@ function AppContent({ modo, cambiarModo }) {
 
   // Función para manejar el cierre de sesión.
   const volverAlLogin = () => {
+    sessionStorage.removeItem('galacticappToken');
     establecerUsuarioActual('');
     establecerNombreUsuarioActual('');
     navegar('/');
@@ -43,6 +49,11 @@ function AppContent({ modo, cambiarModo }) {
   return (
       <Routes>
         <Route path="/" element={<Login alIniciarSesion={ingresar} />} />
+        <Route path="/error/400" element={<BadRequest400 />} />
+        <Route path="/error/403" element={<Forbidden403 />} />
+        <Route path="/error/404" element={<NotFound404 />} />
+        <Route path="/error/500" element={<ServerError500 />} />
+        <Route path="/error/503" element={<ServiceUnavailable503 />} />
         <Route
           path="/adminHome"
           element={usuarioActual 
@@ -67,7 +78,7 @@ function AppContent({ modo, cambiarModo }) {
             ? <ServicioEnCurso usuario={usuarioActual} nombre={nombreUsuarioActual} alCerrarSesion={volverAlLogin} alCambiarTema={cambiarModo} modo={modo} />
             : <Navigate to="/" replace />}
         />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFound404 />} />
       </Routes>
   );
 }
