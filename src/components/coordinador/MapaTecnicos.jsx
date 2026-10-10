@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Box, Button, Chip, Paper, Stack } from '@mui/material';
+import { Alert, Box, Button, Chip, Paper, Stack } from '@mui/material';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -107,6 +107,12 @@ function MapaTecnicos({ tecnicoId = null }) {
           </Stack>
         </Stack>
       </Stack>
+
+      {tecnicosConUbicacion.length === 0 && (
+        <Alert severity="info" sx={{ mb: 1.5 }}>
+          No hay ubicaciones compartidas todavía. El técnico debe iniciar su jornada y permitir el acceso a la ubicación desde su dispositivo.
+        </Alert>
+      )}
 
       <Box sx={{ mt: 1, height: { xs: 280, sm: 320, md: 380 }, borderRadius: 2, overflow: 'hidden' }}>
         <MapContainer center={centroMapa} zoom={13} scrollWheelZoom style={{ height: '100%', width: '100%' }}>

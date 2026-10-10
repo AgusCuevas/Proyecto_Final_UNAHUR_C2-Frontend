@@ -46,6 +46,7 @@ Luego editá el archivo `.env` según tu entorno:
 ```env
 VITE_PORT=5173
 VITE_API_URL=http://localhost:3000
+VITE_USE_MOCKS=false
 VITE_APP_ENV=development
 ```
 
@@ -74,6 +75,8 @@ La app queda disponible en:
 ```text
 http://localhost:5173
 ```
+
+El mapa muestra ubicaciones GPS reales: cada técnico debe iniciar una jornada y permitir el acceso a la ubicación en su navegador. Sin permiso, jornada activa o posición recibida, no habrá marcador. En localhost la geolocalización está permitida por el navegador; desde otras direcciones se requiere HTTPS.
 
 ## 6) Estructura del proyecto
 

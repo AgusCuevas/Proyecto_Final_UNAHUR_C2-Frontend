@@ -82,17 +82,32 @@ function Jornada({ usuario }) {
   }, [jornadaActiva]);
 
   useEffect(() => {
-    if (!jornadaActiva || !tecnico || !navigator.geolocation) return undefined;
+    if (!jornadaActiva || !tecnico) return undefined;
+    if (!navigator.geolocation) return undefined;
     const registrarPosicion = () => {
       if (navigator.onLine === false) return;
       navigator.geolocation.getCurrentPosition(
-      (posicion) => registrarUbicacionTecnico(
-        tecnico.id,
-        posicion.coords.latitude,
-        posicion.coords.longitude,
-      ),
-      () => undefined,
-      { enableHighAccuracy: false, maximumAge: 240000, timeout: 10000 },
+        async (posicion) => {
+          try {
+            await registrarUbicacionTecnico(
+              tecnico.id,
+              posicion.coords.latitude,
+              posicion.coords.longitude,
+            );
+            establecerError('');
+          } catch (causa) {
+            establecerError(
+              causa?.response?.data?.mensaje
+                || 'No se pudo guardar tu ubicación. Verificá la conexión e intentá nuevamente.',
+            );
+          }
+        },
+        (causa) => {
+          establecerError(causa.code === 1
+            ? 'Habilitá el permiso de ubicación del navegador para aparecer en el mapa.'
+            : 'No se pudo obtener tu ubicación. Verificá el GPS y volvé a intentar.');
+        },
+        { enableHighAccuracy: false, maximumAge: 240000, timeout: 10000 },
       );
     };
     registrarPosicion();
@@ -137,7 +152,9 @@ function Jornada({ usuario }) {
               <Button variant="contained" color="primary" startIcon={<LogoutIcon />} onClick={() => establecerControlFinalAbierto(true)} sx={{ alignSelf: 'flex-start' }}>
                 Finalizar jornada
               </Button>
-              {error && <Alert severity="error">{error}</Alert>}
+              {(error || (!navigator.geolocation
+                && 'Este navegador no permite compartir la ubicación del técnico.'))
+                && <Alert severity="error">{error || 'Este navegador no permite compartir la ubicación del técnico.'}</Alert>}
             </Stack>
           ) : (
             <Button variant="contained" startIcon={<LoginIcon />} onClick={comenzarJornada} sx={{ alignSelf: 'flex-start' }}>

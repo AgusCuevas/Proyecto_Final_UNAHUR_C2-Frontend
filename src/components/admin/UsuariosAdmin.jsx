@@ -32,17 +32,63 @@ import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import { useState } from 'react';
 import { useAppData } from '../../context/useAppData.js';
 
-const formularioVacio = {
+const perfilesVacios = {
+  Administrador: { departamento: '', nivelAcceso: '' },
+  Coordinador: { zonaAsignada: '', maxTecnicosACargo: '' },
+  Tecnico: {
+    documento: '',
+    fechaNacimiento: '',
+    vencimientoRegistro: '',
+    telefono: '',
+    email: '',
+    direccion: '',
+  },
+};
+
+const etiquetasPerfil = {
+  departamento: 'Departamento',
+  nivelAcceso: 'Nivel de acceso',
+  zonaAsignada: 'Zona asignada',
+  maxTecnicosACargo: 'Máximo de técnicos a cargo',
+  documento: 'DNI',
+  fechaNacimiento: 'Fecha de nacimiento',
+  vencimientoRegistro: 'Vencimiento de registro',
+  telefono: 'Teléfono',
+  email: 'Correo electrónico',
+  direccion: 'Domicilio',
+};
+
+const crearFormularioVacio = () => ({
   nombre: '',
-  documento: '',
-  direccion: '',
-  telefono: '',
-  email: '',
-  fechaNacimiento: '',
   usuario: '',
   contrasena: '',
   rol: 'Tecnico',
+  perfil: { ...perfilesVacios.Tecnico },
+});
+
+const fechaParaFormulario = (fecha) => {
+  if (!fecha) return '';
+  const fechaParseada = new Date(fecha);
+  return Number.isNaN(fechaParseada.getTime()) ? '' : fechaParseada.toISOString().slice(0, 10);
 };
+
+const formatearFecha = (fecha) => {
+  if (!fecha) return '';
+  const fechaISO = fecha instanceof Date
+    ? fecha.toISOString().slice(0, 10)
+    : String(fecha).slice(0, 10);
+  const fechaLocal = new Date(`${fechaISO}T12:00:00`);
+  return Number.isNaN(fechaLocal.getTime())
+    ? String(fecha)
+    : new Intl.DateTimeFormat('es-AR').format(fechaLocal);
+};
+
+const obtenerPerfilEditable = (usuario, rol) => Object.fromEntries(
+  Object.keys(perfilesVacios[rol]).map((campo) => [
+    campo,
+    usuario?.perfil?.[campo] ?? usuario?.[campo] ?? '',
+  ]),
+);
 
 const estaActivo = (usuario) => usuario.activo !== false;
 
@@ -56,7 +102,7 @@ function UsuariosAdmin() {
   const [usuarioEditando, establecerUsuarioEditando] = useState(null);
   const [usuarioSeleccionado, establecerUsuarioSeleccionado] = useState(null);
   const [usuarioPendienteEstado, establecerUsuarioPendienteEstado] = useState(null);
-  const [formulario, establecerFormulario] = useState(formularioVacio);
+  const [formulario, establecerFormulario] = useState(crearFormularioVacio);
   const [error, establecerError] = useState('');
   const [guardando, establecerGuardando] = useState(false);
 
@@ -66,7 +112,13 @@ function UsuariosAdmin() {
       const coincideEstado = filtroEstado === 'Todos'
         || (filtroEstado === 'Activos' ? estaActivo(usuario) : !estaActivo(usuario));
       const coincideRol = filtroRol === 'Todos' || usuario.rol === filtroRol;
-      const texto = [usuario.nombre, usuario.usuario, usuario.documento, usuario.email, usuario.rol]
+      const texto = [
+        usuario.nombre,
+        usuario.usuario,
+        usuario.perfil?.documento,
+        usuario.perfil?.email,
+        usuario.rol,
+      ]
         .filter(Boolean)
         .join(' ')
         .toLocaleLowerCase('es');
@@ -76,17 +128,17 @@ function UsuariosAdmin() {
 
   const abrirFormulario = (usuario = null) => {
     establecerUsuarioEditando(usuario);
+    const rol = usuario?.rol || 'Tecnico';
+    const perfil = obtenerPerfilEditable(usuario, rol);
+    if (perfil.fechaNacimiento) perfil.fechaNacimiento = fechaParaFormulario(perfil.fechaNacimiento);
+    if (perfil.vencimientoRegistro) perfil.vencimientoRegistro = fechaParaFormulario(perfil.vencimientoRegistro);
     establecerFormulario(usuario ? {
       nombre: usuario.nombre || '',
-      documento: usuario.documento || '',
-      direccion: usuario.direccion || '',
-      telefono: usuario.telefono || '',
-      email: usuario.email || '',
-      fechaNacimiento: usuario.fechaNacimiento || '',
       usuario: usuario.usuario || '',
       contrasena: '',
-      rol: usuario.rol || 'Tecnico',
-    } : formularioVacio);
+      rol,
+      perfil,
+    } : crearFormularioVacio());
     establecerError('');
     establecerDialogoFormularioAbierto(true);
   };
@@ -95,16 +147,30 @@ function UsuariosAdmin() {
     establecerFormulario((actual) => ({ ...actual, [campo]: valor }));
   };
 
+  const actualizarPerfil = (campo, valor) => {
+    establecerFormulario((actual) => ({
+      ...actual,
+      perfil: { ...actual.perfil, [campo]: valor },
+    }));
+  };
+
   const guardarUsuario = async (evento) => {
     evento.preventDefault();
     establecerError('');
     establecerGuardando(true);
-    const cambios = Object.fromEntries(
-      Object.entries(formulario).map(([campo, valor]) => [
-        campo,
-        campo === 'contrasena' ? valor : valor.trim(),
-      ]),
-    );
+    const camposPerfil = Object.keys(perfilesVacios[formulario.rol]);
+    const cambios = {
+      nombre: formulario.nombre.trim(),
+      usuario: formulario.usuario.trim(),
+      rol: formulario.rol,
+      perfil: Object.fromEntries(camposPerfil.map((campo) => {
+        const valor = formulario.perfil[campo] ?? '';
+        if (valor === '') return [campo, null];
+        if (campo === 'maxTecnicosACargo') return [campo, Number(valor)];
+        return [campo, valor.trim()];
+      })),
+    };
+    if (formulario.contrasena) cambios.contrasena = formulario.contrasena;
     if (usuarioEditando && !cambios.contrasena) delete cambios.contrasena;
 
     try {
@@ -140,13 +206,15 @@ function UsuariosAdmin() {
     ['Nombre de usuario', usuarioSeleccionado.usuario],
     ['Rol', usuarioSeleccionado.rol],
     ['Estado', estaActivo(usuarioSeleccionado) ? 'Activo' : 'Inactivo'],
-    ['DNI', usuarioSeleccionado.documento],
-    ['Domicilio', usuarioSeleccionado.direccion],
-    ['Teléfono', usuarioSeleccionado.telefono],
-    ['Correo electrónico', usuarioSeleccionado.email],
-    ['Fecha de nacimiento', usuarioSeleccionado.fechaNacimiento],
-    ['Vencimiento de registro', usuarioSeleccionado.vencimientoRegistro],
-  ].filter(([, valor]) => valor) : [];
+    ...Object.entries(usuarioSeleccionado.perfil || {})
+      .filter(([, valor]) => valor !== null && valor !== '')
+      .map(([campo, valor]) => [
+        etiquetasPerfil[campo] || campo,
+        campo === 'fechaNacimiento' || campo === 'vencimientoRegistro'
+          ? formatearFecha(valor)
+          : valor,
+      ]),
+  ].filter(([, valor]) => valor !== undefined && valor !== null && valor !== '') : [];
 
   return (
     <Stack spacing={2.5}>
@@ -298,7 +366,7 @@ function UsuariosAdmin() {
                       <TableCell sx={{ fontWeight: 700 }}>{usuario.nombre}</TableCell>
                       <TableCell>{usuario.usuario}</TableCell>
                       <TableCell>{usuario.rol}</TableCell>
-                      <TableCell>{usuario.email || usuario.telefono || '—'}</TableCell>
+                      <TableCell>{usuario.perfil?.email || usuario.perfil?.telefono || '—'}</TableCell>
                       <TableCell>
                         <Chip size="small" label={activo ? 'Activo' : 'Inactivo'} color={activo ? 'success' : 'default'} />
                       </TableCell>
@@ -351,11 +419,6 @@ function UsuariosAdmin() {
           <DialogContent sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
             {error && <Alert severity="error" sx={{ gridColumn: '1 / -1' }}>{error}</Alert>}
             <TextField required autoFocus label="Nombre y apellido" value={formulario.nombre} onChange={(evento) => actualizarCampo('nombre', evento.target.value)} />
-            <TextField required label="DNI" value={formulario.documento} onChange={(evento) => actualizarCampo('documento', evento.target.value)} />
-            <TextField label="Domicilio" value={formulario.direccion} onChange={(evento) => actualizarCampo('direccion', evento.target.value)} />
-            <TextField label="Teléfono" value={formulario.telefono} onChange={(evento) => actualizarCampo('telefono', evento.target.value)} />
-            <TextField type="email" label="Correo electrónico" value={formulario.email} onChange={(evento) => actualizarCampo('email', evento.target.value)} />
-            <TextField type="date" label="Fecha de nacimiento" InputLabelProps={{ shrink: true }} value={formulario.fechaNacimiento} onChange={(evento) => actualizarCampo('fechaNacimiento', evento.target.value)} />
             <TextField required label="Usuario" value={formulario.usuario} onChange={(evento) => actualizarCampo('usuario', evento.target.value)} />
             <TextField
               required={!usuarioEditando}
@@ -365,11 +428,33 @@ function UsuariosAdmin() {
               value={formulario.contrasena}
               onChange={(evento) => actualizarCampo('contrasena', evento.target.value)}
             />
-            <TextField select required label="Rol" value={formulario.rol} onChange={(evento) => actualizarCampo('rol', evento.target.value)}>
+            <TextField select required label="Rol" value={formulario.rol} onChange={(evento) => {
+              const rol = evento.target.value;
+              establecerFormulario((actual) => ({
+                ...actual,
+                rol,
+                perfil: { ...perfilesVacios[rol] },
+              }));
+            }}>
               <MenuItem value="Tecnico">Técnico</MenuItem>
               <MenuItem value="Coordinador">Coordinador</MenuItem>
               <MenuItem value="Administrador">Administrador</MenuItem>
             </TextField>
+            {Object.entries(formulario.perfil).map(([campo, valor]) => (
+              <TextField
+                key={campo}
+                label={etiquetasPerfil[campo]}
+                type={campo === 'fechaNacimiento' || campo === 'vencimientoRegistro'
+                  ? 'date'
+                  : campo === 'maxTecnicosACargo' ? 'number' : campo === 'email' ? 'email' : 'text'}
+                value={valor}
+                onChange={(evento) => actualizarPerfil(campo, evento.target.value)}
+                inputProps={campo === 'maxTecnicosACargo' ? { min: 0, step: 1 } : undefined}
+                InputLabelProps={campo === 'fechaNacimiento' || campo === 'vencimientoRegistro'
+                  ? { shrink: true }
+                  : undefined}
+              />
+            ))}
           </DialogContent>
           <DialogActions>
             <Button onClick={() => establecerDialogoFormularioAbierto(false)}>Cancelar</Button>

@@ -1,24 +1,85 @@
 import { apiClient } from './apiClient.js';
 
+const camposPerfilPorRol = {
+  1: ['departamento', 'nivelAcceso'],
+  2: ['zonaAsignada', 'maxTecnicosACargo'],
+  3: ['documento', 'fechaNacimiento', 'vencimientoRegistro', 'telefono', 'email', 'direccion'],
+};
+const rolIdPorNombre = {
+  Administrador: 1,
+  Coordinador: 2,
+  Tecnico: 3,
+};
+const todosLosCamposPerfil = Object.values(camposPerfilPorRol).flat();
+
+const normalizarPayloadUsuario = (usuario) => {
+  const rolId = usuario.rolId ?? rolIdPorNombre[usuario.rol];
+  const camposPerfil = camposPerfilPorRol[rolId] || [];
+  const perfil = Object.fromEntries(
+    camposPerfil
+      .filter((campo) => Object.hasOwn(usuario.perfil || {}, campo))
+      .map((campo) => [campo, usuario.perfil[campo]]),
+  );
+  const datos = { ...usuario, perfil };
+
+  todosLosCamposPerfil.forEach((campo) => delete datos[campo]);
+  delete datos.createdAt;
+  delete datos.updatedAt;
+  delete datos.__v;
+  delete datos._id;
+
+  return datos;
+};
+
+const normalizarUsuario = (usuario) => {
+  const camposPerfil = camposPerfilPorRol[usuario.rolId] || [];
+  const perfil = Object.fromEntries(
+    camposPerfil
+      .filter((campo) => Object.hasOwn(usuario.perfil || {}, campo))
+      .map((campo) => [campo, usuario.perfil[campo]]),
+  );
+
+  return {
+    ...usuario,
+    perfil,
+    ...perfil,
+  };
+};
+
 export const authApi = {
   iniciarSesion: async (credenciales) => (await apiClient.post('/auth/login', credenciales)).data,
 };
 
 export const usuariosApi = {
-  listar: async () => (await apiClient.get('/usuarios')).data,
-  buscarPorUsuario: async (usuario) => (await apiClient.get('/usuarios', { params: { usuario } })).data[0],
-  crear: async (usuario) => (await apiClient.post('/usuarios', usuario)).data,
-  actualizar: async (usuarioId, cambios) => (
-    await apiClient.patch(`/usuarios/${usuarioId}`, cambios)
-  ).data,
+  listar: async () => (await apiClient.get('/usuarios')).data.map(normalizarUsuario),
+  obtener: async (usuarioId) => normalizarUsuario(
+    (await apiClient.get(`/usuarios/${usuarioId}`)).data,
+  ),
+  buscarPorUsuario: async (usuario) => {
+    const encontrado = (await apiClient.get('/usuarios', { params: { usuario } })).data[0];
+    return encontrado ? normalizarUsuario(encontrado) : undefined;
+  },
+  crear: async (usuario) => {
+    const creado = (await apiClient.post('/usuarios', normalizarPayloadUsuario(usuario))).data;
+    return usuariosApi.obtener(creado.id);
+  },
+  actualizar: async (usuarioId, cambios) => {
+    await apiClient.patch(`/usuarios/${usuarioId}`, normalizarPayloadUsuario(cambios));
+    return usuariosApi.obtener(usuarioId);
+  },
 };
 
 export const clientesApi = {
   listar: async () => (await apiClient.get('/clientes')).data,
-  crear: async (cliente) => (await apiClient.post('/clientes', cliente)).data,
-  actualizar: async (clienteId, cambios) => (
-    await apiClient.patch(`/clientes/${clienteId}`, cambios)
-  ).data,
+  obtener: async (clienteId) => (await apiClient.get(`/clientes/${clienteId}`)).data,
+  crear: async (cliente) => {
+    const creado = (await apiClient.post('/clientes', cliente)).data;
+    return clientesApi.obtener(creado.id);
+  },
+  actualizar: async (clienteId, cambios) => {
+    await apiClient.patch(`/clientes/${clienteId}`, cambios);
+    return clientesApi.obtener(clienteId);
+  },
 };
 
 export const vehiculosApi = {

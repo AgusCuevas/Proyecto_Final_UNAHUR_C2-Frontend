@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   clientesApi,
   jornadasApi,
@@ -42,21 +42,9 @@ export function DataProvider({ children }) {
         try {
           jornadas = jornadasGuardadas ? JSON.parse(jornadasGuardadas) : [];
         } catch {
-          jornadas = null;
+          jornadas = [];
         }
-        if (!jornadas || jornadas.length === 0) {
-          jornadas = [
-            {
-              id: 1,
-              tecnicoId: 3,
-              inicio: new Date(Date.now() - 2 * 3600000).toISOString(),
-              fin: null,
-              kilometrajeInicial: 45100,
-              kilometrajeFinal: null,
-              activa: true,
-            },
-          ];
-        }
+        if (!Array.isArray(jornadas)) jornadas = [];
         const vehiculosConRegistro = vehiculos.map((vehiculo) => {
           const registro = JSON.parse(localStorage.getItem(`kilometrajeVehiculo:${vehiculo.id}`) || 'null');
           return registro ? {
@@ -64,13 +52,7 @@ export function DataProvider({ children }) {
             kilometraje: { ...vehiculo.kilometraje, ...registro },
           } : vehiculo;
         });
-        const ubicacionesGuardadas = JSON.parse(localStorage.getItem('ubicacionesTecnicosActuales') || '{}');
-        const ubicacionesCombinadas = ubicacionesTecnicos.map((ubicacion) => (
-          ubicacionesGuardadas[ubicacion.tecnicoId]
-            ? { ...ubicacion, ...ubicacionesGuardadas[ubicacion.tecnicoId] }
-            : ubicacion
-        ));
-        setData({ usuarios, clientes, vehiculos: vehiculosConRegistro, reclamos, ubicacionesTecnicos: ubicacionesCombinadas, jornadas });
+        setData({ usuarios, clientes, vehiculos: vehiculosConRegistro, reclamos, ubicacionesTecnicos, jornadas });
       });
     };
     cargarDatos();
@@ -209,25 +191,23 @@ export function DataProvider({ children }) {
     }));
   };
 
-  const registrarUbicacionTecnico = (tecnicoId, latitud, longitud) => {
-    const ubicacion = { tecnicoId, latitud, longitud, actualizadoEn: new Date().toISOString() };
-    const ubicacionesGuardadas = JSON.parse(localStorage.getItem('ubicacionesTecnicosActuales') || '{}');
-    ubicacionesGuardadas[tecnicoId] = ubicacion;
-    localStorage.setItem('ubicacionesTecnicosActuales', JSON.stringify(ubicacionesGuardadas));
+  const registrarUbicacionTecnico = useCallback(async (tecnicoId, latitud, longitud) => {
+    const ubicacion = await ubicacionesApi.actualizar(tecnicoId, { latitud, longitud });
     setData((actual) => ({
       ...actual,
-      ubicacionesTecnicos: actual.ubicacionesTecnicos.map((item) => (
-        item.tecnicoId === tecnicoId ? { ...item, ...ubicacion } : item
-      )),
+      ubicacionesTecnicos: [
+        ...actual.ubicacionesTecnicos.filter((item) => item.tecnicoId !== tecnicoId),
+        ubicacion,
+      ],
     }));
-    ubicacionesApi.actualizar(tecnicoId, { latitud, longitud }).catch(() => undefined);
-  };
+    return ubicacion;
+  }, []);
 
-  const actualizarUbicaciones = async () => {
+  const actualizarUbicaciones = useCallback(async () => {
     const ubicaciones = await ubicacionesApi.listar();
     setData((actual) => ({ ...actual, ubicacionesTecnicos: ubicaciones }));
     return ubicaciones;
-  };
+  }, []);
 
   const actualizarKilometraje = async (vehiculoId, kilometraje) => {
     const vehiculoActualizado = await vehiculosApi.actualizarKilometraje(vehiculoId, kilometraje);
