@@ -29,8 +29,13 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import SearchIcon from '@mui/icons-material/Search';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
+import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
+import DirectionsCarOutlinedIcon from '@mui/icons-material/DirectionsCarOutlined';
 import { useState } from 'react';
+import FichaDetalle from '../comunes/FichaDetalle.jsx';
 import { useAppData } from '../../context/useAppData.js';
+import { useRecursos } from '../../context/useRecursos.js';
 
 const perfilesVacios = {
   Administrador: { departamento: '', nivelAcceso: '' },
@@ -93,7 +98,8 @@ const obtenerPerfilEditable = (usuario, rol) => Object.fromEntries(
 const estaActivo = (usuario) => usuario.activo !== false;
 
 function UsuariosAdmin() {
-  const { data, crearUsuario, actualizarUsuario } = useAppData();
+  const { crearUsuario, actualizarUsuario } = useAppData();
+  const data = useRecursos('usuarios', 'vehiculos');
   const [busqueda, establecerBusqueda] = useState('');
   const [filtroRol, establecerFiltroRol] = useState('Todos');
   const [filtroEstado, establecerFiltroEstado] = useState('Todos');
@@ -201,20 +207,45 @@ function UsuariosAdmin() {
     }
   };
 
-  const detalles = usuarioSeleccionado ? [
-    ['Nombre y apellido', usuarioSeleccionado.nombre],
-    ['Nombre de usuario', usuarioSeleccionado.usuario],
-    ['Rol', usuarioSeleccionado.rol],
-    ['Estado', estaActivo(usuarioSeleccionado) ? 'Activo' : 'Inactivo'],
-    ...Object.entries(usuarioSeleccionado.perfil || {})
-      .filter(([, valor]) => valor !== null && valor !== '')
-      .map(([campo, valor]) => [
-        etiquetasPerfil[campo] || campo,
-        campo === 'fechaNacimiento' || campo === 'vencimientoRegistro'
-          ? formatearFecha(valor)
-          : valor,
-      ]),
-  ].filter(([, valor]) => valor !== undefined && valor !== null && valor !== '') : [];
+  const esTecnicoSeleccionado = usuarioSeleccionado?.rol === 'Tecnico';
+  const vehiculoSeleccionado = esTecnicoSeleccionado
+    ? data.vehiculos.find((item) => item.tecnicoAsignado === usuarioSeleccionado.id)
+    : null;
+
+  const seccionesDetalle = usuarioSeleccionado ? [
+    {
+      titulo: 'Cuenta',
+      icono: <AccountCircleOutlinedIcon fontSize="small" />,
+      campos: [
+        ['Nombre de usuario', usuarioSeleccionado.usuario],
+        ['Rol', usuarioSeleccionado.rol],
+      ],
+    },
+    {
+      titulo: 'Datos del perfil',
+      icono: <BadgeOutlinedIcon fontSize="small" />,
+      campos: Object.keys(perfilesVacios[usuarioSeleccionado.rol] || {}).map((campo) => {
+        const valor = usuarioSeleccionado.perfil?.[campo];
+        return [
+          etiquetasPerfil[campo] || campo,
+          campo === 'fechaNacimiento' || campo === 'vencimientoRegistro' ? formatearFecha(valor) : valor,
+          campo === 'direccion' || campo === 'email' ? { anchoCompleto: true } : undefined,
+        ];
+      }),
+    },
+    ...(esTecnicoSeleccionado ? [{
+      titulo: 'Vehículo asignado',
+      icono: <DirectionsCarOutlinedIcon fontSize="small" />,
+      campos: vehiculoSeleccionado ? [
+        ['Vehículo', [vehiculoSeleccionado.marca, vehiculoSeleccionado.modelo].filter(Boolean).join(' ')],
+        ['Patente', vehiculoSeleccionado.patente],
+        ['Kilometraje actual', vehiculoSeleccionado.kilometraje?.actual != null
+          ? `${vehiculoSeleccionado.kilometraje.actual.toLocaleString('es-AR')} km`
+          : ''],
+        ['Vencimiento del seguro', formatearFecha(vehiculoSeleccionado.seguro?.vence)],
+      ] : [['Vehículo', 'Sin vehículo asignado', { anchoCompleto: true }]],
+    }] : []),
+  ] : [];
 
   return (
     <Stack spacing={2.5}>
@@ -465,32 +496,34 @@ function UsuariosAdmin() {
         </Box>
       </Dialog>
 
-      <Dialog open={dialogoDetalleAbierto} onClose={() => establecerDialogoDetalleAbierto(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Información del usuario</DialogTitle>
-        <DialogContent>
-          {usuarioSeleccionado && (
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, pt: 1 }}>
-              {detalles.map(([etiqueta, valor]) => (
-                <Box key={etiqueta} sx={{ minWidth: 0 }}>
-                  <Typography variant="caption" color="text.secondary">{etiqueta}</Typography>
-                  <Typography sx={{ overflowWrap: 'anywhere' }}>{valor}</Typography>
-                </Box>
-              ))}
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => establecerDialogoDetalleAbierto(false)}>Cerrar</Button>
-          {usuarioSeleccionado && (
-            <Button onClick={() => {
-              establecerDialogoDetalleAbierto(false);
-              abrirFormulario(usuarioSeleccionado);
-            }}>
+      <FichaDetalle
+        abierto={dialogoDetalleAbierto && Boolean(usuarioSeleccionado)}
+        alCerrar={() => establecerDialogoDetalleAbierto(false)}
+        titulo={usuarioSeleccionado?.nombre}
+        subtitulo={usuarioSeleccionado && `@${usuarioSeleccionado.usuario}`}
+        chips={usuarioSeleccionado ? [
+          { label: usuarioSeleccionado.rol, color: 'primary', variant: 'outlined' },
+          estaActivo(usuarioSeleccionado)
+            ? { label: 'Activo', color: 'success' }
+            : { label: 'Inactivo', color: 'default' },
+        ] : []}
+        secciones={seccionesDetalle}
+        acciones={(
+          <>
+            <Button onClick={() => establecerDialogoDetalleAbierto(false)}>Cerrar</Button>
+            <Button
+              variant="contained"
+              startIcon={<EditOutlinedIcon />}
+              onClick={() => {
+                establecerDialogoDetalleAbierto(false);
+                abrirFormulario(usuarioSeleccionado);
+              }}
+            >
               Modificar
             </Button>
-          )}
-        </DialogActions>
-      </Dialog>
+          </>
+        )}
+      />
 
       <Dialog open={Boolean(usuarioPendienteEstado)} onClose={() => establecerUsuarioPendienteEstado(null)} fullWidth maxWidth="xs">
         <DialogTitle>

@@ -1,8 +1,10 @@
 import {
+  Alert,
   AppBar,
   Avatar,
   Box,
   Button,
+  CircularProgress,
   Divider,
   Drawer,
   IconButton,
@@ -21,6 +23,7 @@ import LightModeIcon from '@mui/icons-material/LightMode';
 import { useState } from 'react';
 import { appTheme } from '../theme/theme.js';
 import { useAppData } from '../context/useAppData.js';
+import { useRecursos } from '../context/useRecursos.js';
 
 const anchoMenu = 264;
 
@@ -47,13 +50,16 @@ function MarcaGalacticApp({ compact = false }) {
 
 function AppLayout({ titulo, subtitulo, rol, usuario, nombre, opciones = [], alCerrarSesion, alSeleccionarOpcion, alCambiarTema, modo = 'light', accionTitulo, children }) {
   const [menuAbierto, establecerMenuAbierto] = useState(false);
-  const { data } = useAppData();
+  const { cargando, errores } = useAppData();
+  // Solo el técnico necesita estos datos para mostrar su jornada activa.
+  const data = useRecursos(...(rol === 'Técnico' ? ['usuarios', 'jornadas'] : []));
+  const hayErrorDeCarga = Object.keys(errores).length > 0;
 
   const tecnico = rol === 'Técnico'
-    ? data?.usuarios?.find((u) => u.usuario === usuario)
+    ? data.usuarios?.find((u) => u.usuario === usuario)
     : null;
   const jornadaActiva = tecnico
-    ? data?.jornadas?.find((j) => j.tecnicoId === tecnico.id && j.activa)
+    ? data.jornadas?.find((j) => j.tecnicoId === tecnico.id && j.activa)
     : null;
   const horaInicioJornada = jornadaActiva?.inicio
     ? new Date(jornadaActiva.inicio).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
@@ -302,7 +308,22 @@ function AppLayout({ titulo, subtitulo, rol, usuario, nombre, opciones = [], alC
           <Typography color="text.secondary" sx={{ mt: 0.75, mb: { xs: 3, md: 4.5 }, maxWidth: 720 }}>
             {subtitulo}
           </Typography>
-          {children}
+          {hayErrorDeCarga && !cargando && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              No se pudieron cargar algunos datos. Verificá la conexión e intentá nuevamente.
+            </Alert>
+          )}
+          <Box sx={{ position: 'relative' }}>
+            {cargando && (
+              <Box sx={{ position: 'absolute', inset: 0, display: 'flex', justifyContent: 'center', pt: 8, zIndex: 1 }}>
+                <CircularProgress aria-label="Cargando datos" />
+              </Box>
+            )}
+            {/* Se oculta con visibility (no display) para que el mapa conserve su tamaño al cargar. */}
+            <Box sx={{ visibility: cargando ? 'hidden' : 'visible', minHeight: cargando ? 160 : 0 }}>
+              {children}
+            </Box>
+          </Box>
         </Box>
       </Box>
     </Box>

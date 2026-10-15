@@ -4,6 +4,7 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useAppData } from '../../context/useAppData.js';
+import { useRecursos } from '../../context/useRecursos.js';
 import { calcularRecorridoKm, obtenerParadasTecnico } from '../../services/recorrido.js';
 
 const centroMapa = [-34.655, -58.63];
@@ -20,7 +21,8 @@ function AjustarVistaMapa({ tecnico }) {
 
 function MapaTecnicos({ tecnicoId = null }) {
   const [filtro, establecerFiltro] = useState('Todos');
-  const { data, actualizarUbicaciones } = useAppData();
+  const { actualizarUbicaciones } = useAppData();
+  const data = useRecursos('usuarios', 'ubicacionesTecnicos', 'reclamos', 'clientes');
 
   useEffect(() => {
     const intervalo = setInterval(() => actualizarUbicaciones().catch(() => undefined), 300000);
@@ -119,7 +121,9 @@ function MapaTecnicos({ tecnicoId = null }) {
           <AjustarVistaMapa tecnico={tecnicoDestacado} />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+            // OpenStreetMap bloquea (403) los mosaicos pedidos sin cabecera Referer.
+            referrerPolicy="strict-origin-when-cross-origin"
           />
           {tecnicosVisibles.map((tecnico) => (
             <CircleMarker

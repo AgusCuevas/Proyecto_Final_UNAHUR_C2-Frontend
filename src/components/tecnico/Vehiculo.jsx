@@ -1,9 +1,9 @@
 import { Box, Paper, Stack, Typography } from '@mui/material';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
-import { useAppData } from '../../context/useAppData.js';
+import { useRecursos } from '../../context/useRecursos.js';
 
 function Vehiculo({ usuario }) {
-  const { data } = useAppData();
+  const data = useRecursos('usuarios', 'vehiculos');
   const tecnico = data.usuarios.find((usuarioRegistrado) => usuarioRegistrado.usuario === usuario);
   const vehiculo = data.vehiculos.find((vehiculoRegistrado) => vehiculoRegistrado.tecnicoAsignado === tecnico?.id);
 

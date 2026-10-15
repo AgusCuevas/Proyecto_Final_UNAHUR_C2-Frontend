@@ -64,7 +64,7 @@ http://localhost:5173
 
 ## 5) Ejecutar con Docker
 
-### Desarrollo
+### Desarrollo independiente
 
 ```bash
 docker compose up --build
@@ -75,6 +75,10 @@ La app queda disponible en:
 ```text
 http://localhost:5173
 ```
+
+### Stack completo desde la carpeta principal
+
+Desde `GalacticApp`, ejecutá `docker compose up --build`. La aplicación queda disponible en `http://localhost:8080`; este modo usa HTTP local y no requiere certificados TLS.
 
 El mapa muestra ubicaciones GPS reales: cada técnico debe iniciar una jornada y permitir el acceso a la ubicación en su navegador. Sin permiso, jornada activa o posición recibida, no habrá marcador. En localhost la geolocalización está permitida por el navegador; desde otras direcciones se requiere HTTPS.
 

@@ -33,6 +33,7 @@ import MapaTecnicos from '../coordinador/MapaTecnicos.jsx';
 import Reclamos from '../coordinador/Reclamos.jsx';
 import Vehiculos from '../coordinador/Vehiculos.jsx';
 import { useAppData } from '../../context/useAppData.js';
+import { useRecursos } from '../../context/useRecursos.js';
 
 const secciones = ['Panel de administración', 'Usuarios', 'Clientes', 'Reclamos', 'Vehículos', 'Reportes'];
 
@@ -58,7 +59,8 @@ function AdminHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
   const [formularioReclamoAbierto, establecerFormularioReclamoAbierto] = useState(false);
   const [vehiculoNuevo, establecerVehiculoNuevo] = useState({ patente: '', marca: '', modelo: '', kilometrajeInicial: '', kilometrajeActual: '', companiaSeguro: '', poliza: '', venceSeguro: '', ultimoService: '', detalle: '' });
   const [filtrosReporte, establecerFiltrosReporte] = useState({ tecnicoId: 'Todos', desde: '', hasta: '' });
-  const { data, crearVehiculo } = useAppData();
+  const { crearVehiculo } = useAppData();
+  const data = useRecursos('reclamos', 'usuarios', 'jornadas');
 
   const ordenesServicio = useMemo(() => (
     data.reclamos.filter((r) => r.esOrden || r.tipo === 'Instalación' || r.tipo === 'Baja de servicio')
@@ -225,16 +227,16 @@ function AdminHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
     Clientes: <Clientes />,
     Reclamos: contenidoReclamos,
     Vehículos: (
-      <Stack spacing={3}>
-        <GestionVehiculos
-          vehiculoNuevo={vehiculoNuevo}
-          establecerVehiculoNuevo={establecerVehiculoNuevo}
-          agregarVehiculo={agregarVehiculo}
-        />
-        <Vehiculos
-          gestionable
-        />
-      </Stack>
+      <Vehiculos
+        gestionable
+        accionNuevo={(
+          <GestionVehiculos
+            vehiculoNuevo={vehiculoNuevo}
+            establecerVehiculoNuevo={establecerVehiculoNuevo}
+            agregarVehiculo={agregarVehiculo}
+          />
+        )}
+      />
     ),
     Reportes: contenidoReportes,
   };
@@ -348,7 +350,7 @@ function GraficoBarras({ titulo, subtitulo, datos, color }) {
 function GestionVehiculos({ vehiculoNuevo, establecerVehiculoNuevo, agregarVehiculo }) {
   const [dialogoAbierto, establecerDialogoAbierto] = useState(false);
   const actualizar = (campo, valor) => establecerVehiculoNuevo({ ...vehiculoNuevo, [campo]: valor });
-  return <Card><CardContent><Button variant="contained" startIcon={<AddIcon />} onClick={() => establecerDialogoAbierto(true)}>Nuevo vehículo</Button><Dialog open={dialogoAbierto} onClose={() => establecerDialogoAbierto(false)} fullWidth maxWidth="md"><DialogTitle>Alta completa de vehículo</DialogTitle><Box component="form" onSubmit={(evento) => { agregarVehiculo(evento); establecerDialogoAbierto(false); }}><DialogContent sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}><TextField required label="Patente" value={vehiculoNuevo.patente} onChange={(evento) => actualizar('patente', evento.target.value)} /><TextField required label="Marca" value={vehiculoNuevo.marca} onChange={(evento) => actualizar('marca', evento.target.value)} /><TextField required label="Modelo" value={vehiculoNuevo.modelo} onChange={(evento) => actualizar('modelo', evento.target.value)} /><TextField required type="number" label="Kilometraje inicial" value={vehiculoNuevo.kilometrajeInicial} onChange={(evento) => actualizar('kilometrajeInicial', evento.target.value)} /><TextField required type="number" label="Kilometraje actual" value={vehiculoNuevo.kilometrajeActual} onChange={(evento) => actualizar('kilometrajeActual', evento.target.value)} /><TextField required label="Compañía de seguro" value={vehiculoNuevo.companiaSeguro} onChange={(evento) => actualizar('companiaSeguro', evento.target.value)} /><TextField required label="Número de póliza" value={vehiculoNuevo.poliza} onChange={(evento) => actualizar('poliza', evento.target.value)} /><TextField required type="date" label="Vencimiento del seguro" InputLabelProps={{ shrink: true }} value={vehiculoNuevo.venceSeguro} onChange={(evento) => actualizar('venceSeguro', evento.target.value)} /><TextField required type="date" label="Último service" InputLabelProps={{ shrink: true }} value={vehiculoNuevo.ultimoService} onChange={(evento) => actualizar('ultimoService', evento.target.value)} /><TextField multiline minRows={2} label="Detalle" value={vehiculoNuevo.detalle} onChange={(evento) => actualizar('detalle', evento.target.value)} /></DialogContent><DialogActions><Button onClick={() => establecerDialogoAbierto(false)}>Cancelar</Button><Button type="submit" variant="contained">Guardar vehículo</Button></DialogActions></Box></Dialog></CardContent></Card>;
+  return <><Button variant="contained" startIcon={<AddIcon />} onClick={() => establecerDialogoAbierto(true)} sx={{ whiteSpace: 'nowrap' }}>Nuevo vehículo</Button><Dialog open={dialogoAbierto} onClose={() => establecerDialogoAbierto(false)} fullWidth maxWidth="md"><DialogTitle>Alta completa de vehículo</DialogTitle><Box component="form" onSubmit={(evento) => { agregarVehiculo(evento); establecerDialogoAbierto(false); }}><DialogContent sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}><TextField required label="Patente" value={vehiculoNuevo.patente} onChange={(evento) => actualizar('patente', evento.target.value)} /><TextField required label="Marca" value={vehiculoNuevo.marca} onChange={(evento) => actualizar('marca', evento.target.value)} /><TextField required label="Modelo" value={vehiculoNuevo.modelo} onChange={(evento) => actualizar('modelo', evento.target.value)} /><TextField required type="number" label="Kilometraje inicial" value={vehiculoNuevo.kilometrajeInicial} onChange={(evento) => actualizar('kilometrajeInicial', evento.target.value)} /><TextField required type="number" label="Kilometraje actual" value={vehiculoNuevo.kilometrajeActual} onChange={(evento) => actualizar('kilometrajeActual', evento.target.value)} /><TextField required label="Compañía de seguro" value={vehiculoNuevo.companiaSeguro} onChange={(evento) => actualizar('companiaSeguro', evento.target.value)} /><TextField required label="Número de póliza" value={vehiculoNuevo.poliza} onChange={(evento) => actualizar('poliza', evento.target.value)} /><TextField required type="date" label="Vencimiento del seguro" InputLabelProps={{ shrink: true }} value={vehiculoNuevo.venceSeguro} onChange={(evento) => actualizar('venceSeguro', evento.target.value)} /><TextField required type="date" label="Último service" InputLabelProps={{ shrink: true }} value={vehiculoNuevo.ultimoService} onChange={(evento) => actualizar('ultimoService', evento.target.value)} /><TextField multiline minRows={2} label="Detalle" value={vehiculoNuevo.detalle} onChange={(evento) => actualizar('detalle', evento.target.value)} /></DialogContent><DialogActions><Button onClick={() => establecerDialogoAbierto(false)}>Cancelar</Button><Button type="submit" variant="contained">Guardar vehículo</Button></DialogActions></Box></Dialog></>;
 }
 
 export default AdminHome;

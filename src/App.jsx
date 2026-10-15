@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Box, CircularProgress, CssBaseline, ThemeProvider } from '@mui/material';
+import { CssBaseline, ThemeProvider } from '@mui/material';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import Login from './components/Login.jsx';
 import AdminHome from './components/admin/adminHome.jsx';
@@ -26,7 +26,7 @@ function AppContent({ modo, cambiarModo }) {
   const [usuarioActual, establecerUsuarioActual] = useState('');
   const [nombreUsuarioActual, establecerNombreUsuarioActual] = useState('');
   const navegar = useNavigate();
-  const { data, error } = useAppData();
+  const { limpiarDatos } = useAppData();
 
   // Función para manejar el inicio de sesión exitoso.
   const ingresar = (usuario, datosUsuario) => {
@@ -38,13 +38,11 @@ function AppContent({ modo, cambiarModo }) {
   // Función para manejar el cierre de sesión.
   const volverAlLogin = () => {
     sessionStorage.removeItem('galacticappToken');
+    limpiarDatos();
     establecerUsuarioActual('');
     establecerNombreUsuarioActual('');
     navegar('/');
   };
-
-  if (error) return <Box sx={{ p: 4 }}>{error}</Box>;
-  if (!data) return <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}><CircularProgress /></Box>;
 
   return (
       <Routes>

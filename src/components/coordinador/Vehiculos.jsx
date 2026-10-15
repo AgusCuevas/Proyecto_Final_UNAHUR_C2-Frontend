@@ -1,169 +1,352 @@
 import {
+  Alert,
   Button,
   Card,
   CardContent,
   Chip,
-  Divider,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Grid,
+  IconButton,
   InputAdornment,
   MenuItem,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
+import AssignmentIndOutlinedIcon from '@mui/icons-material/AssignmentIndOutlined';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
-import EventAvailableIcon from '@mui/icons-material/EventAvailable';
-import BuildIcon from '@mui/icons-material/Build';
+import DirectionsCarOutlinedIcon from '@mui/icons-material/DirectionsCarOutlined';
+import EngineeringOutlinedIcon from '@mui/icons-material/EngineeringOutlined';
 import SearchIcon from '@mui/icons-material/Search';
-import SpeedIcon from '@mui/icons-material/Speed';
+import SpeedOutlinedIcon from '@mui/icons-material/SpeedOutlined';
+import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import { useState } from 'react';
 import { useAppData } from '../../context/useAppData.js';
+import { useRecursos } from '../../context/useRecursos.js';
+import FichaDetalle from '../comunes/FichaDetalle.jsx';
 
-const formatearFecha = (fecha) => new Date(`${fecha}T12:00:00`).toLocaleDateString('es-AR');
+// Las fechas llegan como 'AAAA-MM-DD' o como ISO completo desde MongoDB.
+const formatearFecha = (fecha) => {
+  if (!fecha) return '';
+  const fechaLocal = new Date(`${String(fecha).slice(0, 10)}T12:00:00`);
+  return Number.isNaN(fechaLocal.getTime()) ? String(fecha) : fechaLocal.toLocaleDateString('es-AR');
+};
 
-function Vehiculos({ gestionable = false, vehiculosExtra = [], alActualizarVehiculo }) {
-  const { data, actualizarAsignacionVehiculo } = useAppData();
+const formatearKm = (km) => (km != null && km !== '' ? `${Number(km).toLocaleString('es-AR')} km` : '');
+
+const estadoVehiculo = (vehiculo) => {
+  if (vehiculo.enServicio === false) return { label: 'Fuera de servicio', color: 'error' };
+  return vehiculo.disponible === false
+    ? { label: 'No disponible', color: 'default' }
+    : { label: 'Disponible', color: 'success' };
+};
+
+const seguroVencido = (vehiculo) => Boolean(vehiculo.seguro?.vence)
+  && String(vehiculo.seguro.vence).slice(0, 10) < new Date().toISOString().slice(0, 10);
+
+function Vehiculos({ gestionable = false, accionNuevo }) {
+  const { actualizarAsignacionVehiculo } = useAppData();
+  const data = useRecursos('vehiculos', 'usuarios');
   const [busqueda, establecerBusqueda] = useState('');
+  const [filtroAsignacion, establecerFiltroAsignacion] = useState('Todos');
+  const [vehiculoSeleccionado, establecerVehiculoSeleccionado] = useState(null);
   const [asignacionPendiente, establecerAsignacionPendiente] = useState(null);
-  const tecnicos = data.usuarios.filter((usuario) => usuario.rol === 'Tecnico');
-  const nombreTecnico = (tecnicoId) => tecnicos.find(
-    (tecnico) => tecnico.id === tecnicoId,
-  )?.nombre || 'Sin técnico asignado';
-  const textoBusqueda = busqueda.trim().toLowerCase();
-  const vehiculos = [...data.vehiculos, ...vehiculosExtra];
-  const vehiculosFiltrados = vehiculos.filter((vehiculo) => (
-    !textoBusqueda
-      || [
-        vehiculo.patente,
-        vehiculo.marca,
-        vehiculo.modelo,
-        nombreTecnico(vehiculo.tecnicoAsignado),
-      ].some((campo) => campo?.toLowerCase().includes(textoBusqueda))
-  ));
+  const [guardando, establecerGuardando] = useState(false);
+  const [error, establecerError] = useState('');
 
-  const confirmarAsignacion = () => {
-    if (!asignacionPendiente) return;
-    const { vehiculo, tecnicoId } = asignacionPendiente;
-    if (String(vehiculo.id).startsWith('local-')) {
-      alActualizarVehiculo?.(vehiculo.id, tecnicoId);
-    } else {
-      actualizarAsignacionVehiculo(vehiculo.id, tecnicoId);
-    }
-    establecerAsignacionPendiente(null);
+  const tecnicos = data.usuarios.filter((usuario) => usuario.rol === 'Tecnico');
+  const nombreTecnico = (tecnicoId) => tecnicos.find((tecnico) => tecnico.id === tecnicoId)?.nombre || '';
+
+  const termino = busqueda.trim().toLocaleLowerCase('es');
+  const vehiculosFiltrados = data.vehiculos
+    .filter((vehiculo) => {
+      const coincideAsignacion = filtroAsignacion === 'Todos'
+        || (filtroAsignacion === 'Con técnico' ? vehiculo.tecnicoAsignado != null : vehiculo.tecnicoAsignado == null);
+      const texto = [vehiculo.patente, vehiculo.marca, vehiculo.modelo, nombreTecnico(vehiculo.tecnicoAsignado)]
+        .filter(Boolean)
+        .join(' ')
+        .toLocaleLowerCase('es');
+      return coincideAsignacion && texto.includes(termino);
+    })
+    .sort((a, b) => String(a.patente).localeCompare(String(b.patente), 'es'));
+
+  // Se busca en la lista actual para que el detalle refleje cambios de asignación.
+  const vehiculoDetalle = vehiculoSeleccionado
+    ? data.vehiculos.find((vehiculo) => vehiculo.id === vehiculoSeleccionado.id) || vehiculoSeleccionado
+    : null;
+
+  const vehiculoAnteriorDelTecnico = asignacionPendiente?.tecnicoId
+    ? data.vehiculos.find((item) => (
+      item.tecnicoAsignado === asignacionPendiente.tecnicoId && item.id !== asignacionPendiente.vehiculo.id
+    ))
+    : null;
+
+  const abrirAsignacion = (vehiculo) => {
+    establecerError('');
+    establecerAsignacionPendiente({ vehiculo, tecnicoId: vehiculo.tecnicoAsignado ?? null });
   };
 
+  const confirmarAsignacion = async () => {
+    if (!asignacionPendiente) return;
+    establecerGuardando(true);
+    try {
+      await actualizarAsignacionVehiculo(asignacionPendiente.vehiculo.id, asignacionPendiente.tecnicoId);
+      establecerAsignacionPendiente(null);
+    } catch (causa) {
+      establecerError(causa?.response?.data?.mensaje || 'No se pudo cambiar la asignación del vehículo.');
+    } finally {
+      establecerGuardando(false);
+    }
+  };
+
+  const seccionesDetalle = vehiculoDetalle ? [
+    {
+      titulo: 'Asignación',
+      icono: <EngineeringOutlinedIcon fontSize="small" />,
+      campos: [
+        ['Técnico asignado', nombreTecnico(vehiculoDetalle.tecnicoAsignado) || 'Sin técnico asignado'],
+        ['Estado', estadoVehiculo(vehiculoDetalle).label],
+      ],
+    },
+    {
+      titulo: 'Kilometraje y mantenimiento',
+      icono: <SpeedOutlinedIcon fontSize="small" />,
+      campos: [
+        ['Kilometraje inicial', formatearKm(vehiculoDetalle.kilometraje?.inicial)],
+        ['Kilometraje actual', formatearKm(vehiculoDetalle.kilometraje?.actual)],
+        ['Último registro de km', formatearFecha(vehiculoDetalle.kilometraje?.actualizadoEn)],
+        ['Último service', formatearFecha(vehiculoDetalle.ultimoService)],
+      ],
+    },
+    {
+      titulo: 'Seguro',
+      icono: <VerifiedUserOutlinedIcon fontSize="small" />,
+      campos: [
+        ['Compañía', vehiculoDetalle.seguro?.compania],
+        ['Póliza', vehiculoDetalle.seguro?.poliza],
+        ['Vencimiento', `${formatearFecha(vehiculoDetalle.seguro?.vence)}${seguroVencido(vehiculoDetalle) ? ' (vencido)' : ''}`],
+      ],
+    },
+    {
+      titulo: 'Detalle',
+      icono: <DirectionsCarOutlinedIcon fontSize="small" />,
+      campos: [['Observaciones', vehiculoDetalle.detalle, { anchoCompleto: true }]],
+    },
+  ] : [];
+
   return (
-    <Stack spacing={3}>
-      <TextField
-        value={busqueda}
-        onChange={(event) => establecerBusqueda(event.target.value)}
-        label="Buscar vehículo"
-        placeholder="Patente, marca, modelo o técnico"
-        fullWidth
-        slotProps={{
-          input: {
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-          },
-        }}
-      />
-      <Typography variant="body2" color="text.secondary">
-      Mostrando {vehiculosFiltrados.length} de {vehiculos.length} vehículos.
-      </Typography>
-      <Grid container spacing={2}>
-        {vehiculosFiltrados.map((vehiculo) => (
-          <Grid key={vehiculo.id} size={{ xs: 12, md: 6 }}>
-            <Card sx={{ height: '100%' }}>
-              <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
-                <Stack direction="row" gap={2} sx={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-                    <DirectionsCarIcon color="primary" fontSize="large" />
-                    <div>
-                      <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                        {vehiculo.marca} {vehiculo.modelo}
-                      </Typography>
-                      <Typography color="text.secondary">Patente {vehiculo.patente}</Typography>
-                    </div>
-                  </Stack>
-                  <Chip label={vehiculo.disponible ? 'Disponible' : 'No disponible'} color={vehiculo.disponible ? 'success' : 'default'} size="small" />
-                </Stack>
-
-                <Divider sx={{ my: 2 }} />
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 6, sm: 4 }}>
-                    <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
-                      <SpeedIcon fontSize="small" color="secondary" />
-                      <Typography variant="caption" color="text.secondary">Kilómetros</Typography>
-                    </Stack>
-                    <Typography sx={{ fontWeight: 700 }}>{vehiculo.kilometraje.actual.toLocaleString('es-AR')} km</Typography>
-                  </Grid>
-                  <Grid size={{ xs: 6, sm: 4 }}>
-                    <Typography variant="caption" color="text.secondary">Técnico asignado</Typography>
-                    <Typography sx={{ fontWeight: 700 }}>{nombreTecnico(vehiculo.tecnicoAsignado)}</Typography>
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 4 }}>
-                    <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
-                      <BuildIcon fontSize="small" color="secondary" />
-                      <Typography variant="caption" color="text.secondary">Último service</Typography>
-                    </Stack>
-                    <Typography sx={{ fontWeight: 700 }}>{formatearFecha(vehiculo.ultimoService)}</Typography>
-                  </Grid>
-                </Grid>
-
-                <Stack spacing={1.25} mt={2}>
-                  {gestionable && (
-                    <TextField
-                      select
-                      size="small"
-                      label="Asignar o desasignar técnico"
-                      value={vehiculo.tecnicoAsignado || ''}
-                      onChange={(event) => establecerAsignacionPendiente({
-                        vehiculo,
-                        tecnicoId: Number(event.target.value) || null,
-                      })}
-                    >
-                      <MenuItem value="">Sin asignar</MenuItem>
-                      {tecnicos.filter((tecnico) => tecnico.activo).map((tecnico) => (
-                        <MenuItem key={tecnico.id} value={tecnico.id}>{tecnico.nombre}</MenuItem>
-                      ))}
-                    </TextField>
-                  )}
-                  <Typography variant="body2"><strong>Seguro:</strong> {vehiculo.seguro.compania} · Póliza {vehiculo.seguro.poliza}</Typography>
-                  <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
-                    <EventAvailableIcon fontSize="small" color="secondary" />
-                    <Typography variant="body2"><strong>Vencimiento:</strong> {formatearFecha(vehiculo.seguro.vence)}</Typography>
-                  </Stack>
-                  <Typography variant="body2" color="text.secondary">{vehiculo.detalle}</Typography>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-      {vehiculosFiltrados.length === 0 && (
-        <Typography color="text.secondary">No hay vehículos que coincidan con la búsqueda.</Typography>
+    <Stack spacing={2.5}>
+      {error && !asignacionPendiente && (
+        <Alert severity="error" onClose={() => establecerError('')}>{error}</Alert>
       )}
-      <Dialog open={Boolean(asignacionPendiente)} onClose={() => establecerAsignacionPendiente(null)} fullWidth maxWidth="xs">
-        <DialogTitle>Confirmar cambio de asignación</DialogTitle>
+
+      <Card>
+        <CardContent>
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={2}
+            sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
+          >
+            <TextField
+              fullWidth
+              label="Buscar vehículos"
+              placeholder="Patente, marca, modelo o técnico"
+              value={busqueda}
+              onChange={(evento) => establecerBusqueda(evento.target.value)}
+              sx={{ maxWidth: { md: 520 } }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start"><SearchIcon /></InputAdornment>
+                  ),
+                },
+              }}
+            />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              <TextField
+                select
+                label="Asignación"
+                value={filtroAsignacion}
+                onChange={(evento) => establecerFiltroAsignacion(evento.target.value)}
+                sx={{ minWidth: 170 }}
+              >
+                <MenuItem value="Todos">Todos</MenuItem>
+                <MenuItem value="Con técnico">Con técnico</MenuItem>
+                <MenuItem value="Sin técnico">Sin técnico</MenuItem>
+              </TextField>
+              {accionNuevo}
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent>
+          <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 800 }}>Vehículos</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {vehiculosFiltrados.length} {vehiculosFiltrados.length === 1 ? 'resultado' : 'resultados'}
+            </Typography>
+          </Stack>
+          <TableContainer sx={{ overflowX: 'auto' }}>
+            <Table size="small" sx={{ minWidth: 820 }}>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Vehículo</TableCell>
+                  <TableCell>Patente</TableCell>
+                  <TableCell>Técnico asignado</TableCell>
+                  <TableCell align="right">Kilometraje</TableCell>
+                  <TableCell>Vence seguro</TableCell>
+                  <TableCell>Estado</TableCell>
+                  <TableCell align="right">Acciones</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {vehiculosFiltrados.map((vehiculo) => {
+                  const estado = estadoVehiculo(vehiculo);
+                  const descripcion = [vehiculo.marca, vehiculo.modelo].filter(Boolean).join(' ');
+                  return (
+                    <TableRow key={vehiculo.id} hover>
+                      <TableCell sx={{ fontWeight: 700 }}>{descripcion || '—'}</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>{vehiculo.patente}</TableCell>
+                      <TableCell>
+                        {nombreTecnico(vehiculo.tecnicoAsignado) || (
+                          <Typography variant="body2" color="text.disabled">Sin asignar</Typography>
+                        )}
+                      </TableCell>
+                      <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                        {formatearKm(vehiculo.kilometraje?.actual) || '—'}
+                      </TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                        <Typography variant="body2" color={seguroVencido(vehiculo) ? 'error' : 'text.primary'}>
+                          {formatearFecha(vehiculo.seguro?.vence) || '—'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip size="small" label={estado.label} color={estado.color} />
+                      </TableCell>
+                      <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                        <Tooltip title="Ver información">
+                          <IconButton
+                            aria-label={`Ver información del vehículo ${vehiculo.patente}`}
+                            onClick={() => establecerVehiculoSeleccionado(vehiculo)}
+                          >
+                            <VisibilityOutlinedIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        {gestionable && (
+                          <Tooltip title="Asignar técnico">
+                            <IconButton
+                              aria-label={`Asignar técnico al vehículo ${vehiculo.patente}`}
+                              onClick={() => abrirAsignacion(vehiculo)}
+                            >
+                              <AssignmentIndOutlinedIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {vehiculosFiltrados.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                      No hay vehículos que coincidan con la búsqueda.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </CardContent>
+      </Card>
+
+      <FichaDetalle
+        abierto={Boolean(vehiculoDetalle)}
+        alCerrar={() => establecerVehiculoSeleccionado(null)}
+        titulo={vehiculoDetalle && ([vehiculoDetalle.marca, vehiculoDetalle.modelo].filter(Boolean).join(' ') || vehiculoDetalle.patente)}
+        subtitulo={vehiculoDetalle && `Patente ${vehiculoDetalle.patente}`}
+        icono={<DirectionsCarIcon />}
+        chips={vehiculoDetalle ? [
+          { label: 'Vehículo', color: 'primary', variant: 'outlined' },
+          estadoVehiculo(vehiculoDetalle),
+          ...(seguroVencido(vehiculoDetalle) ? [{ label: 'Seguro vencido', color: 'error', variant: 'outlined' }] : []),
+        ] : []}
+        secciones={seccionesDetalle}
+        acciones={(
+          <>
+            <Button onClick={() => establecerVehiculoSeleccionado(null)}>Cerrar</Button>
+            {gestionable && (
+              <Button
+                variant="contained"
+                startIcon={<AssignmentIndOutlinedIcon />}
+                onClick={() => {
+                  abrirAsignacion(vehiculoDetalle);
+                  establecerVehiculoSeleccionado(null);
+                }}
+              >
+                Asignar técnico
+              </Button>
+            )}
+          </>
+        )}
+      />
+
+      <Dialog
+        open={Boolean(asignacionPendiente)}
+        onClose={() => !guardando && establecerAsignacionPendiente(null)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Asignar técnico</DialogTitle>
         <DialogContent>
-          <Typography>
-            ¿Querés {asignacionPendiente?.tecnicoId ? 'asignar' : 'desasignar'} el vehículo {asignacionPendiente?.vehiculo.patente}?
-          </Typography>
-          <Typography color="text.secondary" sx={{ mt: 1 }}>
-            Técnico actual: {nombreTecnico(asignacionPendiente?.vehiculo.tecnicoAsignado)}
-          </Typography>
-          <Typography color="text.secondary">
-            Nuevo técnico: {nombreTecnico(asignacionPendiente?.tecnicoId)}
-          </Typography>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Typography color="text.secondary">
+              Vehículo {asignacionPendiente?.vehiculo.patente} · Técnico actual:{' '}
+              {nombreTecnico(asignacionPendiente?.vehiculo.tecnicoAsignado) || 'sin asignar'}
+            </Typography>
+            <TextField
+              select
+              label="Técnico"
+              value={asignacionPendiente?.tecnicoId ?? ''}
+              onChange={(evento) => establecerAsignacionPendiente((actual) => ({
+                ...actual,
+                tecnicoId: Number(evento.target.value) || null,
+              }))}
+            >
+              <MenuItem value="">Sin asignar</MenuItem>
+              {tecnicos.filter((tecnico) => tecnico.activo).map((tecnico) => (
+                <MenuItem key={tecnico.id} value={tecnico.id}>{tecnico.nombre}</MenuItem>
+              ))}
+            </TextField>
+            {vehiculoAnteriorDelTecnico && (
+              <Alert severity="warning">
+                {nombreTecnico(asignacionPendiente.tecnicoId)} ya tiene asignado el vehículo {vehiculoAnteriorDelTecnico.patente}, que quedará sin técnico.
+              </Alert>
+            )}
+            {error && <Alert severity="error">{error}</Alert>}
+          </Stack>
         </DialogContent>
-        <DialogActions><Button onClick={() => establecerAsignacionPendiente(null)}>Cancelar</Button><Button variant="contained" onClick={confirmarAsignacion}>Confirmar</Button></DialogActions>
+        <DialogActions>
+          <Button onClick={() => establecerAsignacionPendiente(null)} disabled={guardando}>Cancelar</Button>
+          <Button
+            variant="contained"
+            onClick={confirmarAsignacion}
+            disabled={guardando || asignacionPendiente?.tecnicoId === (asignacionPendiente?.vehiculo.tecnicoAsignado ?? null)}
+          >
+            {guardando ? 'Guardando...' : 'Confirmar'}
+          </Button>
+        </DialogActions>
       </Dialog>
     </Stack>
   );

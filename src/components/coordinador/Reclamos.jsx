@@ -31,7 +31,34 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import PersonIcon from '@mui/icons-material/Person';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
+import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import PersonOutlineIcon from '@mui/icons-material/PersonOutlined';
+import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
+import EngineeringOutlinedIcon from '@mui/icons-material/EngineeringOutlined';
+import TaskAltOutlinedIcon from '@mui/icons-material/TaskAltOutlined';
+import StickyNote2OutlinedIcon from '@mui/icons-material/StickyNote2Outlined';
+import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined';
 import { useAppData } from '../../context/useAppData.js';
+import { useRecursos } from '../../context/useRecursos.js';
+import FichaDetalle from '../comunes/FichaDetalle.jsx';
+
+const esOrdenDeServicio = (reclamo) => Boolean(reclamo)
+  && (reclamo.esOrden || reclamo.tipo === 'Instalación' || reclamo.tipo === 'Baja de servicio');
+
+// Acepta 'AAAA-MM-DD' (fecha sola) o una fecha ISO completa.
+const formatearFecha = (fecha, { conHora = false } = {}) => {
+  if (!fecha) return '';
+  const texto = String(fecha);
+  const valor = new Date(texto.length === 10 ? `${texto}T12:00:00` : texto);
+  if (Number.isNaN(valor.getTime())) return texto;
+  return conHora && texto.length > 10
+    ? valor.toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })
+    : valor.toLocaleDateString('es-AR');
+};
+
+const colorPrioridad = { Urgente: 'error', Alta: 'warning', Normal: 'default' };
 
 function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
   const formularioNuevoInicial = {
@@ -46,11 +73,12 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
   const [errorAlta, establecerErrorAlta] = useState('');
   const [guardandoAlta, establecerGuardandoAlta] = useState(false);
   const [reclamoParaAsignar, establecerReclamoParaAsignar] = useState(null);
-  const [reclamoAbierto, establecerReclamoAbierto] = useState(null);
+  const [reclamoAbiertoId, establecerReclamoAbiertoId] = useState(null);
+  const [reclamoEnNotas, establecerReclamoEnNotas] = useState(null);
   const [reclamoExpandido, establecerReclamoExpandido] = useState(null);
   const [imagenAbierta, establecerImagenAbierta] = useState(null);
-  const [edicionNotasAbierta, establecerEdicionNotasAbierta] = useState(false);
   const [notasCoordinador, establecerNotasCoordinador] = useState('');
+  const [errorNotas, establecerErrorNotas] = useState('');
   const [tecnicoSeleccionado, establecerTecnicoSeleccionado] = useState('');
   const [pagina, establecerPagina] = useState(1);
   const [filtros, establecerFiltros] = useState({
@@ -59,7 +87,8 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
     desde: '',
     hasta: '',
   });
-  const { data, actualizarAsignacion, actualizarEstado, crearReclamo: crearReclamoData } = useAppData();
+  const { actualizarAsignacion, actualizarEstado, crearReclamo: crearReclamoData } = useAppData();
+  const data = useRecursos('reclamos', 'usuarios', 'clientes');
   const reclamos = data.reclamos;
 
   const esModoOrden = formularioAbierto === 'orden';
@@ -73,7 +102,9 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
     (cliente) => cliente.id === clienteId,
   )?.nombre || 'Cliente no encontrado';
 
-  const nombreTecnico = (tecnicoId) => tecnicos.find(
+  // Para mostrar nombres se usan todos los técnicos, aunque estén inactivos.
+  const todosLosTecnicos = data.usuarios.filter((usuario) => usuario.rol === 'Tecnico');
+  const nombreTecnico = (tecnicoId) => todosLosTecnicos.find(
     (tecnico) => tecnico.id === tecnicoId,
   )?.nombre || 'Sin asignar';
 
@@ -120,8 +151,15 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
   const paginaActual = Math.min(pagina, Math.max(cantidadPaginas, 1));
   const reclamosVisibles = reclamosFiltrados.slice((paginaActual - 1) * 10, paginaActual * 10);
 
+  // Se busca en la lista actual para que el detalle refleje asignaciones y notas recién guardadas.
+  const reclamoAbierto = reclamoAbiertoId != null
+    ? reclamos.find((reclamo) => reclamo.id === reclamoAbiertoId) || null
+    : null;
   const tecnicoDelReclamoAbierto = reclamoAbierto
-    ? tecnicos.find((tecnico) => tecnico.id === reclamoAbierto.tecnicoId)
+    ? todosLosTecnicos.find((tecnico) => tecnico.id === reclamoAbierto.tecnicoId)
+    : null;
+  const clienteDelReclamoAbierto = reclamoAbierto
+    ? data.clientes.find((cliente) => cliente.id === reclamoAbierto.clienteId)
     : null;
 
   const abrirReclamo = (reclamo) => establecerReclamoExpandido((actual) => (
@@ -129,28 +167,37 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
   ));
 
   const abrirEdicionNotas = (reclamo) => {
-    establecerReclamoAbierto(reclamo);
+    establecerReclamoEnNotas(reclamo);
     establecerNotasCoordinador(reclamo.notasCoordinador || '');
-    establecerEdicionNotasAbierta(true);
+    establecerErrorNotas('');
   };
 
   const guardarNotas = async (event) => {
     event.preventDefault();
-    if (!reclamoAbierto) return;
-    const reclamoActualizado = await actualizarEstado(reclamoAbierto.id, {
-      notasCoordinador: notasCoordinador.trim(),
-    });
-    establecerReclamoAbierto(reclamoActualizado);
+    if (!reclamoEnNotas) return;
+    let reclamoActualizado;
+    try {
+      reclamoActualizado = await actualizarEstado(reclamoEnNotas.id, {
+        notasCoordinador: notasCoordinador.trim(),
+      });
+    } catch (causa) {
+      establecerErrorNotas(causa?.response?.data?.mensaje || 'No se pudieron guardar las notas. Intentá nuevamente.');
+      return;
+    }
     establecerReclamoExpandido((actual) => (
       actual?.id === reclamoActualizado.id ? reclamoActualizado : actual
     ));
-    establecerEdicionNotasAbierta(false);
+    establecerReclamoEnNotas(null);
   };
 
   const guardarNuevoReclamo = async (event) => {
     event.preventDefault();
-    const cliente = data.clientes.find((item) => String(item.id) === formularioNuevo.clienteId);
-    if (!cliente) return;
+    // El Select guarda el id como número; se comparan como texto para no depender del tipo.
+    const cliente = data.clientes.find((item) => String(item.id) === String(formularioNuevo.clienteId));
+    if (!cliente) {
+      establecerErrorAlta('Seleccioná un cliente.');
+      return;
+    }
 
     const tipoFinal = (esModoOrden ? (formularioNuevo.tipo || 'Instalación') : formularioNuevo.tipo).trim();
     if (!tipoFinal) {
@@ -173,11 +220,12 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
       });
       establecerFormularioNuevo(formularioNuevoInicial);
       establecerFormularioAbierto(false);
-    } catch {
+    } catch (causa) {
       establecerErrorAlta(
-        esModoOrden
-          ? 'No se pudo guardar la orden. Revisá los datos e intentá nuevamente.'
-          : 'No se pudo guardar el reclamo. Revisá los datos e intentá nuevamente.',
+        causa?.response?.data?.mensaje
+          || (esModoOrden
+            ? 'No se pudo guardar la orden. Revisá los datos e intentá nuevamente.'
+            : 'No se pudo guardar el reclamo. Revisá los datos e intentá nuevamente.'),
       );
     } finally {
       establecerGuardandoAlta(false);
@@ -581,7 +629,7 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                       variant="outlined"
                       onClick={(evento) => {
                         evento.stopPropagation();
-                        establecerReclamoAbierto(reclamo);
+                        establecerReclamoAbiertoId(reclamo.id);
                       }}
                     >
                       {reclamo.esOrden || reclamo.tipo === 'Instalación' || reclamo.tipo === 'Baja de servicio'
@@ -718,98 +766,136 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
         </DialogActions>
       </Dialog>
 
-      <Dialog
-        open={Boolean(reclamoAbierto)}
-        onClose={() => establecerReclamoAbierto(null)}
-        fullWidth
-        maxWidth="sm"
+      <FichaDetalle
+        abierto={Boolean(reclamoAbierto)}
+        alCerrar={() => establecerReclamoAbiertoId(null)}
+        titulo={reclamoAbierto?.tipo || 'Sin tipo'}
+        subtitulo={reclamoAbierto && `${esOrdenDeServicio(reclamoAbierto) ? 'Orden' : 'Reclamo'} #${reclamoAbierto.id} · creado el ${formatearFecha(reclamoAbierto.creadoEn, { conHora: true })}`}
+        icono={esOrdenDeServicio(reclamoAbierto) ? <AssignmentOutlinedIcon /> : <ReportProblemOutlinedIcon />}
+        chips={reclamoAbierto ? [
+          { label: esOrdenDeServicio(reclamoAbierto) ? 'Orden de servicio' : 'Reclamo', color: 'primary', variant: 'outlined' },
+          { label: reclamoAbierto.estado, color: colorChipEstado[reclamoAbierto.estado] || 'default' },
+          { label: `Prioridad ${reclamoAbierto.prioridad || 'Normal'}`, color: colorPrioridad[reclamoAbierto.prioridad] || 'default', variant: 'outlined' },
+        ] : []}
+        aviso={reclamoAbierto?.estado === 'Bloqueado' && reclamoAbierto.motivoBloqueo && (
+          <Alert severity="error">
+            <strong>Motivo del bloqueo:</strong> {reclamoAbierto.motivoBloqueo}
+          </Alert>
+        )}
+        secciones={reclamoAbierto ? [
+          {
+            titulo: 'Descripción',
+            icono: <DescriptionOutlinedIcon fontSize="small" />,
+            campos: [['Detalle informado', reclamoAbierto.descripcion, { anchoCompleto: true }]],
+          },
+          {
+            titulo: 'Cliente',
+            icono: <PersonOutlineIcon fontSize="small" />,
+            campos: [
+              ['Nombre', clienteDelReclamoAbierto?.nombre || nombreCliente(reclamoAbierto.clienteId)],
+              ['Teléfono', clienteDelReclamoAbierto?.telefono],
+              ['Domicilio', clienteDelReclamoAbierto?.direccion, { anchoCompleto: true }],
+              ['Zona', reclamoAbierto.agrupacionGeografica || clienteDelReclamoAbierto?.zona],
+            ],
+          },
+          {
+            titulo: 'Programación',
+            icono: <EventOutlinedIcon fontSize="small" />,
+            campos: [
+              ['Fecha programada', formatearFecha(reclamoAbierto.fechaProgramada)],
+              ['Creado', formatearFecha(reclamoAbierto.creadoEn, { conHora: true })],
+              ...(reclamoAbierto.finalizadoEn
+                ? [['Finalizado', formatearFecha(reclamoAbierto.finalizadoEn, { conHora: true })]]
+                : []),
+            ],
+          },
+          {
+            titulo: 'Técnico asignado',
+            icono: <EngineeringOutlinedIcon fontSize="small" />,
+            campos: tecnicoDelReclamoAbierto ? [
+              ['Nombre', tecnicoDelReclamoAbierto.nombre],
+              ['Teléfono', tecnicoDelReclamoAbierto.telefono],
+              ['Correo electrónico', tecnicoDelReclamoAbierto.email, { anchoCompleto: true }],
+            ] : [['Nombre', 'Sin técnico asignado', { anchoCompleto: true }]],
+          },
+          {
+            titulo: 'Cierre del técnico',
+            icono: <TaskAltOutlinedIcon fontSize="small" />,
+            campos: reclamoAbierto.comentarioFinalizacion
+              ? [['Comentario', reclamoAbierto.comentarioFinalizacion, { anchoCompleto: true }]]
+              : [],
+          },
+          {
+            titulo: 'Notas del coordinador',
+            icono: <StickyNote2OutlinedIcon fontSize="small" />,
+            campos: [['Notas internas', reclamoAbierto.notasCoordinador, { anchoCompleto: true }]],
+          },
+        ] : []}
+        acciones={reclamoAbierto && (
+          <>
+            <Button onClick={() => establecerReclamoAbiertoId(null)} sx={{ mr: 'auto' }}>Cerrar</Button>
+            {reclamoAbierto.estado !== 'Finalizado' && (
+              <Button
+                variant="outlined"
+                startIcon={<PersonAddIcon />}
+                onClick={() => abrirEdicionTecnico(reclamoAbierto)}
+              >
+                {reclamoAbierto.tecnicoId ? 'Reasignar' : 'Asignar técnico'}
+              </Button>
+            )}
+            <Button
+              variant="contained"
+              startIcon={<EditNoteIcon />}
+              onClick={() => abrirEdicionNotas(reclamoAbierto)}
+            >
+              Editar notas
+            </Button>
+          </>
+        )}
       >
-        <DialogTitle sx={{ fontWeight: 800 }}>
-          {reclamoAbierto?.esOrden || reclamoAbierto?.tipo === 'Instalación' || reclamoAbierto?.tipo === 'Baja de servicio'
-            ? `Orden #${reclamoAbierto?.id}`
-            : `Reclamo #${reclamoAbierto?.id}`}
-        </DialogTitle>
-        <DialogContent>
-          {reclamoAbierto && (
-            <Stack spacing={2} sx={{ pt: 1 }}>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                <Typography variant="h6" sx={{ fontWeight: 800 }}>{reclamoAbierto.tipo}</Typography>
-                <Typography sx={{ fontWeight: 800, color: colorEstado[reclamoAbierto.estado] }}>
-                  {reclamoAbierto.estado}
-                </Typography>
-              </Stack>
-              <Typography><strong>Cliente:</strong> {nombreCliente(reclamoAbierto.clienteId)}</Typography>
-              <Typography><strong>Prioridad:</strong> {reclamoAbierto.prioridad}</Typography>
-              <Typography><strong>Zona:</strong> {reclamoAbierto.agrupacionGeografica}</Typography>
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Descripción</Typography>
-                <Typography>{reclamoAbierto.descripcion}</Typography>
-              </Box>
-              {reclamoAbierto.motivoBloqueo && (
-                <Typography color="error.main">
-                  <strong>Motivo del bloqueo:</strong> {reclamoAbierto.motivoBloqueo}
-                </Typography>
-              )}
-              {tecnicoDelReclamoAbierto && (
-                <Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Técnico</Typography>
-                  <Typography>{tecnicoDelReclamoAbierto.nombre}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {tecnicoDelReclamoAbierto.email} · {tecnicoDelReclamoAbierto.telefono}
-                  </Typography>
-                </Box>
-              )}
-              {reclamoAbierto.comentarioFinalizacion && (
-                <Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Comentario del técnico</Typography>
-                  <Typography>{reclamoAbierto.comentarioFinalizacion}</Typography>
-                </Box>
-              )}
-              {obtenerImagenes(reclamoAbierto).length > 0 && (
-                <Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 0.75 }}>
-                    Evidencia del técnico ({obtenerImagenes(reclamoAbierto).length} foto{obtenerImagenes(reclamoAbierto).length === 1 ? '' : 's'})
-                  </Typography>
-                  <Box
-                    component="img"
-                    src={obtenerImagenes(reclamoAbierto)[0]}
-                    alt={`Evidencia del reclamo #${reclamoAbierto.id}`}
-                    onClick={() => establecerImagenAbierta({ imagenes: obtenerImagenes(reclamoAbierto), indice: 0 })}
-                    sx={{
-                      width: '100%',
-                      maxHeight: 220,
-                      objectFit: 'contain',
-                      borderRadius: 1,
-                      border: 1,
-                      borderColor: 'divider',
-                      cursor: 'zoom-in',
-                    }}
-                  />
-                  <Typography variant="caption" color="text.secondary">Seleccioná la imagen para abrir el carrusel.</Typography>
-                </Box>
-              )}
-              {reclamoAbierto.notasCoordinador && (
-                <Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Notas del coordinador</Typography>
-                  <Typography>{reclamoAbierto.notasCoordinador}</Typography>
-                </Box>
-              )}
+        {reclamoAbierto && obtenerImagenes(reclamoAbierto).length > 0 && (
+          <Box>
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1, color: 'text.secondary' }}>
+              <PhotoLibraryOutlinedIcon fontSize="small" />
+              <Typography variant="overline" sx={{ fontWeight: 800, letterSpacing: '0.08em', lineHeight: 1.5 }}>
+                Evidencia del técnico ({obtenerImagenes(reclamoAbierto).length})
+              </Typography>
             </Stack>
-          )}
-        </DialogContent>
-      </Dialog>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: 1 }}>
+              {obtenerImagenes(reclamoAbierto).map((imagen, indice) => (
+                <Box
+                  key={imagen}
+                  component="img"
+                  src={imagen}
+                  alt={`Evidencia ${indice + 1} del reclamo #${reclamoAbierto.id}`}
+                  onClick={() => establecerImagenAbierta({ imagenes: obtenerImagenes(reclamoAbierto), indice })}
+                  sx={{
+                    width: '100%',
+                    aspectRatio: '1',
+                    objectFit: 'cover',
+                    borderRadius: 1.5,
+                    border: 1,
+                    borderColor: 'divider',
+                    cursor: 'zoom-in',
+                  }}
+                />
+              ))}
+            </Box>
+          </Box>
+        )}
+      </FichaDetalle>
 
       <Dialog
-        open={edicionNotasAbierta}
-        onClose={() => establecerEdicionNotasAbierta(false)}
+        open={Boolean(reclamoEnNotas)}
+        onClose={() => establecerReclamoEnNotas(null)}
         fullWidth
         maxWidth="sm"
       >
         <Box component="form" onSubmit={guardarNotas}>
           <DialogTitle sx={{ fontWeight: 800 }}>
-            {reclamoAbierto?.esOrden || reclamoAbierto?.tipo === 'Instalación' || reclamoAbierto?.tipo === 'Baja de servicio'
-              ? `Agregar notas a la orden #${reclamoAbierto?.id}`
-              : `Agregar notas al reclamo #${reclamoAbierto?.id}`}
+            {esOrdenDeServicio(reclamoEnNotas)
+              ? `Notas de la orden #${reclamoEnNotas?.id}`
+              : `Notas del reclamo #${reclamoEnNotas?.id}`}
           </DialogTitle>
           <DialogContent>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
@@ -825,9 +911,10 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
               onChange={(evento) => establecerNotasCoordinador(evento.target.value)}
               placeholder="Agregá una observación interna"
             />
+            {errorNotas && <Alert severity="error" sx={{ mt: 2 }}>{errorNotas}</Alert>}
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => establecerEdicionNotasAbierta(false)}>Cancelar</Button>
+            <Button onClick={() => establecerReclamoEnNotas(null)}>Cancelar</Button>
             <Button type="submit" variant="contained" startIcon={<SaveIcon />}>Guardar notas</Button>
           </DialogActions>
         </Box>
@@ -840,9 +927,7 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
         maxWidth="lg"
       >
         <DialogTitle sx={{ fontWeight: 800 }}>
-          {reclamoAbierto?.esOrden || reclamoAbierto?.tipo === 'Instalación' || reclamoAbierto?.tipo === 'Baja de servicio'
-            ? 'Imagen de la orden'
-            : 'Imagen del reclamo'}
+          Evidencia del técnico
         </DialogTitle>
         <DialogContent sx={{ display: 'flex', justifyContent: 'center', p: { xs: 1.5, sm: 3 } }}>
           {imagenAbierta && (

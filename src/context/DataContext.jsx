@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   clientesApi,
   jornadasApi,
@@ -9,92 +9,122 @@ import {
 } from '../services/api.js';
 import { DataContext } from './dataContext.js';
 
-export function DataProvider({ children }) {
-  const [data, setData] = useState(() => (sessionStorage.getItem('galacticappToken') ? null : {
-    usuarios: [], clientes: [], vehiculos: [], reclamos: [], ubicacionesTecnicos: [], jornadas: [],
-  }));
-  const [error, setError] = useState('');
+// Cada recurso se pide al backend cada vez que una pantalla lo necesita (ver useRecursos).
+const cargadores = {
+  usuarios: usuariosApi.listar,
+  clientes: clientesApi.listar,
+  vehiculos: vehiculosApi.listar,
+  reclamos: reclamosApi.listar,
+  ubicacionesTecnicos: ubicacionesApi.listar,
+  jornadas: jornadasApi.listar,
+};
 
-  useEffect(() => {
-    const cargarDatos = () => {
-      if (!sessionStorage.getItem('galacticappToken')) return;
-      Promise.allSettled([
-      usuariosApi.listar(),
-      clientesApi.listar(),
-      vehiculosApi.listar(),
-      reclamosApi.listar(),
-      ubicacionesApi.listar(),
-      jornadasApi.listar(),
-      ]).then((resultados) => {
-        if (resultados.every((resultado) => resultado.status === 'rejected')) {
-          setError('No se pudieron cargar los datos de la aplicación.');
-          return;
-        }
-        const valor = (indice, valorPorDefecto = []) => (
-          resultados[indice].status === 'fulfilled' ? resultados[indice].value : valorPorDefecto
-        );
-        const usuarios = valor(0);
-        const clientes = valor(1);
-        const vehiculos = valor(2);
-        const reclamos = valor(3);
-        const ubicacionesTecnicos = valor(4);
-        const jornadas = valor(5);
-        setData({ usuarios, clientes, vehiculos, reclamos, ubicacionesTecnicos, jornadas });
+export function DataProvider({ children }) {
+  // Un recurso en undefined todavía no se cargó.
+  const [data, setData] = useState({});
+  const [errores, setErrores] = useState({});
+  // Recursos con una petición en curso: { reclamos: true, ... }.
+  const [pendientes, setPendientes] = useState({});
+  const enCurso = useRef({});
+  // Las respuestas de una sesión anterior se descartan al cerrar sesión.
+  const sesion = useRef(0);
+
+  // Si ya hay una petición en curso del mismo recurso se reutiliza; si no, se pide de nuevo.
+  const cargarRecurso = useCallback((nombre) => {
+    if (enCurso.current[nombre]) return enCurso.current[nombre];
+    const sesionActual = sesion.current;
+    const esVigente = () => sesionActual === sesion.current;
+    setPendientes((actual) => ({ ...actual, [nombre]: true }));
+    enCurso.current[nombre] = cargadores[nombre]()
+      .then((valor) => {
+        if (!esVigente()) return;
+        setData((actual) => ({ ...actual, [nombre]: valor }));
+        setErrores((actual) => {
+          const restantes = { ...actual };
+          delete restantes[nombre];
+          return restantes;
+        });
+      })
+      .catch(() => {
+        if (!esVigente()) return;
+        setErrores((actual) => ({ ...actual, [nombre]: 'No se pudieron cargar los datos.' }));
+      })
+      .finally(() => {
+        if (!esVigente()) return;
+        delete enCurso.current[nombre];
+        setPendientes((actual) => {
+          const restantes = { ...actual };
+          delete restantes[nombre];
+          return restantes;
+        });
       });
-    };
-    cargarDatos();
-    window.addEventListener('auth-changed', cargarDatos);
-    return () => window.removeEventListener('auth-changed', cargarDatos);
+    return enCurso.current[nombre];
   }, []);
+
+  const limpiarDatos = useCallback(() => {
+    sesion.current += 1;
+    enCurso.current = {};
+    setData({});
+    setErrores({});
+    setPendientes({});
+  }, []);
+
+  // Las modificaciones solo tocan recursos ya cargados; si no, se pedirán completos al necesitarlos.
+  const agregar = (nombre, item) => setData((actual) => (
+    actual[nombre] ? { ...actual, [nombre]: [...actual[nombre], item] } : actual
+  ));
+  const reemplazar = (nombre, id, item) => setData((actual) => (
+    actual[nombre]
+      ? { ...actual, [nombre]: actual[nombre].map((x) => (String(x.id) === String(id) ? item : x)) }
+      : actual
+  ));
+
+  // El backend libera el vehículo anterior del técnico; se refleja lo mismo en memoria.
+  const reemplazarVehiculoAsignado = (vehiculo) => setData((actual) => {
+    if (!actual.vehiculos) return actual;
+    const esElMismo = (item) => String(item.id) === String(vehiculo.id);
+    const vehiculos = actual.vehiculos.map((item) => {
+      if (esElMismo(item)) return vehiculo;
+      return vehiculo.tecnicoAsignado != null && item.tecnicoAsignado === vehiculo.tecnicoAsignado
+        ? { ...item, tecnicoAsignado: null }
+        : item;
+    });
+    return { ...actual, vehiculos: actual.vehiculos.some(esElMismo) ? vehiculos : [...vehiculos, vehiculo] };
+  });
 
   const crearCliente = async (cliente) => {
     const nuevoCliente = await clientesApi.crear(cliente);
-    setData((actual) => ({ ...actual, clientes: [...actual.clientes, nuevoCliente] }));
+    agregar('clientes', nuevoCliente);
     return nuevoCliente;
   };
 
   const actualizarCliente = async (clienteId, cambios) => {
     const clienteActualizado = await clientesApi.actualizar(clienteId, cambios);
-    setData((actual) => ({
-      ...actual,
-      clientes: actual.clientes.map((cliente) => (
-        String(cliente.id) === String(clienteId) ? clienteActualizado : cliente
-      )),
-    }));
+    reemplazar('clientes', clienteId, clienteActualizado);
     return clienteActualizado;
   };
 
   const crearUsuario = async (usuario) => {
     const nuevoUsuario = await usuariosApi.crear(usuario);
-    setData((actual) => ({ ...actual, usuarios: [...actual.usuarios, nuevoUsuario] }));
+    agregar('usuarios', nuevoUsuario);
     return nuevoUsuario;
   };
 
   const actualizarUsuario = async (usuarioId, cambios) => {
     const usuarioActualizado = await usuariosApi.actualizar(usuarioId, cambios);
-    setData((actual) => ({
-      ...actual,
-      usuarios: actual.usuarios.map((usuario) => (
-        String(usuario.id) === String(usuarioId) ? usuarioActualizado : usuario
-      )),
-    }));
+    reemplazar('usuarios', usuarioId, usuarioActualizado);
     return usuarioActualizado;
   };
 
   const actualizarAsignacion = async (reclamoId, tecnicoId) => {
     const reclamoActualizado = await reclamosApi.actualizarAsignacion(reclamoId, tecnicoId);
-    setData((actual) => ({
-      ...actual,
-      reclamos: actual.reclamos.map((reclamo) => (
-        reclamo.id === reclamoId ? reclamoActualizado : reclamo
-      )),
-    }));
+    reemplazar('reclamos', reclamoId, reclamoActualizado);
     return reclamoActualizado;
   };
 
   const crearReclamo = async (reclamo) => {
     const nuevoReclamo = await reclamosApi.crear(reclamo);
-    setData((actual) => ({ ...actual, reclamos: [...actual.reclamos, nuevoReclamo] }));
+    agregar('reclamos', nuevoReclamo);
     return nuevoReclamo;
   };
 
@@ -103,78 +133,53 @@ export function DataProvider({ children }) {
       ? {
         ...cambios,
         finalizadoEn: cambios.finalizadoEn || new Date().toISOString(),
-        jornadaId: data.jornadas.find((jornada) => jornada.activa)?.id || null,
+        jornadaId: (data.jornadas ?? []).find((jornada) => jornada.activa)?.id || null,
       }
       : cambios;
     const reclamoActualizado = await reclamosApi.actualizarEstado(reclamoId, cambiosConJornada);
-    setData((actual) => ({
-      ...actual,
-      reclamos: actual.reclamos.map((reclamo) => (
-        reclamo.id === reclamoId ? reclamoActualizado : reclamo
-      )),
-    }));
+    reemplazar('reclamos', reclamoId, reclamoActualizado);
     return reclamoActualizado;
   };
 
   const actualizarAsignacionVehiculo = async (vehiculoId, tecnicoId) => {
     const vehiculoActualizado = await vehiculosApi.actualizarAsignacion(vehiculoId, tecnicoId);
-    setData((actual) => ({
-      ...actual,
-      vehiculos: actual.vehiculos.map((vehiculo) => (
-        vehiculo.id === vehiculoId ? vehiculoActualizado : vehiculo
-      )),
-    }));
+    reemplazarVehiculoAsignado(vehiculoActualizado);
     return vehiculoActualizado;
   };
 
   const actualizarControlVehiculo = async (vehiculoId, kilometraje) => {
     const vehiculoActualizado = await vehiculosApi.actualizarKilometraje(vehiculoId, kilometraje);
-    setData((actual) => ({
-      ...actual,
-      vehiculos: actual.vehiculos.map((vehiculo) => (
-        vehiculo.id === vehiculoId ? vehiculoActualizado : vehiculo
-      )),
-    }));
+    reemplazar('vehiculos', vehiculoId, vehiculoActualizado);
     return vehiculoActualizado;
   };
 
   const crearVehiculo = async (vehiculo) => {
     const nuevoVehiculo = await vehiculosApi.crear(vehiculo);
-    setData((actual) => ({ ...actual, vehiculos: [...actual.vehiculos, nuevoVehiculo] }));
+    reemplazarVehiculoAsignado(nuevoVehiculo);
     return nuevoVehiculo;
   };
 
   const registrarControlVehiculo = async (vehiculoId, control) => {
     const vehiculoActualizado = await vehiculosApi.registrarControl(vehiculoId, control);
-    setData((actual) => ({
-      ...actual,
-      vehiculos: actual.vehiculos.map((vehiculo) => (
-        vehiculo.id === vehiculoId ? vehiculoActualizado : vehiculo
-      )),
-    }));
+    reemplazar('vehiculos', vehiculoId, vehiculoActualizado);
     return vehiculoActualizado;
   };
 
   const actualizarEstadoVehiculo = async (vehiculoId, enServicio) => {
     const vehiculoActualizado = await vehiculosApi.actualizar(vehiculoId, { enServicio });
-    setData((actual) => ({
-      ...actual,
-      vehiculos: actual.vehiculos.map((vehiculo) => (
-        vehiculo.id === vehiculoId ? vehiculoActualizado : vehiculo
-      )),
-    }));
+    reemplazar('vehiculos', vehiculoId, vehiculoActualizado);
     return vehiculoActualizado;
   };
 
   const registrarUbicacionTecnico = useCallback(async (tecnicoId, latitud, longitud) => {
     const ubicacion = await ubicacionesApi.actualizar(tecnicoId, { latitud, longitud });
-    setData((actual) => ({
+    setData((actual) => (actual.ubicacionesTecnicos ? {
       ...actual,
       ubicacionesTecnicos: [
         ...actual.ubicacionesTecnicos.filter((item) => item.tecnicoId !== tecnicoId),
         ubicacion,
       ],
-    }));
+    } : actual));
     return ubicacion;
   }, []);
 
@@ -186,17 +191,12 @@ export function DataProvider({ children }) {
 
   const actualizarKilometraje = async (vehiculoId, kilometraje) => {
     const vehiculoActualizado = await vehiculosApi.actualizarKilometraje(vehiculoId, kilometraje);
-    setData((actual) => ({
-      ...actual,
-      vehiculos: actual.vehiculos.map((vehiculo) => (
-        vehiculo.id === vehiculoId ? vehiculoActualizado : vehiculo
-      )),
-    }));
+    reemplazar('vehiculos', vehiculoId, vehiculoActualizado);
     return vehiculoActualizado;
   };
 
   const iniciarJornada = async (tecnicoId) => {
-    const vehiculo = data.vehiculos.find((item) => item.tecnicoAsignado === tecnicoId);
+    const vehiculo = (data.vehiculos ?? []).find((item) => item.tecnicoAsignado === tecnicoId);
     const jornada = {
       id: Date.now(),
       tecnicoId,
@@ -207,31 +207,30 @@ export function DataProvider({ children }) {
       activa: true,
     };
     const jornadaCreada = await jornadasApi.crear(jornada);
-    setData((actual) => ({
+    setData((actual) => (actual.jornadas ? {
       ...actual,
       jornadas: [
         ...actual.jornadas.map((item) => ({ ...item, activa: false })),
         jornadaCreada,
       ],
-    }));
+    } : actual));
     return jornadaCreada;
   };
 
   const finalizarJornada = async (jornadaId, controlFinal) => {
     const jornadaFinalizada = await jornadasApi.finalizar(jornadaId, controlFinal);
-    setData((actual) => ({
-      ...actual,
-      jornadas: actual.jornadas.map((jornada) => (
-        jornada.id === jornadaId ? jornadaFinalizada : jornada
-      )),
-    }));
+    reemplazar('jornadas', jornadaId, jornadaFinalizada);
     return jornadaFinalizada;
   };
 
   return (
     <DataContext.Provider value={{
       data,
-      error,
+      errores,
+      pendientes,
+      cargando: Object.keys(pendientes).length > 0,
+      cargarRecurso,
+      limpiarDatos,
       actualizarAsignacion,
       actualizarEstado,
       actualizarAsignacionVehiculo,

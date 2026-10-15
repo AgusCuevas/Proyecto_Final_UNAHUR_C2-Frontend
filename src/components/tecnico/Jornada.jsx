@@ -17,6 +17,7 @@ import LoginIcon from '@mui/icons-material/Login';
 import LogoutIcon from '@mui/icons-material/Logout';
 import PendingActionsIcon from '@mui/icons-material/PendingActions';
 import { useAppData } from '../../context/useAppData.js';
+import { useRecursos } from '../../context/useRecursos.js';
 import ControlVehiculoDialog from './ControlVehiculoDialog.jsx';
 import { calcularRecorridoKm, obtenerParadasTecnico } from '../../services/recorrido.js';
 
@@ -27,8 +28,8 @@ function formatearDuracion(inicio, fin = new Date()) {
 }
 
 function Jornada({ usuario }) {
+  const data = useRecursos('usuarios', 'vehiculos', 'jornadas', 'reclamos', 'clientes', 'ubicacionesTecnicos');
   const {
-    data,
     iniciarJornada,
     finalizarJornada,
     registrarControlVehiculo,

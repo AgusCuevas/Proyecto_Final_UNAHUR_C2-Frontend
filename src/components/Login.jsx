@@ -34,7 +34,6 @@ function Login({ alIniciarSesion }) {
         contrasena: credenciales.contrasena,
       });
       sessionStorage.setItem('galacticappToken', respuesta.token);
-      window.dispatchEvent(new Event('auth-changed'));
       setMensajeError('');
       alIniciarSesion(respuesta.usuario.usuario, respuesta.usuario);
     } catch {

@@ -15,16 +15,30 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
+import DirectionsCarOutlinedIcon from '@mui/icons-material/DirectionsCarOutlined';
+import EngineeringOutlinedIcon from '@mui/icons-material/EngineeringOutlined';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import SearchIcon from '@mui/icons-material/Search';
 import PersonIcon from '@mui/icons-material/Person';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
-import { useAppData } from '../../context/useAppData.js';
+import { useRecursos } from '../../context/useRecursos.js';
 import MapaTecnicos from './MapaTecnicos.jsx';
+import FichaDetalle from '../comunes/FichaDetalle.jsx';
+
+const colorEstado = { Activo: 'success', Asignado: 'warning', Libre: 'default' };
+
+// Las fechas llegan como 'AAAA-MM-DD' o como ISO completo desde MongoDB.
+const formatearFecha = (fecha) => {
+  if (!fecha) return '';
+  const fechaLocal = new Date(`${String(fecha).slice(0, 10)}T12:00:00`);
+  return Number.isNaN(fechaLocal.getTime()) ? String(fecha) : new Intl.DateTimeFormat('es-AR').format(fechaLocal);
+};
+
+const describirReclamo = (reclamo) => (reclamo ? `#${reclamo.id} · ${reclamo.tipo}` : '');
 
 function Tecnicos() {
-  const { data } = useAppData();
+  const data = useRecursos('usuarios', 'reclamos', 'vehiculos');
   const [busqueda, establecerBusqueda] = useState('');
   const [filtroEstado, establecerFiltroEstado] = useState('Todos');
   const [cantidadVisible, establecerCantidadVisible] = useState(10);
@@ -43,6 +57,8 @@ function Tecnicos() {
       return {
         ...tecnico,
         estado: reclamoEnCurso ? 'Activo' : reclamoAsignado ? 'Asignado' : 'Libre',
+        reclamoEnCurso,
+        reclamoAsignado,
       };
     })
     .sort((primero, segundo) => primero.nombre.localeCompare(segundo.nombre, 'es'));
@@ -64,9 +80,40 @@ function Tecnicos() {
   const vehiculo = data.vehiculos.find(
     (item) => item.tecnicoAsignado === tecnico?.id,
   );
-  const formatearFecha = (fecha) => fecha
-    ? new Intl.DateTimeFormat('es-AR').format(new Date(`${fecha}T00:00:00`))
-    : 'No informada';
+  const seccionesFicha = tecnico ? [
+    {
+      titulo: 'Datos personales',
+      icono: <BadgeOutlinedIcon fontSize="small" />,
+      campos: [
+        ['DNI', tecnico.documento],
+        ['Fecha de nacimiento', formatearFecha(tecnico.fechaNacimiento)],
+        ['Teléfono', tecnico.telefono],
+        ['Vencimiento de registro', formatearFecha(tecnico.vencimientoRegistro)],
+        ['Correo electrónico', tecnico.email, { anchoCompleto: true }],
+        ['Domicilio', tecnico.direccion, { anchoCompleto: true }],
+      ],
+    },
+    {
+      titulo: 'Trabajo actual',
+      icono: <EngineeringOutlinedIcon fontSize="small" />,
+      campos: [
+        ['En curso', describirReclamo(tecnico.reclamoEnCurso) || 'Ninguno'],
+        ['Próximo asignado', describirReclamo(tecnico.reclamoAsignado) || 'Ninguno'],
+      ],
+    },
+    {
+      titulo: 'Vehículo asignado',
+      icono: <DirectionsCarOutlinedIcon fontSize="small" />,
+      campos: vehiculo ? [
+        ['Vehículo', [vehiculo.marca, vehiculo.modelo].filter(Boolean).join(' ')],
+        ['Patente', vehiculo.patente],
+        ['Kilometraje actual', vehiculo.kilometraje?.actual != null
+          ? `${vehiculo.kilometraje.actual.toLocaleString('es-AR')} km`
+          : ''],
+        ['Vencimiento del seguro', formatearFecha(vehiculo.seguro?.vence)],
+      ] : [['Vehículo', 'Sin vehículo asignado', { anchoCompleto: true }]],
+    },
+  ] : [];
 
   return (
     <Stack spacing={3}>
@@ -163,11 +210,11 @@ function Tecnicos() {
               <Button
                 size="small"
                 variant="outlined"
-                endIcon={<ExpandMoreIcon sx={{ transform: fichaAbierta ? 'rotate(180deg)' : 'none' }} />}
-                onClick={() => establecerFichaAbierta((actual) => !actual)}
+                startIcon={<VisibilityOutlinedIcon />}
+                onClick={() => establecerFichaAbierta(true)}
                 sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' }, minWidth: { sm: 174 } }}
               >
-                {fichaAbierta ? 'Ocultar ficha' : 'Ver ficha completa'}
+                Ver ficha completa
               </Button>
               <Button
                 size="small"
@@ -195,42 +242,20 @@ function Tecnicos() {
                 <Typography sx={{ fontWeight: 800 }}>{tecnico.estado}</Typography>
               </Stack>
             </Stack>
-
-            {fichaAbierta && (
-              <Stack spacing={2} mt={3}>
-                <Divider />
-                <Typography variant="h6" sx={{ fontWeight: 800 }}>Ficha personal y vehículo</Typography>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3}>
-                  <Stack spacing={0.35}>
-                    <Typography variant="caption" color="text.secondary">Usuario</Typography>
-                    <Typography>{tecnico.usuario}</Typography>
-                  </Stack>
-                  <Stack spacing={0.35}>
-                    <Typography variant="caption" color="text.secondary">Domicilio</Typography>
-                    <Typography>{tecnico.direccion || 'No informado'}</Typography>
-                  </Stack>
-                  <Stack spacing={0.35}>
-                    <Typography variant="caption" color="text.secondary">Fecha de nacimiento</Typography>
-                    <Typography>{formatearFecha(tecnico.fechaNacimiento)}</Typography>
-                  </Stack>
-                  <Stack spacing={0.35}>
-                    <Typography variant="caption" color="text.secondary">Fecha de vencimiento de registro</Typography>
-                    <Typography>{formatearFecha(tecnico.vencimientoRegistro)}</Typography>
-                  </Stack>
-                </Stack>
-                <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-                  <DirectionsCarIcon color="primary" />
-                  <div>
-                    <Typography variant="caption" color="text.secondary">Vehículo asignado</Typography>
-                    <Typography>
-                      {vehiculo ? `${vehiculo.modelo} · ${vehiculo.patente}` : 'Sin vehículo asignado'}
-                    </Typography>
-                  </div>
-                </Stack>
-              </Stack>
-            )}
           </CardContent>
           </Card>
+          <FichaDetalle
+            abierto={fichaAbierta}
+            alCerrar={() => establecerFichaAbierta(false)}
+            titulo={tecnico.nombre}
+            subtitulo={`@${tecnico.usuario}`}
+            chips={[
+              { label: 'Técnico', color: 'primary', variant: 'outlined' },
+              { label: tecnico.estado, color: colorEstado[tecnico.estado] },
+            ]}
+            secciones={seccionesFicha}
+            acciones={<Button onClick={() => establecerFichaAbierta(false)}>Cerrar</Button>}
+          />
           {tecnicoEnMapa && <MapaTecnicos tecnicoId={tecnicoEnMapa} />}
           </Stack>
           </Stack>

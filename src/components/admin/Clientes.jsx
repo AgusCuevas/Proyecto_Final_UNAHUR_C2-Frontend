@@ -29,8 +29,13 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import SearchIcon from '@mui/icons-material/Search';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import ContactPhoneOutlinedIcon from '@mui/icons-material/ContactPhoneOutlined';
+import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined';
+import RouterOutlinedIcon from '@mui/icons-material/RouterOutlined';
 import { useState } from 'react';
+import FichaDetalle from '../comunes/FichaDetalle.jsx';
 import { useAppData } from '../../context/useAppData.js';
+import { useRecursos } from '../../context/useRecursos.js';
 
 const formularioVacio = {
   nombre: '',
@@ -43,7 +48,8 @@ const formularioVacio = {
 const estaActivo = (cliente) => cliente.activo !== false;
 
 function Clientes() {
-  const { data, crearCliente, actualizarCliente } = useAppData();
+  const { crearCliente, actualizarCliente } = useAppData();
+  const data = useRecursos('clientes');
   const [busqueda, establecerBusqueda] = useState('');
   const [filtroEstado, establecerFiltroEstado] = useState('Activos');
   const [dialogoFormularioAbierto, establecerDialogoFormularioAbierto] = useState(false);
@@ -122,19 +128,38 @@ function Clientes() {
     }
   };
 
-  const detalles = clienteSeleccionado ? [
-    ['Nombre y apellido', clienteSeleccionado.nombre],
-    ['DNI / CUIT', clienteSeleccionado.documento],
-    ['Teléfono', clienteSeleccionado.telefono],
-    ['Correo electrónico', clienteSeleccionado.email],
-    ['Domicilio', clienteSeleccionado.direccion],
-    ['Zona', clienteSeleccionado.zona],
-    ['Referencias de acceso', clienteSeleccionado.referenciasAcceso],
-    ['Coordenadas', clienteSeleccionado.coordenadas
-      ? `${clienteSeleccionado.coordenadas.latitud}, ${clienteSeleccionado.coordenadas.longitud}`
-      : ''],
-    ['Historial de potencias', clienteSeleccionado.historialPotencias?.join(', ')],
-  ].filter(([, valor]) => valor) : [];
+  const seccionesDetalle = clienteSeleccionado ? [
+    {
+      titulo: 'Contacto',
+      icono: <ContactPhoneOutlinedIcon fontSize="small" />,
+      campos: [
+        ['DNI / CUIT', clienteSeleccionado.documento],
+        ['Teléfono', clienteSeleccionado.telefono],
+        ['Correo electrónico', clienteSeleccionado.email, { anchoCompleto: true }],
+      ],
+    },
+    {
+      titulo: 'Ubicación',
+      icono: <PlaceOutlinedIcon fontSize="small" />,
+      campos: [
+        ['Domicilio', clienteSeleccionado.direccion, { anchoCompleto: true }],
+        ['Zona', clienteSeleccionado.zona],
+        ['Coordenadas', clienteSeleccionado.coordenadas
+          ? `${clienteSeleccionado.coordenadas.latitud}, ${clienteSeleccionado.coordenadas.longitud}`
+          : ''],
+        ...(clienteSeleccionado.referenciasAcceso
+          ? [['Referencias de acceso', clienteSeleccionado.referenciasAcceso, { anchoCompleto: true }]]
+          : []),
+      ],
+    },
+    {
+      titulo: 'Servicio',
+      icono: <RouterOutlinedIcon fontSize="small" />,
+      campos: clienteSeleccionado.historialPotencias?.length
+        ? [['Historial de potencias', clienteSeleccionado.historialPotencias.join(', '), { anchoCompleto: true }]]
+        : [],
+    },
+  ] : [];
 
   return (
     <Stack spacing={2.5}>
@@ -323,45 +348,34 @@ function Clientes() {
         </Box>
       </Dialog>
 
-      <Dialog
-        open={dialogoDetalleAbierto}
-        onClose={() => establecerDialogoDetalleAbierto(false)}
-        fullWidth
-        maxWidth="sm"
-      >
-        <DialogTitle>Información del cliente</DialogTitle>
-        <DialogContent>
-          {clienteSeleccionado && (
-            <Stack spacing={2}>
-              <Chip
-                label={estaActivo(clienteSeleccionado) ? 'Activo' : 'Inactivo'}
-                color={estaActivo(clienteSeleccionado) ? 'success' : 'default'}
-                size="small"
-                sx={{ alignSelf: 'flex-start' }}
-              />
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
-                {detalles.map(([etiqueta, valor]) => (
-                  <Box key={etiqueta} sx={{ minWidth: 0 }}>
-                    <Typography variant="caption" color="text.secondary">{etiqueta}</Typography>
-                    <Typography sx={{ overflowWrap: 'anywhere' }}>{valor}</Typography>
-                  </Box>
-                ))}
-              </Box>
-            </Stack>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => establecerDialogoDetalleAbierto(false)}>Cerrar</Button>
-          {clienteSeleccionado && (
-            <Button onClick={() => {
-              establecerDialogoDetalleAbierto(false);
-              abrirFormulario(clienteSeleccionado);
-            }}>
+      <FichaDetalle
+        abierto={dialogoDetalleAbierto && Boolean(clienteSeleccionado)}
+        alCerrar={() => establecerDialogoDetalleAbierto(false)}
+        titulo={clienteSeleccionado?.nombre}
+        subtitulo={clienteSeleccionado?.zona}
+        chips={clienteSeleccionado ? [
+          { label: 'Cliente', color: 'primary', variant: 'outlined' },
+          estaActivo(clienteSeleccionado)
+            ? { label: 'Activo', color: 'success' }
+            : { label: 'Inactivo', color: 'default' },
+        ] : []}
+        secciones={seccionesDetalle}
+        acciones={(
+          <>
+            <Button onClick={() => establecerDialogoDetalleAbierto(false)}>Cerrar</Button>
+            <Button
+              variant="contained"
+              startIcon={<EditOutlinedIcon />}
+              onClick={() => {
+                establecerDialogoDetalleAbierto(false);
+                abrirFormulario(clienteSeleccionado);
+              }}
+            >
               Modificar
             </Button>
-          )}
-        </DialogActions>
-      </Dialog>
+          </>
+        )}
+      />
 
       <Dialog
         open={Boolean(clientePendienteEstado)}

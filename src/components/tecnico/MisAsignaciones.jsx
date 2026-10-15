@@ -28,6 +28,7 @@ import PlaceIcon from '@mui/icons-material/Place';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useAppData } from '../../context/useAppData.js';
+import { useRecursos } from '../../context/useRecursos.js';
 import EntradaVoz from './EntradaVoz.jsx';
 import ControlVehiculoDialog from './ControlVehiculoDialog.jsx';
 
@@ -40,7 +41,9 @@ function formatearFecha(fecha) {
 function MisAsignaciones({ usuario, soloEnCurso = false }) {
   const [filtro, setFiltro] = useState(soloEnCurso ? 'En progreso' : 'Todos');
   const esMovil = useMediaQuery((theme) => theme.breakpoints.down('sm'));
-  const { data, actualizarEstado, registrarControlVehiculo } = useAppData();
+  const { actualizarEstado, registrarControlVehiculo } = useAppData();
+  // jornadas: al finalizar un reclamo se asocia a la jornada activa.
+  const data = useRecursos('usuarios', 'vehiculos', 'reclamos', 'clientes', 'jornadas');
   const tecnico = data.usuarios.find((usuarioRegistrado) => usuarioRegistrado.usuario === usuario);
   const vehiculo = data.vehiculos.find((vehiculoRegistrado) => vehiculoRegistrado.tecnicoAsignado === tecnico?.id);
   const asignaciones = data.reclamos

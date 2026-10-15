@@ -7,29 +7,33 @@ import MisAsignaciones from './MisAsignaciones.jsx';
 import Vehiculo from './Vehiculo.jsx';
 import Jornada from './Jornada.jsx';
 import RegistroKilometraje from './RegistroKilometraje.jsx';
-import { useAppData } from '../../context/useAppData.js';
+import { useRecursos } from '../../context/useRecursos.js';
 
 const semanaEnMilisegundos = 7 * 24 * 60 * 60 * 1000;
 
 function TecnicoHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
   const [seccion, establecerSeccion] = useState('Mis asignaciones');
-  const { data } = useAppData();
+  const data = useRecursos('usuarios', 'vehiculos');
   const navegar = useNavigate();
   const tecnico = data.usuarios.find((usuarioRegistrado) => usuarioRegistrado.usuario === usuario);
   const vehiculo = data.vehiculos.find((vehiculoRegistrado) => vehiculoRegistrado.tecnicoAsignado === tecnico?.id);
-  const [avisoKilometrajeAbierto, establecerAvisoKilometrajeAbierto] = useState(() => {
-    const ultimoRegistro = vehiculo?.kilometraje?.actualizadoEn;
+  const [avisoCerrado, establecerAvisoCerrado] = useState(false);
+  const [ingresoEn] = useState(() => Date.now());
+  // Se evalúa cuando llegan los datos, ya que se cargan después del primer render.
+  const avisoKilometrajeAbierto = (() => {
+    if (avisoCerrado || data.cargando || !vehiculo) return false;
+    const ultimoRegistro = vehiculo.kilometraje?.actualizadoEn;
     const ultimoAviso = localStorage.getItem(`avisoKilometrajeTecnico:${tecnico?.id}`);
     const pasoUnaSemanaDesdeElAviso = !ultimoAviso
-      || Date.now() - new Date(ultimoAviso).getTime() >= semanaEnMilisegundos;
+      || ingresoEn - new Date(ultimoAviso).getTime() >= semanaEnMilisegundos;
     const pasoUnaSemanaDesdeElRegistro = !ultimoRegistro
-      || Date.now() - new Date(ultimoRegistro).getTime() >= semanaEnMilisegundos;
-    return Boolean(vehiculo && pasoUnaSemanaDesdeElAviso && pasoUnaSemanaDesdeElRegistro);
-  });
+      || ingresoEn - new Date(ultimoRegistro).getTime() >= semanaEnMilisegundos;
+    return pasoUnaSemanaDesdeElAviso && pasoUnaSemanaDesdeElRegistro;
+  })();
 
   const cerrarAvisoKilometraje = () => {
     localStorage.setItem(`avisoKilometrajeTecnico:${tecnico.id}`, new Date().toISOString());
-    establecerAvisoKilometrajeAbierto(false);
+    establecerAvisoCerrado(true);
   };
 
   const contenidoPorSeccion = {
