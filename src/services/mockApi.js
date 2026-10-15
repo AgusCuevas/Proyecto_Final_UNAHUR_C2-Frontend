@@ -2,9 +2,8 @@ import MockAdapter from 'axios-mock-adapter';
 import { datosIniciales } from '../data/datosIniciales.js';
 import { apiClient } from './apiClient.js';
 
-const mock = import.meta.env.VITE_USE_MOCKS === 'false'
-  ? null
-  : new MockAdapter(apiClient, { delayResponse: 250 });
+const usarMocks = String(import.meta.env.VITE_USE_MOCKS).toLowerCase() === 'true';
+const mock = usarMocks ? new MockAdapter(apiClient, { delayResponse: 250 }) : null;
 const estadoMock = JSON.parse(JSON.stringify(datosIniciales));
 
 const respuesta = (config, data, status = 200) => [status, data, config.headers];

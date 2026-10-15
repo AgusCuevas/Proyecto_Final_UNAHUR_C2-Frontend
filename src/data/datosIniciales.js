@@ -6,7 +6,6 @@ export const datosIniciales = {
     {
       id: 1,
       usuario: 'admin',
-      contrasena: 'admin',
       nombre: 'Ana Administradora',
       rol: 'Administrador',
       activo: true,
@@ -14,7 +13,6 @@ export const datosIniciales = {
     {
       id: 2,
       usuario: 'coordinador',
-      contrasena: 'coordinador',
       nombre: 'Carlos',
       rol: 'Coordinador',
       activo: true,
@@ -22,7 +20,6 @@ export const datosIniciales = {
     {
       id: 3,
       usuario: 'tecnico',
-      contrasena: 'tecnico',
       nombre: 'Tomas',
       rol: 'Tecnico',
       activo: true,
@@ -36,7 +33,6 @@ export const datosIniciales = {
     {
       id: 4,
       usuario: 'tecnico.libre',
-      contrasena: 'tecnico',
       nombre: 'Sofia',
       rol: 'Tecnico',
       activo: true,
@@ -50,7 +46,6 @@ export const datosIniciales = {
     {
       id: 5,
       usuario: 'tecnico.moreno',
-      contrasena: 'tecnico',
       nombre: 'Martin',
       rol: 'Tecnico',
       activo: true,
@@ -64,7 +59,6 @@ export const datosIniciales = {
     {
       id: 6,
       usuario: 'tecnico.hurlingham',
-      contrasena: 'tecnico',
       nombre: 'Carla',
       rol: 'Tecnico',
       activo: true,
@@ -78,7 +72,6 @@ export const datosIniciales = {
     {
       id: 7,
       usuario: 'tecnico.ramos',
-      contrasena: 'tecnico',
       nombre: 'Javier',
       rol: 'Tecnico',
       activo: true,
@@ -92,7 +85,6 @@ export const datosIniciales = {
     {
       id: 8,
       usuario: 'tecnico.haedo',
-      contrasena: 'tecnico',
       nombre: 'Valeria',
       rol: 'Tecnico',
       activo: true,
@@ -106,7 +98,6 @@ export const datosIniciales = {
     {
       id: 9,
       usuario: 'tecnico.ituz',
-      contrasena: 'tecnico',
       nombre: 'Nicolas',
       rol: 'Tecnico',
       activo: true,

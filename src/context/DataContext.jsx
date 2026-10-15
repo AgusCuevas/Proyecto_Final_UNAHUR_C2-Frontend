@@ -24,6 +24,7 @@ export function DataProvider({ children }) {
       vehiculosApi.listar(),
       reclamosApi.listar(),
       ubicacionesApi.listar(),
+      jornadasApi.listar(),
       ]).then((resultados) => {
         if (resultados.every((resultado) => resultado.status === 'rejected')) {
           setError('No se pudieron cargar los datos de la aplicación.');
@@ -37,33 +38,14 @@ export function DataProvider({ children }) {
         const vehiculos = valor(2);
         const reclamos = valor(3);
         const ubicacionesTecnicos = valor(4);
-        const jornadasGuardadas = localStorage.getItem('jornadasTecnicos');
-        let jornadas;
-        try {
-          jornadas = jornadasGuardadas ? JSON.parse(jornadasGuardadas) : [];
-        } catch {
-          jornadas = [];
-        }
-        if (!Array.isArray(jornadas)) jornadas = [];
-        const vehiculosConRegistro = vehiculos.map((vehiculo) => {
-          const registro = JSON.parse(localStorage.getItem(`kilometrajeVehiculo:${vehiculo.id}`) || 'null');
-          return registro ? {
-            ...vehiculo,
-            kilometraje: { ...vehiculo.kilometraje, ...registro },
-          } : vehiculo;
-        });
-        setData({ usuarios, clientes, vehiculos: vehiculosConRegistro, reclamos, ubicacionesTecnicos, jornadas });
+        const jornadas = valor(5);
+        setData({ usuarios, clientes, vehiculos, reclamos, ubicacionesTecnicos, jornadas });
       });
     };
     cargarDatos();
     window.addEventListener('auth-changed', cargarDatos);
     return () => window.removeEventListener('auth-changed', cargarDatos);
   }, []);
-
-  const guardarJornadas = (jornadas) => {
-    localStorage.setItem('jornadasTecnicos', JSON.stringify(jornadas));
-    return jornadas;
-  };
 
   const crearCliente = async (cliente) => {
     const nuevoCliente = await clientesApi.crear(cliente);
@@ -134,61 +116,54 @@ export function DataProvider({ children }) {
     return reclamoActualizado;
   };
 
-  const actualizarAsignacionVehiculo = (vehiculoId, tecnicoId) => {
-    let vehiculoActualizado;
-    setData((actual) => {
-      const vehiculos = actual.vehiculos.map((vehiculo) => {
-        if (vehiculo.id !== vehiculoId) return vehiculo;
-        vehiculoActualizado = { ...vehiculo, tecnicoAsignado: tecnicoId || null };
-        return vehiculoActualizado;
-      });
-      return { ...actual, vehiculos };
-    });
+  const actualizarAsignacionVehiculo = async (vehiculoId, tecnicoId) => {
+    const vehiculoActualizado = await vehiculosApi.actualizarAsignacion(vehiculoId, tecnicoId);
+    setData((actual) => ({
+      ...actual,
+      vehiculos: actual.vehiculos.map((vehiculo) => (
+        vehiculo.id === vehiculoId ? vehiculoActualizado : vehiculo
+      )),
+    }));
     return vehiculoActualizado;
   };
 
-  const actualizarControlVehiculo = (vehiculoId, kilometraje, foto) => {
+  const actualizarControlVehiculo = async (vehiculoId, kilometraje) => {
+    const vehiculoActualizado = await vehiculosApi.actualizarKilometraje(vehiculoId, kilometraje);
     setData((actual) => ({
       ...actual,
       vehiculos: actual.vehiculos.map((vehiculo) => (
-        vehiculo.id !== vehiculoId
-          ? vehiculo
-          : {
-            ...vehiculo,
-            kilometraje: { ...vehiculo.kilometraje, actual: Number(kilometraje) },
-            fotosControl: foto
-              ? [...(vehiculo.fotosControl || []), foto]
-              : vehiculo.fotosControl || [],
-          }
+        vehiculo.id === vehiculoId ? vehiculoActualizado : vehiculo
       )),
     }));
+    return vehiculoActualizado;
   };
 
-  const registrarControlVehiculo = (vehiculoId, control) => {
-    setData((actual) => ({
-      ...actual,
-      vehiculos: actual.vehiculos.map((vehiculo) => (
-        vehiculo.id !== vehiculoId
-          ? vehiculo
-          : {
-            ...vehiculo,
-            kilometraje: { ...vehiculo.kilometraje, actual: control.kilometraje },
-            enServicio: control.estado === 'Activo',
-            controles: [...(vehiculo.controles || []), control],
-            ultimoControl: control,
-          }
-      )),
-    }));
-    vehiculosApi.registrarControl(vehiculoId, control).catch(() => undefined);
+  const crearVehiculo = async (vehiculo) => {
+    const nuevoVehiculo = await vehiculosApi.crear(vehiculo);
+    setData((actual) => ({ ...actual, vehiculos: [...actual.vehiculos, nuevoVehiculo] }));
+    return nuevoVehiculo;
   };
 
-  const actualizarEstadoVehiculo = (vehiculoId, enServicio) => {
+  const registrarControlVehiculo = async (vehiculoId, control) => {
+    const vehiculoActualizado = await vehiculosApi.registrarControl(vehiculoId, control);
     setData((actual) => ({
       ...actual,
       vehiculos: actual.vehiculos.map((vehiculo) => (
-        vehiculo.id === vehiculoId ? { ...vehiculo, enServicio } : vehiculo
+        vehiculo.id === vehiculoId ? vehiculoActualizado : vehiculo
       )),
     }));
+    return vehiculoActualizado;
+  };
+
+  const actualizarEstadoVehiculo = async (vehiculoId, enServicio) => {
+    const vehiculoActualizado = await vehiculosApi.actualizar(vehiculoId, { enServicio });
+    setData((actual) => ({
+      ...actual,
+      vehiculos: actual.vehiculos.map((vehiculo) => (
+        vehiculo.id === vehiculoId ? vehiculoActualizado : vehiculo
+      )),
+    }));
+    return vehiculoActualizado;
   };
 
   const registrarUbicacionTecnico = useCallback(async (tecnicoId, latitud, longitud) => {
@@ -211,7 +186,6 @@ export function DataProvider({ children }) {
 
   const actualizarKilometraje = async (vehiculoId, kilometraje) => {
     const vehiculoActualizado = await vehiculosApi.actualizarKilometraje(vehiculoId, kilometraje);
-    localStorage.setItem(`kilometrajeVehiculo:${vehiculoId}`, JSON.stringify(vehiculoActualizado.kilometraje));
     setData((actual) => ({
       ...actual,
       vehiculos: actual.vehiculos.map((vehiculo) => (
@@ -221,7 +195,7 @@ export function DataProvider({ children }) {
     return vehiculoActualizado;
   };
 
-  const iniciarJornada = (tecnicoId) => {
+  const iniciarJornada = async (tecnicoId) => {
     const vehiculo = data.vehiculos.find((item) => item.tecnicoAsignado === tecnicoId);
     const jornada = {
       id: Date.now(),
@@ -232,46 +206,25 @@ export function DataProvider({ children }) {
       kilometrajeFinal: null,
       activa: true,
     };
-    setData((actual) => {
-      const jornadas = guardarJornadas([
+    const jornadaCreada = await jornadasApi.crear(jornada);
+    setData((actual) => ({
+      ...actual,
+      jornadas: [
         ...actual.jornadas.map((item) => ({ ...item, activa: false })),
-        jornada,
-      ]);
-      return { ...actual, jornadas };
-    });
-    jornadasApi.crear(jornada).catch(() => undefined);
-    return jornada;
+        jornadaCreada,
+      ],
+    }));
+    return jornadaCreada;
   };
 
-  const finalizarJornada = (jornadaId, controlFinal) => {
-    let jornadaFinalizada;
-    setData((actual) => {
-      const jornadas = guardarJornadas(actual.jornadas.map((jornada) => {
-        if (jornada.id !== jornadaId) return jornada;
-        jornadaFinalizada = {
-          ...jornada,
-          fin: new Date().toISOString(),
-          kilometrajeFinal: Number(controlFinal.kilometraje),
-          controlFinal,
-          activa: false,
-        };
-        return jornadaFinalizada;
-      }));
-      const vehiculos = actual.vehiculos.map((vehiculo) => (
-        vehiculo.tecnicoAsignado === jornadaFinalizada?.tecnicoId
-          ? {
-            ...vehiculo,
-            kilometraje: {
-              ...vehiculo.kilometraje,
-              actual: Number(controlFinal.kilometraje),
-              final: Number(controlFinal.kilometraje),
-            },
-          }
-          : vehiculo
-      ));
-      return { ...actual, jornadas, vehiculos };
-    });
-    jornadasApi.finalizar(jornadaId, controlFinal).catch(() => undefined);
+  const finalizarJornada = async (jornadaId, controlFinal) => {
+    const jornadaFinalizada = await jornadasApi.finalizar(jornadaId, controlFinal);
+    setData((actual) => ({
+      ...actual,
+      jornadas: actual.jornadas.map((jornada) => (
+        jornada.id === jornadaId ? jornadaFinalizada : jornada
+      )),
+    }));
     return jornadaFinalizada;
   };
 
@@ -282,6 +235,7 @@ export function DataProvider({ children }) {
       actualizarAsignacion,
       actualizarEstado,
       actualizarAsignacionVehiculo,
+      crearVehiculo,
       actualizarControlVehiculo,
       registrarControlVehiculo,
       actualizarEstadoVehiculo,

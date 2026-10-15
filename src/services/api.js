@@ -67,6 +67,7 @@ export const usuariosApi = {
     await apiClient.patch(`/usuarios/${usuarioId}`, normalizarPayloadUsuario(cambios));
     return usuariosApi.obtener(usuarioId);
   },
+  eliminar: async (usuarioId) => (await apiClient.delete(`/usuarios/${usuarioId}`)).data,
 };
 
 export const clientesApi = {
@@ -80,10 +81,19 @@ export const clientesApi = {
     await apiClient.patch(`/clientes/${clienteId}`, cambios);
     return clientesApi.obtener(clienteId);
   },
+  eliminar: async (clienteId) => (await apiClient.delete(`/clientes/${clienteId}`)).data,
 };
 
 export const vehiculosApi = {
   listar: async () => (await apiClient.get('/vehiculos')).data,
+  crear: async (vehiculo) => (await apiClient.post('/vehiculos', vehiculo)).data,
+  actualizar: async (vehiculoId, cambios) => (
+    await apiClient.patch(`/vehiculos/${vehiculoId}`, cambios)
+  ).data,
+  eliminar: async (vehiculoId) => (await apiClient.delete(`/vehiculos/${vehiculoId}`)).data,
+  actualizarAsignacion: async (vehiculoId, tecnicoId) => (
+    await apiClient.patch(`/vehiculos/${vehiculoId}/asignacion`, { tecnicoId })
+  ).data,
   actualizarKilometraje: async (vehiculoId, kilometraje) => (
     await apiClient.patch(`/vehiculos/${vehiculoId}/kilometraje`, { kilometraje })
   ).data,
@@ -93,10 +103,12 @@ export const vehiculosApi = {
 };
 
 export const jornadasApi = {
+  listar: async () => (await apiClient.get('/jornadas')).data,
   crear: async (jornada) => (await apiClient.post('/jornadas', jornada)).data,
   finalizar: async (jornadaId, controlFinal) => (
     await apiClient.patch(`/jornadas/${jornadaId}/finalizar`, controlFinal)
   ).data,
+  eliminar: async (jornadaId) => (await apiClient.delete(`/jornadas/${jornadaId}`)).data,
 };
 
 export const ubicacionesApi = {
@@ -109,6 +121,7 @@ export const ubicacionesApi = {
 export const reclamosApi = {
   listar: async () => (await apiClient.get('/reclamos')).data,
   crear: async (reclamo) => (await apiClient.post('/reclamos', reclamo)).data,
+  eliminar: async (reclamoId) => (await apiClient.delete(`/reclamos/${reclamoId}`)).data,
   actualizarAsignacion: async (reclamoId, tecnicoId) => (
     await apiClient.patch(`/reclamos/${reclamoId}/asignacion`, { tecnicoId })
   ).data,

@@ -119,16 +119,24 @@ function Jornada({ usuario }) {
     .filter((reclamo) => reclamo.jornadaId === jornada.id && reclamo.estado === 'Finalizado')
     .map((reclamo) => reclamo.id);
 
-  const comenzarJornada = () => {
+  const comenzarJornada = async () => {
     establecerError('');
-    iniciarJornada(tecnico.id);
+    try {
+      await iniciarJornada(tecnico.id);
+    } catch (causa) {
+      establecerError(causa?.response?.data?.mensaje || 'No se pudo iniciar la jornada.');
+    }
   };
 
-  const cerrarJornada = (control) => {
+  const cerrarJornada = async (control) => {
     if (!vehiculo) return;
-    registrarControlVehiculo(vehiculo.id, control);
-    finalizarJornada(jornadaActiva.id, control);
-    establecerError('');
+    try {
+      await registrarControlVehiculo(vehiculo.id, control);
+      await finalizarJornada(jornadaActiva.id, control);
+      establecerError('');
+    } catch (causa) {
+      establecerError(causa?.response?.data?.mensaje || 'No se pudo finalizar la jornada.');
+    }
   };
 
   return (

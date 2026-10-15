@@ -56,12 +56,9 @@ function TarjetaMetrica({ icono, etiqueta, valor, color = 'primary.main' }) {
 function AdminHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
   const [seccion, establecerSeccion] = useState('Panel de administración');
   const [formularioReclamoAbierto, establecerFormularioReclamoAbierto] = useState(false);
-  const [vehiculosExtra, establecerVehiculosExtra] = useState(() => (
-    JSON.parse(localStorage.getItem('vehiculosAdministracion') || '[]')
-  ));
   const [vehiculoNuevo, establecerVehiculoNuevo] = useState({ patente: '', marca: '', modelo: '', kilometrajeInicial: '', kilometrajeActual: '', companiaSeguro: '', poliza: '', venceSeguro: '', ultimoService: '', detalle: '' });
   const [filtrosReporte, establecerFiltrosReporte] = useState({ tecnicoId: 'Todos', desde: '', hasta: '' });
-  const { data, actualizarAsignacion } = useAppData();
+  const { data, crearVehiculo } = useAppData();
 
   const ordenesServicio = useMemo(() => (
     data.reclamos.filter((r) => r.esOrden || r.tipo === 'Instalación' || r.tipo === 'Baja de servicio')
@@ -126,28 +123,28 @@ function AdminHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
     establecerFiltrosReporte((actual) => ({ ...actual, [campo]: valor }));
   };
 
-  const agregarVehiculo = (evento) => {
+  const agregarVehiculo = async (evento) => {
     evento.preventDefault();
     if (!vehiculoNuevo.patente.trim() || !vehiculoNuevo.marca.trim() || !vehiculoNuevo.modelo.trim()) return;
-    const nuevosVehiculos = [...vehiculosExtra, {
-      id: `local-${Date.now()}`,
-      ...vehiculoNuevo,
+    await crearVehiculo({
+      patente: vehiculoNuevo.patente.trim().toUpperCase(),
+      marca: vehiculoNuevo.marca.trim(),
+      modelo: vehiculoNuevo.modelo.trim(),
+      kilometraje: {
+        inicial: Number(vehiculoNuevo.kilometrajeInicial) || 0,
+        actual: Number(vehiculoNuevo.kilometrajeActual) || 0,
+        final: null,
+      },
+      seguro: {
+        compania: vehiculoNuevo.companiaSeguro.trim(),
+        poliza: vehiculoNuevo.poliza.trim(),
+        vence: vehiculoNuevo.venceSeguro,
+      },
+      ultimoService: vehiculoNuevo.ultimoService,
+      detalle: vehiculoNuevo.detalle.trim(),
       tecnicoAsignado: null,
-      disponible: true,
-      kilometraje: { inicial: Number(vehiculoNuevo.kilometrajeInicial) || 0, actual: Number(vehiculoNuevo.kilometrajeActual) || 0, final: null },
-      seguro: { compania: vehiculoNuevo.companiaSeguro, poliza: vehiculoNuevo.poliza, vence: vehiculoNuevo.venceSeguro },
-    }];
-    establecerVehiculosExtra(nuevosVehiculos);
-    localStorage.setItem('vehiculosAdministracion', JSON.stringify(nuevosVehiculos));
+    });
     establecerVehiculoNuevo({ patente: '', marca: '', modelo: '', kilometrajeInicial: '', kilometrajeActual: '', companiaSeguro: '', poliza: '', venceSeguro: '', ultimoService: '', detalle: '' });
-  };
-
-  const actualizarVehiculoExtra = (vehiculoId, tecnicoId) => {
-    const nuevosVehiculos = vehiculosExtra.map((vehiculo) => (
-      vehiculo.id === vehiculoId ? { ...vehiculo, tecnicoAsignado: tecnicoId || null } : vehiculo
-    ));
-    establecerVehiculosExtra(nuevosVehiculos);
-    localStorage.setItem('vehiculosAdministracion', JSON.stringify(nuevosVehiculos));
   };
 
   const contenidoPanel = (
@@ -236,8 +233,6 @@ function AdminHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
         />
         <Vehiculos
           gestionable
-          vehiculosExtra={vehiculosExtra}
-          alActualizarVehiculo={actualizarVehiculoExtra}
         />
       </Stack>
     ),
