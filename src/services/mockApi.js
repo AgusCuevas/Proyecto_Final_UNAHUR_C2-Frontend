@@ -51,8 +51,13 @@ mock?.onPatch(/\/vehiculos\/\d+\/control/).reply((config) => {
   if (!vehiculo) return respuesta(config, { mensaje: 'Vehículo no encontrado' }, 404);
   vehiculo.kilometraje.actual = Number(control.kilometraje);
   vehiculo.enServicio = control.estado === 'Activo';
+  control.fechaControl = new Date().toISOString();
+  vehiculo.fotosControl = control.fotosControl || [];
   vehiculo.ultimoControl = control;
-  vehiculo.controles = [...(vehiculo.controles || []), control];
+  const limite = Date.now() - (30 * 24 * 60 * 60 * 1000);
+  vehiculo.controles = [...(vehiculo.controles || []).filter((registro) => (
+    new Date(registro.fechaControl || registro.fecha || 0).getTime() >= limite
+  )), control];
   return respuesta(config, vehiculo);
 });
 
@@ -70,6 +75,9 @@ mock?.onPatch(/\/jornadas\/\d+\/finalizar/).reply((config) => {
   const cambios = JSON.parse(config.data);
   const jornada = (estadoMock.jornadas || []).find((item) => item.id === jornadaId);
   if (!jornada) return respuesta(config, { mensaje: 'Jornada no encontrada' }, 404);
+  if (!Array.isArray(cambios.fotos) || cambios.fotos.length !== 4) {
+    return respuesta(config, { mensaje: 'Se requieren exactamente 4 fotos del vehículo para finalizar la jornada' }, 400);
+  }
   Object.assign(jornada, cambios, { fin: new Date().toISOString(), activa: false });
   return respuesta(config, jornada);
 });

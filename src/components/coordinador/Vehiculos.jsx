@@ -1,5 +1,6 @@
 import {
   Alert,
+  Box,
   Button,
   Card,
   CardContent,
@@ -53,6 +54,17 @@ const estadoVehiculo = (vehiculo) => {
 
 const seguroVencido = (vehiculo) => Boolean(vehiculo.seguro?.vence)
   && String(vehiculo.seguro.vence).slice(0, 10) < new Date().toISOString().slice(0, 10);
+
+const controlesUltimos30Dias = (vehiculo) => (vehiculo.controles || [])
+  .map((control) => ({
+    ...control,
+    fecha: control.fechaControl || control.fecha || control.foto?.fecha,
+    fotos: control.fotosControl || control.fotos?.map((foto) => foto.imagen) || [],
+  }))
+  .filter((control) => control.fotos.length > 0
+    && control.fecha
+    && Date.now() - new Date(control.fecha).getTime() <= 30 * 24 * 60 * 60 * 1000)
+  .sort((a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0));
 
 function Vehiculos({ gestionable = false, accionNuevo }) {
   const { actualizarAsignacionVehiculo } = useAppData();
@@ -143,6 +155,7 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
       campos: [['Observaciones', vehiculoDetalle.detalle, { anchoCompleto: true }]],
     },
   ] : [];
+  const historialFotos = vehiculoDetalle ? controlesUltimos30Dias(vehiculoDetalle) : [];
 
   return (
     <Stack spacing={2.5}>
@@ -283,6 +296,42 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
           ...(seguroVencido(vehiculoDetalle) ? [{ label: 'Seguro vencido', color: 'error', variant: 'outlined' }] : []),
         ] : []}
         secciones={seccionesDetalle}
+        aviso={(
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 800 }}>Fotos de jornadas</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+              Historial disponible de los últimos 30 días. Las jornadas anteriores se reemplazan automáticamente al cargar nuevas fotos.
+            </Typography>
+            {historialFotos.length === 0 ? (
+              <Typography variant="body2" color="text.disabled">
+                No hay fotos de jornadas registradas en los últimos 30 días.
+              </Typography>
+            ) : (
+              <Stack spacing={2}>
+                {historialFotos.map((control, indice) => (
+                  <Box key={`${control.fecha || 'sin-fecha'}-${indice}`}>
+                    <Typography variant="subtitle2" sx={{ mb: 0.75 }}>
+                      Jornada del {control.fecha
+                        ? new Date(control.fecha).toLocaleDateString('es-AR')
+                        : 'fecha no informada'}
+                    </Typography>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1 }}>
+                      {control.fotos.map((foto, fotoIndice) => (
+                        <Box
+                          key={`${control.fecha || indice}-${fotoIndice}`}
+                          component="img"
+                          src={foto}
+                          alt={`Foto ${fotoIndice + 1} de la jornada`}
+                          sx={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 1.5, border: 1, borderColor: 'divider' }}
+                        />
+                      ))}
+                    </Box>
+                  </Box>
+                ))}
+              </Stack>
+            )}
+          </Box>
+        )}
         acciones={(
           <>
             <Button onClick={() => establecerVehiculoSeleccionado(null)}>Cerrar</Button>
