@@ -24,6 +24,7 @@ import { useState } from 'react';
 import { appTheme } from '../theme/theme.js';
 import { useAppData } from '../context/useAppData.js';
 import { useRecursos } from '../context/useRecursos.js';
+import LimiteDeErrores from './comunes/LimiteDeErrores.jsx';
 
 const anchoMenu = 264;
 
@@ -321,7 +322,7 @@ function AppLayout({ titulo, subtitulo, rol, usuario, nombre, opciones = [], alC
             )}
             {/* Se oculta con visibility (no display) para que el mapa conserve su tamaño al cargar. */}
             <Box sx={{ visibility: cargando ? 'hidden' : 'visible', minHeight: cargando ? 160 : 0 }}>
-              {children}
+              <LimiteDeErrores claveReinicio={titulo}>{children}</LimiteDeErrores>
             </Box>
           </Box>
         </Box>

@@ -3,6 +3,7 @@ import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
+  Alert,
   Box,
   Button,
   Chip,
@@ -11,6 +12,7 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
+  IconButton,
   InputLabel,
   Link,
   MenuItem,
@@ -22,6 +24,7 @@ import {
   Typography,
 } from '@mui/material';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
+import CloseIcon from '@mui/icons-material/Close';
 import DoneIcon from '@mui/icons-material/Done';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import PlaceIcon from '@mui/icons-material/Place';
@@ -31,6 +34,10 @@ import { useAppData } from '../../context/useAppData.js';
 import { useRecursos } from '../../context/useRecursos.js';
 import EntradaVoz from './EntradaVoz.jsx';
 import ControlVehiculoDialog from './ControlVehiculoDialog.jsx';
+import EvidenciasReclamo from '../comunes/EvidenciasReclamo.jsx';
+import { comprimirImagen } from '../../utils/comprimirImagen.js';
+
+const MAXIMO_FOTOS = 5;
 
 // Formatea una fecha en formato "dd/mm/yyyy" para mostrarla en la interfaz.
 function formatearFecha(fecha) {
@@ -50,7 +57,9 @@ function MisAsignaciones({ usuario, soloEnCurso = false }) {
     .filter((reclamo) => reclamo.tecnicoId === tecnico?.id)
     .map((reclamo) => ({
       reclamo,
-      cliente: data.clientes.find((cliente) => cliente.id === reclamo.clienteId),
+      // Si el cliente no llegó (por ejemplo, falló su carga), se muestra el reclamo igual.
+      cliente: data.clientes.find((cliente) => cliente.id === reclamo.clienteId)
+        ?? { nombre: 'Cliente no disponible', telefono: '', direccion: '' },
     }));
   const tieneReclamoEnProgreso = asignaciones.some(
     ({ reclamo }) => reclamo.estado === 'En progreso',
@@ -131,7 +140,8 @@ function MisAsignaciones({ usuario, soloEnCurso = false }) {
 function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, actualizarEstado, registrarControlVehiculo, vehiculo }) {
   const [comentario, setComentario] = useState('');
   const [imagenes, setImagenes] = useState([]);
-  const [imagenAbierta, establecerImagenAbierta] = useState(null);
+  const [finalizando, establecerFinalizando] = useState(false);
+  const [errorFinalizar, establecerErrorFinalizar] = useState('');
   const [dialogoAbierto, establecerDialogoAbierto] = useState(false);
   const [inconvenienteAbierto, establecerInconvenienteAbierto] = useState(false);
   const [motivoInconveniente, establecerMotivoInconveniente] = useState('');
@@ -152,17 +162,39 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
     establecerInconvenienteAbierto(false);
     establecerMotivoInconveniente('');
   };
+  // Las fotos se comprimen en el navegador y viajan en el mismo pedido que finaliza el reclamo.
   const finalizarAsignacion = async (event) => {
     event.preventDefault();
-    if (!comentario.trim() || !imagenes.length) return;
+    if (!comentario.trim()) {
+      establecerErrorFinalizar('Escribí un comentario sobre el trabajo realizado.');
+      return;
+    }
+    if (!imagenes.length) {
+      establecerErrorFinalizar('Agregá al menos una foto del trabajo terminado.');
+      return;
+    }
 
-    await actualizarEstado(reclamo.id, {
-      estado: 'Finalizado',
-      comentarioFinalizacion: comentario.trim(),
-      imagen: URL.createObjectURL(imagenes[0]),
-      imagenes: imagenes.map((archivo) => URL.createObjectURL(archivo)),
-    });
-    establecerDialogoAbierto(false);
+    establecerErrorFinalizar('');
+    establecerFinalizando(true);
+    try {
+      const evidencias = await Promise.all(imagenes.map((archivo) => comprimirImagen(archivo)));
+      await actualizarEstado(reclamo.id, {
+        estado: 'Finalizado',
+        comentarioFinalizacion: comentario.trim(),
+        evidencias,
+      });
+      establecerDialogoAbierto(false);
+      setImagenes([]);
+      setComentario('');
+    } catch (causa) {
+      establecerErrorFinalizar(
+        causa?.response?.data?.mensaje
+          || causa?.message
+          || 'No se pudo finalizar el reclamo. Verificá la conexión e intentá nuevamente.',
+      );
+    } finally {
+      establecerFinalizando(false);
+    }
   };
   const iniciarAsignacion = async (control) => {
     if (!vehiculo) return;
@@ -213,30 +245,15 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
           <Box>
             <Typography variant="overline" color="text.secondary">Descripcion</Typography>
             <Typography>{reclamo.descripcion}</Typography>
-            {reclamo.estado === 'Finalizado' && reclamo.imagen && (
+            {reclamo.cantidadEvidencias > 0 && (
               <Box sx={{ mt: 1.5 }}>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75, fontWeight: 700 }}>
-                  Evidencia del trabajo
+                  Evidencia del trabajo ({reclamo.cantidadEvidencias})
                 </Typography>
-                <Box
-                  component="img"
-                  src={reclamo.imagen}
-                  alt={`Evidencia del reclamo #${reclamo.id}`}
-                  onClick={() => establecerImagenAbierta({
-                    src: reclamo.imagen,
-                    alt: `Evidencia del reclamo #${reclamo.id}`,
-                  })}
-                  sx={{
-                    display: 'block',
-                    width: { xs: '100%', sm: 180 },
-                    maxWidth: '100%',
-                    height: 120,
-                    objectFit: 'contain',
-                    borderRadius: 1,
-                    border: 1,
-                    borderColor: 'divider',
-                    cursor: 'zoom-in',
-                  }}
+                <EvidenciasReclamo
+                  key={`${reclamo.id}-${reclamo.cantidadEvidencias}`}
+                  reclamoId={reclamo.id}
+                  cantidad={reclamo.cantidadEvidencias}
                 />
               </Box>
             )}
@@ -307,6 +324,8 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
           imagenes={imagenes}
           setImagenes={setImagenes}
           onSubmit={finalizarAsignacion}
+          finalizando={finalizando}
+          error={errorFinalizar}
         />
       )}
 
@@ -346,27 +365,6 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
         </Box>
       </Dialog>
 
-      <Dialog
-        open={Boolean(imagenAbierta)}
-        onClose={() => establecerImagenAbierta(null)}
-        fullWidth
-        maxWidth="lg"
-      >
-        <DialogTitle sx={{ fontWeight: 800 }}>Imagen del reclamo</DialogTitle>
-        <DialogContent sx={{ display: 'flex', justifyContent: 'center', p: { xs: 1.5, sm: 3 } }}>
-          {imagenAbierta && (
-            <Box
-              component="img"
-              src={imagenAbierta.src}
-              alt={imagenAbierta.alt}
-              sx={{ display: 'block', maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }}
-            />
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => establecerImagenAbierta(null)}>Cerrar</Button>
-        </DialogActions>
-      </Dialog>
       </Accordion>
       <ControlVehiculoDialog
         abierto={controlInicioAbierto}
@@ -381,7 +379,7 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
 
 // Componente que muestra las asignaciones de un técnico, permitiendo filtrar por estado 
 // y finalizar reclamos en progreso.
-function FormularioFinalizar({ abierto, cerrar, formularioId, comentario, setComentario, imagenes, setImagenes, onSubmit }) {
+function FormularioFinalizar({ abierto, cerrar, formularioId, comentario, setComentario, imagenes, setImagenes, onSubmit, finalizando, error }) {
   const vistasPrevias = useMemo(() => imagenes.map((imagen) => URL.createObjectURL(imagen)), [imagenes]);
 
   useEffect(() => {
@@ -390,13 +388,13 @@ function FormularioFinalizar({ abierto, cerrar, formularioId, comentario, setCom
   }, [vistasPrevias]);
 
   return (
-    <Dialog open={abierto} onClose={cerrar} fullWidth maxWidth="sm">
-      <Box component="form" id={formularioId} onSubmit={onSubmit}>
+    <Dialog open={abierto} onClose={finalizando ? undefined : cerrar} fullWidth maxWidth="sm">
+      <Box component="form" id={formularioId} onSubmit={onSubmit} noValidate>
         <DialogTitle sx={{ fontWeight: 800 }}>Finalizar reclamo</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Typography variant="body2" color="text.secondary">
-              Agregá un comentario y una o más imágenes del trabajo realizado.
+              Agregá un comentario y entre 1 y {MAXIMO_FOTOS} fotos del trabajo realizado.
             </Typography>
 
             <EntradaVoz
@@ -411,21 +409,49 @@ function FormularioFinalizar({ abierto, cerrar, formularioId, comentario, setCom
             />
 
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
-              <Button component="label" variant="outlined" startIcon={<AddPhotoAlternateIcon />}>
-                Cargar fotos
-                <input hidden type="file" accept="image/*" multiple onChange={(event) => setImagenes(Array.from(event.target.files || []))} />
+              <Button
+                component="label"
+                variant="outlined"
+                startIcon={<AddPhotoAlternateIcon />}
+                disabled={finalizando || imagenes.length >= MAXIMO_FOTOS}
+              >
+                Agregar fotos
+                <input
+                  hidden
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  onChange={(event) => {
+                    const nuevas = Array.from(event.target.files || []);
+                    // Se limpia para poder volver a elegir la misma foto después de quitarla.
+                    event.target.value = '';
+                    setImagenes((actuales) => [...actuales, ...nuevas].slice(0, MAXIMO_FOTOS));
+                  }}
+                />
               </Button>
               <Typography variant="body2" color="text.secondary" sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>
-                {imagenes.length ? `${imagenes.length} foto${imagenes.length === 1 ? '' : 's'} seleccionada${imagenes.length === 1 ? '' : 's'}` : 'No seleccionaste ninguna foto'}
+                {imagenes.length} de {MAXIMO_FOTOS} fotos · JPG, PNG o WebP
               </Typography>
             </Stack>
             {vistasPrevias.length > 0 && (
               <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
                 {vistasPrevias.map((vistaPrevia, indice) => (
-                  <Box key={vistaPrevia} component="img" src={vistaPrevia} alt={`Vista previa ${indice + 1}`} sx={{ width: 88, height: 88, objectFit: 'cover', borderRadius: 1, border: 1, borderColor: 'divider' }} />
+                  <Box key={vistaPrevia} sx={{ position: 'relative' }}>
+                    <Box component="img" src={vistaPrevia} alt={`Vista previa ${indice + 1}`} sx={{ display: 'block', width: 88, height: 88, objectFit: 'cover', borderRadius: 1, border: 1, borderColor: 'divider' }} />
+                    <IconButton
+                      size="small"
+                      aria-label={`Quitar foto ${indice + 1}`}
+                      disabled={finalizando}
+                      onClick={() => setImagenes((actuales) => actuales.filter((_, posicion) => posicion !== indice))}
+                      sx={{ position: 'absolute', top: 2, right: 2, bgcolor: 'background.paper', '&:hover': { bgcolor: 'background.paper' } }}
+                    >
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
                 ))}
               </Stack>
             )}
+            {error && <Alert severity="error">{error}</Alert>}
           </Stack>
         </DialogContent>
 
@@ -438,15 +464,15 @@ function FormularioFinalizar({ abierto, cerrar, formularioId, comentario, setCom
             '& > .MuiButton-root': { width: { xs: '100%', sm: 'auto' } },
           }}
         >
-          <Button onClick={cerrar}>Cancelar</Button>
+          <Button onClick={cerrar} disabled={finalizando}>Cancelar</Button>
           <Button
             type="submit"
             variant="contained"
             color="success"
             startIcon={<DoneIcon />}
-            disabled={!comentario || !imagenes.length}
+            disabled={finalizando}
           >
-            Finalizar asignacion
+            {finalizando ? 'Guardando…' : 'Finalizar reclamo'}
           </Button>
         </DialogActions>
       </Box>

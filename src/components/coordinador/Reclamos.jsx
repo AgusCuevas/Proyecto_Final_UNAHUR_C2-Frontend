@@ -13,7 +13,6 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  IconButton,
   FormControl,
   InputLabel,
   MenuItem,
@@ -26,8 +25,6 @@ import {
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import CloseIcon from '@mui/icons-material/Close';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import PersonIcon from '@mui/icons-material/Person';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
@@ -43,6 +40,7 @@ import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined';
 import { useAppData } from '../../context/useAppData.js';
 import { useRecursos } from '../../context/useRecursos.js';
 import FichaDetalle from '../comunes/FichaDetalle.jsx';
+import EvidenciasReclamo from '../comunes/EvidenciasReclamo.jsx';
 
 const esOrdenDeServicio = (reclamo) => Boolean(reclamo)
   && (reclamo.esOrden || reclamo.tipo === 'Instalación' || reclamo.tipo === 'Baja de servicio');
@@ -76,7 +74,6 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
   const [reclamoAbiertoId, establecerReclamoAbiertoId] = useState(null);
   const [reclamoEnNotas, establecerReclamoEnNotas] = useState(null);
   const [reclamoExpandido, establecerReclamoExpandido] = useState(null);
-  const [imagenAbierta, establecerImagenAbierta] = useState(null);
   const [notasCoordinador, establecerNotasCoordinador] = useState('');
   const [errorNotas, establecerErrorNotas] = useState('');
   const [tecnicoSeleccionado, establecerTecnicoSeleccionado] = useState('');
@@ -231,10 +228,6 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
       establecerGuardandoAlta(false);
     }
   };
-
-  const obtenerImagenes = (reclamo) => (
-    reclamo?.imagenes?.length ? reclamo.imagenes : reclamo?.imagen ? [reclamo.imagen] : []
-  );
 
   return (
     <Stack spacing={3}>
@@ -853,34 +846,19 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
           </>
         )}
       >
-        {reclamoAbierto && obtenerImagenes(reclamoAbierto).length > 0 && (
+        {reclamoAbierto?.cantidadEvidencias > 0 && (
           <Box>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1, color: 'text.secondary' }}>
               <PhotoLibraryOutlinedIcon fontSize="small" />
               <Typography variant="overline" sx={{ fontWeight: 800, letterSpacing: '0.08em', lineHeight: 1.5 }}>
-                Evidencia del técnico ({obtenerImagenes(reclamoAbierto).length})
+                Evidencia del técnico ({reclamoAbierto.cantidadEvidencias})
               </Typography>
             </Stack>
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: 1 }}>
-              {obtenerImagenes(reclamoAbierto).map((imagen, indice) => (
-                <Box
-                  key={imagen}
-                  component="img"
-                  src={imagen}
-                  alt={`Evidencia ${indice + 1} del reclamo #${reclamoAbierto.id}`}
-                  onClick={() => establecerImagenAbierta({ imagenes: obtenerImagenes(reclamoAbierto), indice })}
-                  sx={{
-                    width: '100%',
-                    aspectRatio: '1',
-                    objectFit: 'cover',
-                    borderRadius: 1.5,
-                    border: 1,
-                    borderColor: 'divider',
-                    cursor: 'zoom-in',
-                  }}
-                />
-              ))}
-            </Box>
+            <EvidenciasReclamo
+              key={`${reclamoAbierto.id}-${reclamoAbierto.cantidadEvidencias}`}
+              reclamoId={reclamoAbierto.id}
+              cantidad={reclamoAbierto.cantidadEvidencias}
+            />
           </Box>
         )}
       </FichaDetalle>
@@ -920,50 +898,6 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
         </Box>
       </Dialog>
 
-      <Dialog
-        open={Boolean(imagenAbierta)}
-        onClose={() => establecerImagenAbierta(null)}
-        fullWidth
-        maxWidth="lg"
-      >
-        <DialogTitle sx={{ fontWeight: 800 }}>
-          Evidencia del técnico
-        </DialogTitle>
-        <DialogContent sx={{ display: 'flex', justifyContent: 'center', p: { xs: 1.5, sm: 3 } }}>
-          {imagenAbierta && (
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-              <IconButton
-                onClick={() => establecerImagenAbierta((actual) => ({ ...actual, indice: Math.max(0, actual.indice - 1) }))}
-                disabled={imagenAbierta.indice === 0}
-                aria-label="Foto anterior"
-              >
-                <ChevronLeftIcon />
-              </IconButton>
-              <Box
-                component="img"
-                src={imagenAbierta.imagenes[imagenAbierta.indice]}
-                alt={`Evidencia ${imagenAbierta.indice + 1}`}
-                sx={{ display: 'block', maxWidth: 'calc(100% - 96px)', maxHeight: '70vh', objectFit: 'contain' }}
-              />
-              <IconButton
-                onClick={() => establecerImagenAbierta((actual) => ({ ...actual, indice: Math.min(actual.imagenes.length - 1, actual.indice + 1) }))}
-                disabled={imagenAbierta.indice === imagenAbierta.imagenes.length - 1}
-                aria-label="Foto siguiente"
-              >
-                <ChevronRightIcon />
-              </IconButton>
-            </Stack>
-          )}
-          {imagenAbierta && (
-            <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mt: 1 }}>
-              Foto {imagenAbierta.indice + 1} de {imagenAbierta.imagenes.length}
-            </Typography>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => establecerImagenAbierta(null)}>Cerrar</Button>
-        </DialogActions>
-      </Dialog>
     </Stack>
   );
 }

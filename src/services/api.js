@@ -128,4 +128,6 @@ export const reclamosApi = {
   actualizarEstado: async (reclamoId, cambios) => (
     await apiClient.patch(`/reclamos/${reclamoId}/estado`, cambios)
   ).data,
+  // Devuelve [{ id, url }]: la url se usa directo en un <img>, sea base64 o una dirección.
+  evidencias: async (reclamoId) => (await apiClient.get(`/reclamos/${reclamoId}/evidencias`)).data,
 };

@@ -17,9 +17,12 @@ export function useRecursos(...nombres) {
 
   return useMemo(() => {
     const lista = clave ? clave.split(',') : [];
+    const cargando = lista.some((nombre) => pendientes[nombre] || (data[nombre] === undefined && !errores[nombre]));
+    // Mientras falte algún recurso se devuelven todos vacíos: así la pantalla nunca combina
+    // datos que ya llegaron (por ejemplo reclamos) con otros que todavía no (sus clientes).
     return {
-      ...Object.fromEntries(lista.map((nombre) => [nombre, data[nombre] ?? sinDatos])),
-      cargando: lista.some((nombre) => pendientes[nombre] || (data[nombre] === undefined && !errores[nombre])),
+      ...Object.fromEntries(lista.map((nombre) => [nombre, cargando ? sinDatos : (data[nombre] ?? sinDatos)])),
+      cargando,
       error: lista.map((nombre) => errores[nombre]).find(Boolean) || '',
     };
   }, [clave, data, errores, pendientes]);
