@@ -128,6 +128,13 @@ export const reclamosApi = {
   actualizarEstado: async (reclamoId, cambios) => (
     await apiClient.patch(`/reclamos/${reclamoId}/estado`, cambios)
   ).data,
-  // Devuelve [{ id, url }]: la url se usa directo en un <img>, sea base64 o una dirección.
-  evidencias: async (reclamoId) => (await apiClient.get(`/reclamos/${reclamoId}/evidencias`)).data,
+};
+
+// Imágenes: se suben con subir() y los reclamos, jornadas y vehículos guardan solo sus ids
+// en un campo "imagenes". Para mostrarlas se piden por id con obtener().
+export const imagenesApi = {
+  // Recibe data URLs (base64) y devuelve [{ id }].
+  subir: async (imagenes) => (await apiClient.post('/imagenes', { imagenes })).data,
+  // Devuelve [{ id, url, creadoEn }]: la url se usa directo en un <img>.
+  obtener: async (ids) => (await apiClient.get('/imagenes', { params: { ids: ids.join(',') } })).data,
 };

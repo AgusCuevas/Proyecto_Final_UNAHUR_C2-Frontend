@@ -14,34 +14,31 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import SaveIcon from '@mui/icons-material/Save';
-import { comprimirImagen } from '../../utils/comprimirImagen.js';
+import SelectorImagenes from '../comunes/SelectorImagenes.jsx';
+import { subirImagenes } from '../../utils/subirImagenes.js';
 
-const FOTOS_REQUERIDAS = 4;
+const IMAGENES_REQUERIDAS = 4;
 
 function ControlVehiculoDialog({ abierto, titulo, kilometrajeMinimo = 0, cerrar, confirmar }) {
   const [kilometraje, establecerKilometraje] = useState('');
   const [litros, establecerLitros] = useState('');
   const [estado, establecerEstado] = useState('Activo');
-  const [fotos, establecerFotos] = useState([]);
-  const [vistaPrevia, establecerVistaPrevia] = useState('');
+  const [imagenes, establecerImagenes] = useState([]);
+  const [guardando, establecerGuardando] = useState(false);
   const [error, establecerError] = useState('');
 
   const cerrarDialogo = () => {
     establecerKilometraje('');
     establecerLitros('');
     establecerEstado('Activo');
-    establecerFotos([]);
-    establecerVistaPrevia('');
+    establecerImagenes([]);
     establecerError('');
     cerrar();
   };
 
-  const seleccionarFoto = (event) => {
-    const archivos = Array.from(event.target.files || []);
-    establecerFotos(archivos);
-    establecerVistaPrevia(archivos[0] ? URL.createObjectURL(archivos[0]) : '');
+  const cambiarImagenes = (archivos) => {
+    establecerImagenes(archivos);
     establecerError('');
   };
 
@@ -57,28 +54,19 @@ function ControlVehiculoDialog({ abierto, titulo, kilometrajeMinimo = 0, cerrar,
       establecerError('Completá los litros registrados.');
       return;
     }
-    if (fotos.length !== FOTOS_REQUERIDAS) {
-      establecerError(`Adjuntá exactamente ${FOTOS_REQUERIDAS} fotos del vehículo para finalizar la jornada.`);
+    if (imagenes.length !== IMAGENES_REQUERIDAS) {
+      establecerError(`Adjuntá exactamente ${IMAGENES_REQUERIDAS} imágenes del vehículo.`);
       return;
     }
+    establecerGuardando(true);
     try {
-      const imagenes = await Promise.all(fotos.map(async (foto, indice) => ({
-        id: Date.now() + indice,
-        fecha: new Date().toISOString(),
-        imagen: await comprimirImagen(foto),
-        nombre: foto.name,
-      })));
-      await confirmar({
-        kilometraje: km,
-        litros: combustible,
-        estado,
-        foto: imagenes[0],
-        fotos: imagenes,
-        fotosControl: imagenes.map((imagen) => imagen.imagen),
-      });
+      const idsImagenes = await subirImagenes(imagenes);
+      await confirmar({ kilometraje: km, litros: combustible, estado, imagenes: idsImagenes });
       cerrarDialogo();
     } catch (causa) {
-      establecerError(causa.message || 'No se pudieron procesar las fotos. Intentá nuevamente.');
+      establecerError(causa?.response?.data?.mensaje || causa.message || 'No se pudieron guardar las imágenes. Intentá nuevamente.');
+    } finally {
+      establecerGuardando(false);
     }
   };
 
@@ -125,22 +113,22 @@ function ControlVehiculoDialog({ abierto, titulo, kilometrajeMinimo = 0, cerrar,
                 <MenuItem value="Fuera de servicio">Fuera de servicio</MenuItem>
               </Select>
             </FormControl>
-            <Button component="label" variant="outlined" startIcon={<CameraAltIcon />}>
-              Cargar 4 fotos del vehículo y medidor
-              <input hidden type="file" accept="image/*" multiple capture="environment" onChange={seleccionarFoto} />
-            </Button>
-            <Typography variant="body2" color={fotos.length === FOTOS_REQUERIDAS ? 'success.main' : 'text.secondary'}>
-              {fotos.length} de {FOTOS_REQUERIDAS} fotos seleccionadas
-            </Typography>
-            {vistaPrevia && (
-              <img src={vistaPrevia} alt="Vista previa del tablero" style={{ width: 180, height: 120, objectFit: 'cover', borderRadius: 8 }} />
-            )}
+            <Typography variant="subtitle2">Imágenes del vehículo y del tablero</Typography>
+            <SelectorImagenes
+              archivos={imagenes}
+              alCambiar={cambiarImagenes}
+              maximo={IMAGENES_REQUERIDAS}
+              requeridas={IMAGENES_REQUERIDAS}
+              deshabilitado={guardando}
+            />
             {error && <Alert severity="error">{error}</Alert>}
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: { xs: 2, sm: 3 }, pb: 2 }}>
-          <Button onClick={cerrarDialogo}>Cancelar</Button>
-          <Button type="submit" variant="contained" startIcon={<SaveIcon />}>Guardar control</Button>
+          <Button onClick={cerrarDialogo} disabled={guardando}>Cancelar</Button>
+          <Button type="submit" variant="contained" startIcon={<SaveIcon />} disabled={guardando}>
+            {guardando ? 'Guardando…' : 'Guardar control'}
+          </Button>
         </DialogActions>
       </Stack>
     </Dialog>

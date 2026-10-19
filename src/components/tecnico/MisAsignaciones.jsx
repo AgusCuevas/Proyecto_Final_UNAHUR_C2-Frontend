@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   Accordion,
   AccordionDetails,
@@ -12,7 +12,6 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
-  IconButton,
   InputLabel,
   Link,
   MenuItem,
@@ -23,8 +22,6 @@ import {
   Tabs,
   Typography,
 } from '@mui/material';
-import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
-import CloseIcon from '@mui/icons-material/Close';
 import DoneIcon from '@mui/icons-material/Done';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import PlaceIcon from '@mui/icons-material/Place';
@@ -34,22 +31,20 @@ import { useAppData } from '../../context/useAppData.js';
 import { useRecursos } from '../../context/useRecursos.js';
 import EntradaVoz from './EntradaVoz.jsx';
 import ControlVehiculoDialog from './ControlVehiculoDialog.jsx';
-import EvidenciasReclamo from '../comunes/EvidenciasReclamo.jsx';
-import { comprimirImagen } from '../../utils/comprimirImagen.js';
+import GaleriaImagenes from '../comunes/GaleriaImagenes.jsx';
+import SelectorImagenes from '../comunes/SelectorImagenes.jsx';
+import { subirImagenes } from '../../utils/subirImagenes.js';
 
-const MAXIMO_FOTOS = 5;
+const MAXIMO_IMAGENES = 5;
 
-// Formatea una fecha en formato "dd/mm/yyyy" para mostrarla en la interfaz.
 function formatearFecha(fecha) {
   return new Intl.DateTimeFormat('es-AR').format(new Date(`${fecha}T12:00:00`));
 }
 
-// Muestra las asignaciones de un técnico, permitiendo filtrar por estado
 function MisAsignaciones({ usuario, soloEnCurso = false }) {
   const [filtro, setFiltro] = useState(soloEnCurso ? 'En progreso' : 'Todos');
   const esMovil = useMediaQuery((theme) => theme.breakpoints.down('sm'));
   const { actualizarEstado, registrarControlVehiculo } = useAppData();
-  // jornadas: al finalizar un reclamo se asocia a la jornada activa.
   const data = useRecursos('usuarios', 'vehiculos', 'reclamos', 'clientes', 'jornadas');
   const tecnico = data.usuarios.find((usuarioRegistrado) => usuarioRegistrado.usuario === usuario);
   const vehiculo = data.vehiculos.find((vehiculoRegistrado) => vehiculoRegistrado.tecnicoAsignado === tecnico?.id);
@@ -57,7 +52,6 @@ function MisAsignaciones({ usuario, soloEnCurso = false }) {
     .filter((reclamo) => reclamo.tecnicoId === tecnico?.id)
     .map((reclamo) => ({
       reclamo,
-      // Si el cliente no llegó (por ejemplo, falló su carga), se muestra el reclamo igual.
       cliente: data.clientes.find((cliente) => cliente.id === reclamo.clienteId)
         ?? { nombre: 'Cliente no disponible', telefono: '', direccion: '' },
     }));
@@ -162,7 +156,7 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
     establecerInconvenienteAbierto(false);
     establecerMotivoInconveniente('');
   };
-  // Las fotos se comprimen en el navegador y viajan en el mismo pedido que finaliza el reclamo.
+  // Primero se suben las imágenes (comprimidas) y después se finaliza el reclamo con sus ids.
   const finalizarAsignacion = async (event) => {
     event.preventDefault();
     if (!comentario.trim()) {
@@ -170,18 +164,18 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
       return;
     }
     if (!imagenes.length) {
-      establecerErrorFinalizar('Agregá al menos una foto del trabajo terminado.');
+      establecerErrorFinalizar('Agregá al menos una imagen del trabajo terminado.');
       return;
     }
 
     establecerErrorFinalizar('');
     establecerFinalizando(true);
     try {
-      const evidencias = await Promise.all(imagenes.map((archivo) => comprimirImagen(archivo)));
+      const idsImagenes = await subirImagenes(imagenes);
       await actualizarEstado(reclamo.id, {
         estado: 'Finalizado',
         comentarioFinalizacion: comentario.trim(),
-        evidencias,
+        imagenes: idsImagenes,
       });
       establecerDialogoAbierto(false);
       setImagenes([]);
@@ -245,15 +239,15 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
           <Box>
             <Typography variant="overline" color="text.secondary">Descripcion</Typography>
             <Typography>{reclamo.descripcion}</Typography>
-            {reclamo.cantidadEvidencias > 0 && (
+            {reclamo.imagenes?.length > 0 && (
               <Box sx={{ mt: 1.5 }}>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75, fontWeight: 700 }}>
-                  Evidencia del trabajo ({reclamo.cantidadEvidencias})
+                  Imágenes del trabajo ({reclamo.imagenes.length})
                 </Typography>
-                <EvidenciasReclamo
-                  key={`${reclamo.id}-${reclamo.cantidadEvidencias}`}
-                  reclamoId={reclamo.id}
-                  cantidad={reclamo.cantidadEvidencias}
+                <GaleriaImagenes
+                  key={reclamo.imagenes.join()}
+                  ids={reclamo.imagenes}
+                  descripcion={`Imagen del reclamo #${reclamo.id}`}
                 />
               </Box>
             )}
@@ -380,13 +374,6 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
 // Componente que muestra las asignaciones de un técnico, permitiendo filtrar por estado 
 // y finalizar reclamos en progreso.
 function FormularioFinalizar({ abierto, cerrar, formularioId, comentario, setComentario, imagenes, setImagenes, onSubmit, finalizando, error }) {
-  const vistasPrevias = useMemo(() => imagenes.map((imagen) => URL.createObjectURL(imagen)), [imagenes]);
-
-  useEffect(() => {
-    if (!vistasPrevias.length) return undefined;
-    return () => vistasPrevias.forEach((vistaPrevia) => URL.revokeObjectURL(vistaPrevia));
-  }, [vistasPrevias]);
-
   return (
     <Dialog open={abierto} onClose={finalizando ? undefined : cerrar} fullWidth maxWidth="sm">
       <Box component="form" id={formularioId} onSubmit={onSubmit} noValidate>
@@ -394,7 +381,7 @@ function FormularioFinalizar({ abierto, cerrar, formularioId, comentario, setCom
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Typography variant="body2" color="text.secondary">
-              Agregá un comentario y entre 1 y {MAXIMO_FOTOS} fotos del trabajo realizado.
+              Agregá un comentario y entre 1 y {MAXIMO_IMAGENES} imágenes del trabajo realizado.
             </Typography>
 
             <EntradaVoz
@@ -408,49 +395,12 @@ function FormularioFinalizar({ abierto, cerrar, formularioId, comentario, setCom
               fullWidth
             />
 
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
-              <Button
-                component="label"
-                variant="outlined"
-                startIcon={<AddPhotoAlternateIcon />}
-                disabled={finalizando || imagenes.length >= MAXIMO_FOTOS}
-              >
-                Agregar fotos
-                <input
-                  hidden
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  multiple
-                  onChange={(event) => {
-                    const nuevas = Array.from(event.target.files || []);
-                    // Se limpia para poder volver a elegir la misma foto después de quitarla.
-                    event.target.value = '';
-                    setImagenes((actuales) => [...actuales, ...nuevas].slice(0, MAXIMO_FOTOS));
-                  }}
-                />
-              </Button>
-              <Typography variant="body2" color="text.secondary" sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>
-                {imagenes.length} de {MAXIMO_FOTOS} fotos · JPG, PNG o WebP
-              </Typography>
-            </Stack>
-            {vistasPrevias.length > 0 && (
-              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
-                {vistasPrevias.map((vistaPrevia, indice) => (
-                  <Box key={vistaPrevia} sx={{ position: 'relative' }}>
-                    <Box component="img" src={vistaPrevia} alt={`Vista previa ${indice + 1}`} sx={{ display: 'block', width: 88, height: 88, objectFit: 'cover', borderRadius: 1, border: 1, borderColor: 'divider' }} />
-                    <IconButton
-                      size="small"
-                      aria-label={`Quitar foto ${indice + 1}`}
-                      disabled={finalizando}
-                      onClick={() => setImagenes((actuales) => actuales.filter((_, posicion) => posicion !== indice))}
-                      sx={{ position: 'absolute', top: 2, right: 2, bgcolor: 'background.paper', '&:hover': { bgcolor: 'background.paper' } }}
-                    >
-                      <CloseIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-                ))}
-              </Stack>
-            )}
+            <SelectorImagenes
+              archivos={imagenes}
+              alCambiar={setImagenes}
+              maximo={MAXIMO_IMAGENES}
+              deshabilitado={finalizando}
+            />
             {error && <Alert severity="error">{error}</Alert>}
           </Stack>
         </DialogContent>

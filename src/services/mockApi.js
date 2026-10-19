@@ -52,13 +52,28 @@ mock?.onPatch(/\/vehiculos\/\d+\/control/).reply((config) => {
   vehiculo.kilometraje.actual = Number(control.kilometraje);
   vehiculo.enServicio = control.estado === 'Activo';
   control.fechaControl = new Date().toISOString();
-  vehiculo.fotosControl = control.fotosControl || [];
   vehiculo.ultimoControl = control;
   const limite = Date.now() - (30 * 24 * 60 * 60 * 1000);
   vehiculo.controles = [...(vehiculo.controles || []).filter((registro) => (
     new Date(registro.fechaControl || registro.fecha || 0).getTime() >= limite
   )), control];
   return respuesta(config, vehiculo);
+});
+
+// Imágenes: se guardan en memoria con un id aleatorio, igual que en la API real.
+const imagenesMock = new Map();
+mock?.onPost('/imagenes').reply((config) => {
+  const { imagenes = [] } = JSON.parse(config.data);
+  const creadas = imagenes.map((url) => {
+    const id = crypto.randomUUID();
+    imagenesMock.set(id, { id, url, creadoEn: new Date().toISOString() });
+    return { id };
+  });
+  return respuesta(config, creadas, 201);
+});
+mock?.onGet('/imagenes').reply((config) => {
+  const ids = String(config.params?.ids || '').split(',').filter(Boolean);
+  return respuesta(config, ids.map((id) => imagenesMock.get(id)).filter(Boolean));
 });
 
 mock?.onPost('/jornadas').reply((config) => {
@@ -75,8 +90,8 @@ mock?.onPatch(/\/jornadas\/\d+\/finalizar/).reply((config) => {
   const cambios = JSON.parse(config.data);
   const jornada = (estadoMock.jornadas || []).find((item) => item.id === jornadaId);
   if (!jornada) return respuesta(config, { mensaje: 'Jornada no encontrada' }, 404);
-  if (!Array.isArray(cambios.fotos) || cambios.fotos.length !== 4) {
-    return respuesta(config, { mensaje: 'Se requieren exactamente 4 fotos del vehículo para finalizar la jornada' }, 400);
+  if (!Array.isArray(cambios.imagenes) || cambios.imagenes.length !== 4) {
+    return respuesta(config, { mensaje: 'Se requieren exactamente 4 imágenes del vehículo para finalizar la jornada.' }, 400);
   }
   Object.assign(jornada, cambios, { fin: new Date().toISOString(), activa: false });
   return respuesta(config, jornada);

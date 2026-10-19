@@ -227,7 +227,7 @@ function Jornada({ usuario }) {
               </Typography>
               {jornada.controlFinal && (
                 <Typography variant="body2" color="text.secondary">
-                  Control final: {jornada.controlFinal.litros} litros · Estado: {jornada.controlFinal.estado} · Foto registrada
+                  Control final: {jornada.controlFinal.litros} litros · Estado: {jornada.controlFinal.estado} · {jornada.controlFinal.imagenes?.length || 0} imágenes
                 </Typography>
               )}
               <Typography variant="body2">Servicios: {servicios.length ? servicios.map((servicio) => `#${servicio}`).join(', ') : 'Ninguno'}</Typography>

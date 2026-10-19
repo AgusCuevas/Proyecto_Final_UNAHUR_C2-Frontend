@@ -12,43 +12,41 @@ import {
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import CloseIcon from '@mui/icons-material/Close';
-import { reclamosApi } from '../../services/api.js';
+import { imagenesApi } from '../../services/api.js';
 
-// Fotos de evidencia de un reclamo: miniaturas y visor con flechas (también con ← →).
-// Se piden aparte del reclamo para que la lista de reclamos no cargue todas las fotos.
-function EvidenciasReclamo({ reclamoId, cantidad = 0 }) {
-  const [estado, establecerEstado] = useState({ evidencias: [], cargando: cantidad > 0, error: '' });
+function GaleriaImagenes({ ids = [], descripcion = 'Imagen' }) {
+  const [estado, establecerEstado] = useState({ imagenes: [], cargando: ids.length > 0, error: '' });
   const [indiceAbierto, establecerIndiceAbierto] = useState(null);
+  const clave = ids.join(',');
 
   useEffect(() => {
-    if (!cantidad) return undefined;
+    if (!clave) return undefined;
     let vigente = true;
-    reclamosApi.evidencias(reclamoId)
-      .then((evidencias) => { if (vigente) establecerEstado({ evidencias, cargando: false, error: '' }); })
+    imagenesApi.obtener(clave.split(','))
+      .then((imagenes) => { if (vigente) establecerEstado({ imagenes, cargando: false, error: '' }); })
       .catch(() => {
-        if (vigente) establecerEstado({ evidencias: [], cargando: false, error: 'No se pudieron cargar las fotos.' });
+        if (vigente) establecerEstado({ imagenes: [], cargando: false, error: 'No se pudieron cargar las imágenes.' });
       });
     return () => { vigente = false; };
-  }, [reclamoId, cantidad]);
+  }, [clave]);
 
-  if (!cantidad) return null;
+  if (!ids.length) return null;
   if (estado.error) return <Alert severity="warning">{estado.error}</Alert>;
 
-  const { evidencias } = estado;
-  const total = evidencias.length;
+  const { imagenes } = estado;
+  const total = imagenes.length;
   const mover = (paso) => establecerIndiceAbierto((actual) => Math.min(total - 1, Math.max(0, actual + paso)));
-  const descripcion = `Foto del reclamo #${reclamoId}`;
 
   return (
     <>
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: 1 }}>
         {estado.cargando
-          ? Array.from({ length: cantidad }, (_, indice) => (
-            <Skeleton key={indice} variant="rectangular" sx={{ width: '100%', height: 'auto', aspectRatio: '1', borderRadius: 1.5 }} />
+          ? ids.map((id) => (
+            <Skeleton key={id} variant="rectangular" sx={{ width: '100%', height: 'auto', aspectRatio: '1', borderRadius: 1.5 }} />
           ))
-          : evidencias.map((evidencia, indice) => (
+          : imagenes.map((imagen, indice) => (
             <Box
-              key={evidencia.id}
+              key={imagen.id}
               component="button"
               type="button"
               onClick={() => establecerIndiceAbierto(indice)}
@@ -66,7 +64,7 @@ function EvidenciasReclamo({ reclamoId, cantidad = 0 }) {
             >
               <Box
                 component="img"
-                src={evidencia.url}
+                src={imagen.url}
                 alt={`${descripcion} ${indice + 1}`}
                 sx={{ display: 'block', width: '100%', aspectRatio: '1', objectFit: 'cover' }}
               />
@@ -95,16 +93,16 @@ function EvidenciasReclamo({ reclamoId, cantidad = 0 }) {
         <DialogContent sx={{ p: { xs: 1, sm: 2 } }}>
           {indiceAbierto !== null && (
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'center' }}>
-              <IconButton onClick={() => mover(-1)} disabled={indiceAbierto === 0} aria-label="Foto anterior">
+              <IconButton onClick={() => mover(-1)} disabled={indiceAbierto === 0} aria-label="Imagen anterior">
                 <ChevronLeftIcon />
               </IconButton>
               <Box
                 component="img"
-                src={evidencias[indiceAbierto].url}
+                src={imagenes[indiceAbierto].url}
                 alt={`${descripcion} ${indiceAbierto + 1} de ${total}`}
                 sx={{ display: 'block', maxWidth: 'calc(100% - 96px)', maxHeight: '75vh', objectFit: 'contain' }}
               />
-              <IconButton onClick={() => mover(1)} disabled={indiceAbierto === total - 1} aria-label="Foto siguiente">
+              <IconButton onClick={() => mover(1)} disabled={indiceAbierto === total - 1} aria-label="Imagen siguiente">
                 <ChevronRightIcon />
               </IconButton>
             </Stack>
@@ -115,4 +113,4 @@ function EvidenciasReclamo({ reclamoId, cantidad = 0 }) {
   );
 }
 
-export default EvidenciasReclamo;
+export default GaleriaImagenes;

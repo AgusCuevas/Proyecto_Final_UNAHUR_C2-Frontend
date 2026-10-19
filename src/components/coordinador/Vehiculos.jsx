@@ -35,6 +35,7 @@ import { useState } from 'react';
 import { useAppData } from '../../context/useAppData.js';
 import { useRecursos } from '../../context/useRecursos.js';
 import FichaDetalle from '../comunes/FichaDetalle.jsx';
+import GaleriaImagenes from '../comunes/GaleriaImagenes.jsx';
 
 // Las fechas llegan como 'AAAA-MM-DD' o como ISO completo desde MongoDB.
 const formatearFecha = (fecha) => {
@@ -56,12 +57,8 @@ const seguroVencido = (vehiculo) => Boolean(vehiculo.seguro?.vence)
   && String(vehiculo.seguro.vence).slice(0, 10) < new Date().toISOString().slice(0, 10);
 
 const controlesUltimos30Dias = (vehiculo) => (vehiculo.controles || [])
-  .map((control) => ({
-    ...control,
-    fecha: control.fechaControl || control.fecha || control.foto?.fecha,
-    fotos: control.fotosControl || control.fotos?.map((foto) => foto.imagen) || [],
-  }))
-  .filter((control) => control.fotos.length > 0
+  .map((control) => ({ ...control, fecha: control.fechaControl || control.fecha, imagenes: control.imagenes || [] }))
+  .filter((control) => control.imagenes.length > 0
     && control.fecha
     && Date.now() - new Date(control.fecha).getTime() <= 30 * 24 * 60 * 60 * 1000)
   .sort((a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0));
@@ -92,7 +89,6 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
     })
     .sort((a, b) => String(a.patente).localeCompare(String(b.patente), 'es'));
 
-  // Se busca en la lista actual para que el detalle refleje cambios de asignación.
   const vehiculoDetalle = vehiculoSeleccionado
     ? data.vehiculos.find((vehiculo) => vehiculo.id === vehiculoSeleccionado.id) || vehiculoSeleccionado
     : null;
@@ -155,7 +151,7 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
       campos: [['Observaciones', vehiculoDetalle.detalle, { anchoCompleto: true }]],
     },
   ] : [];
-  const historialFotos = vehiculoDetalle ? controlesUltimos30Dias(vehiculoDetalle) : [];
+  const historialImagenes = vehiculoDetalle ? controlesUltimos30Dias(vehiculoDetalle) : [];
 
   return (
     <Stack spacing={2.5}>
@@ -298,34 +294,28 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
         secciones={seccionesDetalle}
         aviso={(
           <Box>
-            <Typography variant="h6" sx={{ fontWeight: 800 }}>Fotos de jornadas</Typography>
+            <Typography variant="h6" sx={{ fontWeight: 800 }}>Imágenes de jornadas</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-              Historial disponible de los últimos 30 días. Las jornadas anteriores se reemplazan automáticamente al cargar nuevas fotos.
+              Historial de los últimos 30 días. Las imágenes más antiguas se eliminan automáticamente.
             </Typography>
-            {historialFotos.length === 0 ? (
+            {historialImagenes.length === 0 ? (
               <Typography variant="body2" color="text.disabled">
-                No hay fotos de jornadas registradas en los últimos 30 días.
+                No hay imágenes de jornadas registradas en los últimos 30 días.
               </Typography>
             ) : (
               <Stack spacing={2}>
-                {historialFotos.map((control, indice) => (
+                {historialImagenes.map((control, indice) => (
                   <Box key={`${control.fecha || 'sin-fecha'}-${indice}`}>
                     <Typography variant="subtitle2" sx={{ mb: 0.75 }}>
                       Jornada del {control.fecha
                         ? new Date(control.fecha).toLocaleDateString('es-AR')
                         : 'fecha no informada'}
                     </Typography>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1 }}>
-                      {control.fotos.map((foto, fotoIndice) => (
-                        <Box
-                          key={`${control.fecha || indice}-${fotoIndice}`}
-                          component="img"
-                          src={foto}
-                          alt={`Foto ${fotoIndice + 1} de la jornada`}
-                          sx={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 1.5, border: 1, borderColor: 'divider' }}
-                        />
-                      ))}
-                    </Box>
+                    <GaleriaImagenes
+                      key={control.imagenes.join()}
+                      ids={control.imagenes}
+                      descripcion="Imagen de la jornada"
+                    />
                   </Box>
                 ))}
               </Stack>

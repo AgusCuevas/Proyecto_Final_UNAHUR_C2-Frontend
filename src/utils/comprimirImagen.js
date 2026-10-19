@@ -1,5 +1,5 @@
-// Convierte una foto en un JPEG liviano (data URL en base64) listo para enviar a la API.
-// Una foto de celular de 3-4 MB queda en unos 150-300 KB. Si sigue siendo pesada se
+// Convierte una imagen en un JPEG liviano (data URL en base64) listo para enviar a la API.
+// Una imagen de celular de 3-4 MB queda en unos 150-300 KB. Si sigue siendo pesada se
 // reduce la calidad y el tamaño hasta entrar en el máximo que acepta el backend.
 const MAXIMO_BYTES = 550 * 1024;
 const INTENTOS = [
@@ -15,7 +15,7 @@ export async function comprimirImagen(archivo) {
   try {
     bitmap = await createImageBitmap(archivo, { imageOrientation: 'from-image' });
   } catch {
-    throw new Error(`No se pudo leer la imagen "${archivo.name}". Usá fotos JPG, PNG o WebP.`);
+    throw new Error(`No se pudo leer la imagen "${archivo.name}". Usá imágenes JPG, PNG o WebP.`);
   }
   try {
     for (const { ladoMaximo, calidad } of INTENTOS) {
@@ -27,7 +27,7 @@ export async function comprimirImagen(archivo) {
       const dataUrl = lienzo.toDataURL('image/jpeg', calidad);
       if (bytesDeDataUrl(dataUrl) <= MAXIMO_BYTES) return dataUrl;
     }
-    throw new Error(`La imagen "${archivo.name}" es demasiado grande. Probá con otra foto.`);
+    throw new Error(`La imagen "${archivo.name}" es demasiado grande. Probá con otra imagen.`);
   } finally {
     bitmap.close();
   }

@@ -177,7 +177,6 @@ export const datosIniciales = {
       seguro: { compania: 'La Segunda', poliza: 'LS-45210', vence: '2027-04-30' },
       ultimoService: '2026-07-18',
       detalle: 'Unidad utilitaria para visitas técnicas y traslado de herramientas.',
-      fotosControl: [],
       disponible: true,
     },
     {
@@ -190,7 +189,6 @@ export const datosIniciales = {
       seguro: { compania: 'Sancor Seguros', poliza: 'SC-38120', vence: '2027-01-15' },
       ultimoService: '2026-08-02',
       detalle: 'Vehículo liviano para recorridos urbanos y atención de reclamos.',
-      fotosControl: [],
       disponible: true,
     },
     {
@@ -203,7 +201,6 @@ export const datosIniciales = {
       seguro: { compania: 'Federación Patronal', poliza: 'FP-52780', vence: '2026-12-20' },
       ultimoService: '2026-06-11',
       detalle: 'Camioneta de apoyo para materiales y tareas en zonas alejadas.',
-      fotosControl: [],
       disponible: true,
     },
     {
@@ -216,7 +213,6 @@ export const datosIniciales = {
       seguro: { compania: 'Provincia Seguros', poliza: 'PS-29400', vence: '2027-06-08' },
       ultimoService: '2026-08-21',
       detalle: 'Unidad de apoyo para trabajos de mantenimiento y tendido.',
-      fotosControl: [],
       disponible: true,
     },
   ],

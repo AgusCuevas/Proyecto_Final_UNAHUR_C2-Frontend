@@ -40,12 +40,11 @@ import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined';
 import { useAppData } from '../../context/useAppData.js';
 import { useRecursos } from '../../context/useRecursos.js';
 import FichaDetalle from '../comunes/FichaDetalle.jsx';
-import EvidenciasReclamo from '../comunes/EvidenciasReclamo.jsx';
+import GaleriaImagenes from '../comunes/GaleriaImagenes.jsx';
 
 const esOrdenDeServicio = (reclamo) => Boolean(reclamo)
   && (reclamo.esOrden || reclamo.tipo === 'Instalación' || reclamo.tipo === 'Baja de servicio');
 
-// Acepta 'AAAA-MM-DD' (fecha sola) o una fecha ISO completa.
 const formatearFecha = (fecha, { conHora = false } = {}) => {
   if (!fecha) return '';
   const texto = String(fecha);
@@ -99,7 +98,6 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
     (cliente) => cliente.id === clienteId,
   )?.nombre || 'Cliente no encontrado';
 
-  // Para mostrar nombres se usan todos los técnicos, aunque estén inactivos.
   const todosLosTecnicos = data.usuarios.filter((usuario) => usuario.rol === 'Tecnico');
   const nombreTecnico = (tecnicoId) => todosLosTecnicos.find(
     (tecnico) => tecnico.id === tecnicoId,
@@ -148,7 +146,6 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
   const paginaActual = Math.min(pagina, Math.max(cantidadPaginas, 1));
   const reclamosVisibles = reclamosFiltrados.slice((paginaActual - 1) * 10, paginaActual * 10);
 
-  // Se busca en la lista actual para que el detalle refleje asignaciones y notas recién guardadas.
   const reclamoAbierto = reclamoAbiertoId != null
     ? reclamos.find((reclamo) => reclamo.id === reclamoAbiertoId) || null
     : null;
@@ -189,7 +186,6 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
 
   const guardarNuevoReclamo = async (event) => {
     event.preventDefault();
-    // El Select guarda el id como número; se comparan como texto para no depender del tipo.
     const cliente = data.clientes.find((item) => String(item.id) === String(formularioNuevo.clienteId));
     if (!cliente) {
       establecerErrorAlta('Seleccioná un cliente.');
@@ -846,18 +842,18 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
           </>
         )}
       >
-        {reclamoAbierto?.cantidadEvidencias > 0 && (
+        {reclamoAbierto?.imagenes?.length > 0 && (
           <Box>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1, color: 'text.secondary' }}>
               <PhotoLibraryOutlinedIcon fontSize="small" />
               <Typography variant="overline" sx={{ fontWeight: 800, letterSpacing: '0.08em', lineHeight: 1.5 }}>
-                Evidencia del técnico ({reclamoAbierto.cantidadEvidencias})
+                Imágenes del técnico ({reclamoAbierto.imagenes.length})
               </Typography>
             </Stack>
-            <EvidenciasReclamo
-              key={`${reclamoAbierto.id}-${reclamoAbierto.cantidadEvidencias}`}
-              reclamoId={reclamoAbierto.id}
-              cantidad={reclamoAbierto.cantidadEvidencias}
+            <GaleriaImagenes
+              key={reclamoAbierto.imagenes.join()}
+              ids={reclamoAbierto.imagenes}
+              descripcion={`Imagen del reclamo #${reclamoAbierto.id}`}
             />
           </Box>
         )}
@@ -877,7 +873,7 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
           </DialogTitle>
           <DialogContent>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-              Las evidencias, comentarios y controles cargados por el técnico no se pueden modificar desde aquí.
+              Las imágenes, comentarios y controles cargados por el técnico no se pueden modificar desde aquí.
             </Typography>
             <TextField
               autoFocus
