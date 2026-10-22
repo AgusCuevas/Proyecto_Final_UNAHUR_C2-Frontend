@@ -7,21 +7,22 @@ import MisAsignaciones from './MisAsignaciones.jsx';
 import Vehiculo from './Vehiculo.jsx';
 import Jornada from './Jornada.jsx';
 import RegistroKilometraje from './RegistroKilometraje.jsx';
-import { useRecursos } from '../../context/useRecursos.js';
+import { useAppData } from '../../context/useAppData.js';
 
 const semanaEnMilisegundos = 7 * 24 * 60 * 60 * 1000;
 
 function TecnicoHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
   const [seccion, establecerSeccion] = useState('Mis asignaciones');
-  const data = useRecursos('usuarios', 'vehiculos');
+  // El técnico y su vehículo llegan en el login: no hace falta pedirlos.
+  const { sesion } = useAppData();
   const navegar = useNavigate();
-  const tecnico = data.usuarios.find((usuarioRegistrado) => usuarioRegistrado.usuario === usuario);
-  const vehiculo = data.vehiculos.find((vehiculoRegistrado) => vehiculoRegistrado.tecnicoAsignado === tecnico?.id);
+  const tecnico = sesion.usuario;
+  const { vehiculo } = sesion;
   const [avisoCerrado, establecerAvisoCerrado] = useState(false);
   const [ingresoEn] = useState(() => Date.now());
   // Se evalúa cuando llegan los datos, ya que se cargan después del primer render.
   const avisoKilometrajeAbierto = (() => {
-    if (avisoCerrado || data.cargando || !vehiculo) return false;
+    if (avisoCerrado || !vehiculo) return false;
     const ultimoRegistro = vehiculo.kilometraje?.actualizadoEn;
     const ultimoAviso = localStorage.getItem(`avisoKilometrajeTecnico:${tecnico?.id}`);
     const pasoUnaSemanaDesdeElAviso = !ultimoAviso
@@ -37,9 +38,9 @@ function TecnicoHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
   };
 
   const contenidoPorSeccion = {
-    'Mis asignaciones': <MisAsignaciones usuario={usuario} />,
-    'Vehículo': <Vehiculo usuario={usuario} />,
-    'Resumen de servicios': <Jornada usuario={usuario} />,
+    'Mis asignaciones': <MisAsignaciones />,
+    'Vehículo': <Vehiculo />,
+    'Resumen de servicios': <Jornada />,
   };
   const seleccionarOpcion = (opcion) => {
     if (opcion === 'Servicio en curso') {

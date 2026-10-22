@@ -26,10 +26,11 @@ function AppContent({ modo, cambiarModo }) {
   const [usuarioActual, establecerUsuarioActual] = useState('');
   const [nombreUsuarioActual, establecerNombreUsuarioActual] = useState('');
   const navegar = useNavigate();
-  const { limpiarDatos } = useAppData();
+  const { limpiarDatos, iniciarSesion } = useAppData();
 
   // Función para manejar el inicio de sesión exitoso.
-  const ingresar = (usuario, datosUsuario) => {
+  const ingresar = (usuario, datosUsuario, respuestaLogin) => {
+    iniciarSesion(respuestaLogin);
     establecerUsuarioActual(usuario);
     establecerNombreUsuarioActual(datosUsuario.nombre);
     navegar(rutaPorRol[datosUsuario.rol] || '/');

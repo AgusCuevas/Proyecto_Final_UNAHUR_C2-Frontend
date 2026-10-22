@@ -38,29 +38,13 @@ const formatearFecha = (fecha) => {
 const describirReclamo = (reclamo) => (reclamo ? `#${reclamo.id} · ${reclamo.tipo}` : '');
 
 function Tecnicos() {
-  const data = useRecursos('usuarios', 'reclamos', 'vehiculos');
+  // GET /tecnicos: cada técnico ya trae estado, reclamos, vehículo y ubicación.
+  const data = useRecursos('tecnicos');
   const [busqueda, establecerBusqueda] = useState('');
   const [filtroEstado, establecerFiltroEstado] = useState('Todos');
   const [cantidadVisible, establecerCantidadVisible] = useState(10);
-  const tecnicos = data.usuarios
-    .filter((usuario) => usuario.rol === 'Tecnico' && usuario.activo)
-    .map((tecnico) => {
-      const reclamoEnCurso = data.reclamos.find(
-        (reclamo) => reclamo.tecnicoId === tecnico.id && reclamo.estado === 'En progreso',
-      );
-      const reclamoAsignado = data.reclamos.find(
-        (reclamo) => reclamo.tecnicoId === tecnico.id
-          && reclamo.estado !== 'Finalizado'
-          && reclamo.estado !== 'En progreso',
-      );
-
-      return {
-        ...tecnico,
-        estado: reclamoEnCurso ? 'Activo' : reclamoAsignado ? 'Asignado' : 'Libre',
-        reclamoEnCurso,
-        reclamoAsignado,
-      };
-    })
+  const tecnicos = data.tecnicos
+    .filter((tecnico) => tecnico.activo)
     .sort((primero, segundo) => primero.nombre.localeCompare(segundo.nombre, 'es'));
   const tecnicosFiltrados = tecnicos
     .filter((tecnico) => {
@@ -77,9 +61,7 @@ function Tecnicos() {
   const [tecnicoEnMapa, establecerTecnicoEnMapa] = useState(null);
   const tecnico = tecnicosFiltrados.find((item) => item.id === tecnicoSeleccionado)
     || tecnicosFiltrados[0];
-  const vehiculo = data.vehiculos.find(
-    (item) => item.tecnicoAsignado === tecnico?.id,
-  );
+  const vehiculo = tecnico?.vehiculo;
   const seccionesFicha = tecnico ? [
     {
       titulo: 'Datos personales',
@@ -256,7 +238,7 @@ function Tecnicos() {
             secciones={seccionesFicha}
             acciones={<Button onClick={() => establecerFichaAbierta(false)}>Cerrar</Button>}
           />
-          {tecnicoEnMapa && <MapaTecnicos tecnicoId={tecnicoEnMapa} />}
+          {tecnicoEnMapa && <MapaTecnicos tecnicos={data.tecnicos} tecnicoId={tecnicoEnMapa} />}
           </Stack>
           </Stack>
         </>

@@ -55,6 +55,8 @@ export const usuariosApi = {
   obtener: async (usuarioId) => normalizarUsuario(
     (await apiClient.get(`/usuarios/${usuarioId}`)).data,
   ),
+  // Totales para el panel del administrador: { registrados }.
+  resumen: async () => (await apiClient.get('/usuarios/resumen')).data,
   buscarPorUsuario: async (usuario) => {
     const encontrado = (await apiClient.get('/usuarios', { params: { usuario } })).data[0];
     return encontrado ? normalizarUsuario(encontrado) : undefined;
@@ -68,6 +70,12 @@ export const usuariosApi = {
     return usuariosApi.obtener(usuarioId);
   },
   eliminar: async (usuarioId) => (await apiClient.delete(`/usuarios/${usuarioId}`)).data,
+};
+
+// Admin y coordinador reciben cada técnico con estado, reclamos, vehículo, ubicación,
+// recorrido y rendimiento (mapa, pantalla Técnicos y panel).
+export const tecnicosApi = {
+  listar: async () => (await apiClient.get('/tecnicos')).data.map(normalizarUsuario),
 };
 
 export const clientesApi = {
@@ -118,8 +126,13 @@ export const ubicacionesApi = {
   ).data,
 };
 
+// Cada reclamo trae su cliente y su técnico.
 export const reclamosApi = {
   listar: async () => (await apiClient.get('/reclamos')).data,
+  // Solo los reclamos en progreso (pantalla "Servicio en curso").
+  listarEnCurso: async () => (await apiClient.get('/reclamos', { params: { estado: 'En progreso' } })).data,
+  // Totales para el panel: { pendientes, serviciosGestionados }.
+  resumen: async () => (await apiClient.get('/reclamos/resumen')).data,
   crear: async (reclamo) => (await apiClient.post('/reclamos', reclamo)).data,
   eliminar: async (reclamoId) => (await apiClient.delete(`/reclamos/${reclamoId}`)).data,
   actualizarAsignacion: async (reclamoId, tecnicoId) => (

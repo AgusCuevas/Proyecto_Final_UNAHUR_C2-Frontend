@@ -35,7 +35,7 @@ function Login({ alIniciarSesion }) {
       });
       sessionStorage.setItem('galacticappToken', respuesta.token);
       setMensajeError('');
-      alIniciarSesion(respuesta.usuario.usuario, respuesta.usuario);
+      alIniciarSesion(respuesta.usuario.usuario, respuesta.usuario, respuesta);
     } catch {
       setMensajeError('Usuario o contraseña incorrectos.');
     }

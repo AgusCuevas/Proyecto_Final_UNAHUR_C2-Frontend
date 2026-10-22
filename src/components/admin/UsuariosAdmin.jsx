@@ -99,7 +99,8 @@ const estaActivo = (usuario) => usuario.activo !== false;
 
 function UsuariosAdmin() {
   const { crearUsuario, actualizarUsuario } = useAppData();
-  const data = useRecursos('usuarios', 'vehiculos');
+  // GET /usuarios: cada técnico ya trae su vehículo asignado.
+  const data = useRecursos('usuarios');
   const [busqueda, establecerBusqueda] = useState('');
   const [filtroRol, establecerFiltroRol] = useState('Todos');
   const [filtroEstado, establecerFiltroEstado] = useState('Todos');
@@ -209,7 +210,7 @@ function UsuariosAdmin() {
 
   const esTecnicoSeleccionado = usuarioSeleccionado?.rol === 'Tecnico';
   const vehiculoSeleccionado = esTecnicoSeleccionado
-    ? data.vehiculos.find((item) => item.tecnicoAsignado === usuarioSeleccionado.id)
+    ? usuarioSeleccionado.vehiculo
     : null;
 
   const seccionesDetalle = usuarioSeleccionado ? [

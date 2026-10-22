@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Box, Button, Chip, Paper, Stack } from '@mui/material';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useAppData } from '../../context/useAppData.js';
-import { useRecursos } from '../../context/useRecursos.js';
 import { calcularRecorridoKm, obtenerParadasTecnico } from '../../services/recorrido.js';
 
 const centroMapa = [-34.655, -58.63];
@@ -19,47 +18,25 @@ function AjustarVistaMapa({ tecnico }) {
   return null;
 }
 
-function MapaTecnicos({ tecnicoId = null }) {
+// tecnicos: los de GET /tecnicos; cada uno ya trae estado, reclamos, cliente, ubicación y recorrido.
+// El mapa no pide datos: se los pasa la pantalla que lo muestra.
+function MapaTecnicos({ tecnicos = [], tecnicoId = null }) {
   const [filtro, establecerFiltro] = useState('Todos');
-  const { actualizarUbicaciones } = useAppData();
-  const data = useRecursos('usuarios', 'ubicacionesTecnicos', 'reclamos', 'clientes');
+  const { actualizarTecnicos } = useAppData();
 
+  // Cada 5 minutos vuelve a pedir los técnicos para refrescar las ubicaciones.
   useEffect(() => {
-    const intervalo = setInterval(() => actualizarUbicaciones().catch(() => undefined), 300000);
+    const intervalo = setInterval(() => actualizarTecnicos().catch(() => undefined), 300000);
     return () => clearInterval(intervalo);
-  }, [actualizarUbicaciones]);
+  }, [actualizarTecnicos]);
 
-  const tecnicos = useMemo(() => data.usuarios
-    .filter((usuario) => usuario.rol === 'Tecnico' && usuario.activo)
-    .map((tecnico) => {
-      const ubicacion = data.ubicacionesTecnicos.find(
-        (item) => item.tecnicoId === tecnico.id,
-      );
-      const reclamoEnCurso = data.reclamos.find(
-        (reclamo) => reclamo.tecnicoId === tecnico.id && reclamo.estado === 'En progreso',
-      );
-      const reclamoAsignado = data.reclamos.find(
-        (reclamo) => reclamo.tecnicoId === tecnico.id
-          && reclamo.estado !== 'Finalizado'
-          && reclamo.estado !== 'En progreso',
-      );
-      const estado = reclamoEnCurso ? 'Activo' : reclamoAsignado ? 'Asignado' : 'Libre';
-      const cliente = data.clientes.find(
-        (item) => item.id === (reclamoEnCurso || reclamoAsignado)?.clienteId,
-      );
-
-      return ubicacion
-        ? { ...tecnico, ubicacion, estado, reclamoEnCurso, reclamoAsignado, cliente }
-        : null;
-    }), [data]);
-
-  const tecnicosConUbicacion = tecnicos.filter(Boolean);
+  const tecnicosConUbicacion = tecnicos.filter((tecnico) => tecnico.activo && tecnico.ubicacion);
   const tecnicosVisibles = tecnicosConUbicacion.filter(
     (tecnico) => filtro === 'Todos' || tecnico.estado === filtro || tecnico.id === tecnicoId,
   );
   const tecnicoDestacado = tecnicosConUbicacion.find((tecnico) => tecnico.id === tecnicoId);
   const recorridos = tecnicosVisibles.map((tecnico) => {
-    const paradas = obtenerParadasTecnico(tecnico.id, data, tecnico.ubicacion);
+    const paradas = obtenerParadasTecnico(tecnico.ubicacion, tecnico.recorrido);
     return { tecnico, paradas, kilometros: calcularRecorridoKm(paradas) };
   });
   const activos = tecnicosConUbicacion.filter((tecnico) => tecnico.estado === 'Activo').length;

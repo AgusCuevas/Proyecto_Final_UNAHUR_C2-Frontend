@@ -34,6 +34,12 @@ import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import { useState } from 'react';
 import { useAppData } from '../../context/useAppData.js';
 import { useRecursos } from '../../context/useRecursos.js';
+import { useCargaDiferida } from '../../context/useCargaDiferida.js';
+import { usuariosApi } from '../../services/api.js';
+
+// Lista del selector "Asignar técnico": se pide recién al abrir el diálogo.
+const cargarTecnicosActivos = async () => (await usuariosApi.listar())
+  .filter((usuario) => usuario.rol === 'Tecnico' && usuario.activo);
 import FichaDetalle from '../comunes/FichaDetalle.jsx';
 import GaleriaImagenes from '../comunes/GaleriaImagenes.jsx';
 
@@ -65,7 +71,8 @@ const controlesUltimos30Dias = (vehiculo) => (vehiculo.controles || [])
 
 function Vehiculos({ gestionable = false, accionNuevo }) {
   const { actualizarAsignacionVehiculo } = useAppData();
-  const data = useRecursos('vehiculos', 'usuarios');
+  // GET /vehiculos: cada vehículo ya trae su técnico.
+  const data = useRecursos('vehiculos');
   const [busqueda, establecerBusqueda] = useState('');
   const [filtroAsignacion, establecerFiltroAsignacion] = useState('Todos');
   const [vehiculoSeleccionado, establecerVehiculoSeleccionado] = useState(null);
@@ -73,15 +80,18 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
   const [guardando, establecerGuardando] = useState(false);
   const [error, establecerError] = useState('');
 
-  const tecnicos = data.usuarios.filter((usuario) => usuario.rol === 'Tecnico');
-  const nombreTecnico = (tecnicoId) => tecnicos.find((tecnico) => tecnico.id === tecnicoId)?.nombre || '';
+  const tecnicos = useCargaDiferida(cargarTecnicosActivos, Boolean(asignacionPendiente)) || [];
+  const nombreTecnico = (tecnicoId) => (
+    data.vehiculos.find((vehiculo) => vehiculo.tecnico?.id === tecnicoId)?.tecnico
+    || tecnicos.find((tecnico) => tecnico.id === tecnicoId)
+  )?.nombre || '';
 
   const termino = busqueda.trim().toLocaleLowerCase('es');
   const vehiculosFiltrados = data.vehiculos
     .filter((vehiculo) => {
       const coincideAsignacion = filtroAsignacion === 'Todos'
         || (filtroAsignacion === 'Con técnico' ? vehiculo.tecnicoAsignado != null : vehiculo.tecnicoAsignado == null);
-      const texto = [vehiculo.patente, vehiculo.marca, vehiculo.modelo, nombreTecnico(vehiculo.tecnicoAsignado)]
+      const texto = [vehiculo.patente, vehiculo.marca, vehiculo.modelo, vehiculo.tecnico?.nombre]
         .filter(Boolean)
         .join(' ')
         .toLocaleLowerCase('es');
@@ -122,7 +132,7 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
       titulo: 'Asignación',
       icono: <EngineeringOutlinedIcon fontSize="small" />,
       campos: [
-        ['Técnico asignado', nombreTecnico(vehiculoDetalle.tecnicoAsignado) || 'Sin técnico asignado'],
+        ['Técnico asignado', vehiculoDetalle.tecnico?.nombre || 'Sin técnico asignado'],
         ['Estado', estadoVehiculo(vehiculoDetalle).label],
       ],
     },
@@ -229,7 +239,7 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
                       <TableCell sx={{ fontWeight: 700 }}>{descripcion || '—'}</TableCell>
                       <TableCell sx={{ whiteSpace: 'nowrap' }}>{vehiculo.patente}</TableCell>
                       <TableCell>
-                        {nombreTecnico(vehiculo.tecnicoAsignado) || (
+                        {vehiculo.tecnico?.nombre || (
                           <Typography variant="body2" color="text.disabled">Sin asignar</Typography>
                         )}
                       </TableCell>
@@ -364,7 +374,7 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
               }))}
             >
               <MenuItem value="">Sin asignar</MenuItem>
-              {tecnicos.filter((tecnico) => tecnico.activo).map((tecnico) => (
+              {tecnicos.map((tecnico) => (
                 <MenuItem key={tecnico.id} value={tecnico.id}>{tecnico.nombre}</MenuItem>
               ))}
             </TextField>

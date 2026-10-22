@@ -58,18 +58,139 @@ function AdminHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
   const [seccion, establecerSeccion] = useState('Panel de administración');
   const [formularioReclamoAbierto, establecerFormularioReclamoAbierto] = useState(false);
   const [vehiculoNuevo, establecerVehiculoNuevo] = useState({ patente: '', marca: '', modelo: '', kilometrajeInicial: '', kilometrajeActual: '', companiaSeguro: '', poliza: '', venceSeguro: '', ultimoService: '', detalle: '' });
-  const [filtrosReporte, establecerFiltrosReporte] = useState({ tecnicoId: 'Todos', desde: '', hasta: '' });
   const { crearVehiculo } = useAppData();
+
+  const agregarVehiculo = async (evento) => {
+    evento.preventDefault();
+    if (!vehiculoNuevo.patente.trim() || !vehiculoNuevo.marca.trim() || !vehiculoNuevo.modelo.trim()) return;
+    await crearVehiculo({
+      patente: vehiculoNuevo.patente.trim().toUpperCase(),
+      marca: vehiculoNuevo.marca.trim(),
+      modelo: vehiculoNuevo.modelo.trim(),
+      kilometraje: {
+        inicial: Number(vehiculoNuevo.kilometrajeInicial) || 0,
+        actual: Number(vehiculoNuevo.kilometrajeActual) || 0,
+        final: null,
+      },
+      seguro: {
+        compania: vehiculoNuevo.companiaSeguro.trim(),
+        poliza: vehiculoNuevo.poliza.trim(),
+        vence: vehiculoNuevo.venceSeguro,
+      },
+      ultimoService: vehiculoNuevo.ultimoService,
+      detalle: vehiculoNuevo.detalle.trim(),
+      tecnicoAsignado: null,
+    });
+    establecerVehiculoNuevo({ patente: '', marca: '', modelo: '', kilometrajeInicial: '', kilometrajeActual: '', companiaSeguro: '', poliza: '', venceSeguro: '', ultimoService: '', detalle: '' });
+  };
+
+  const contenidoReclamos = (
+    <Stack spacing={3}>
+      <Reclamos
+        formularioAbierto={formularioReclamoAbierto}
+        establecerFormularioAbierto={establecerFormularioReclamoAbierto}
+      />
+    </Stack>
+  );
+
+  const contenidoUsuarios = <UsuariosAdmin />;
+
+  const contenidoPorSeccion = {
+    'Panel de administración': <PanelAdmin />,
+    Usuarios: contenidoUsuarios,
+    Clientes: <Clientes />,
+    Reclamos: contenidoReclamos,
+    Vehículos: (
+      <Vehiculos
+        gestionable
+        accionNuevo={(
+          <GestionVehiculos
+            vehiculoNuevo={vehiculoNuevo}
+            establecerVehiculoNuevo={establecerVehiculoNuevo}
+            agregarVehiculo={agregarVehiculo}
+          />
+        )}
+      />
+    ),
+    Reportes: <ReportesAdmin />,
+  };
+
+  return (
+    <AppLayout
+      titulo={seccion}
+      subtitulo="Supervisá la operación general y mantené ordenado el equipo de trabajo."
+      rol="Administrador"
+      usuario={usuario}
+      nombre={nombre}
+      opciones={secciones}
+      alCerrarSesion={alCerrarSesion}
+      alCambiarTema={alCambiarTema}
+      modo={modo}
+      alSeleccionarOpcion={establecerSeccion}
+      accionTitulo={seccion === 'Reclamos' && (
+        <Stack direction="row" spacing={1.5} sx={{ alignSelf: { xs: 'stretch', sm: 'center' }, flexShrink: 0 }}>
+          <Button
+            variant={formularioReclamoAbierto === 'reclamo' ? 'outlined' : 'contained'}
+            startIcon={formularioReclamoAbierto === 'reclamo' ? <CloseIcon /> : <AddIcon />}
+            onClick={() => establecerFormularioReclamoAbierto((actual) => (actual === 'reclamo' ? false : 'reclamo'))}
+          >
+            {formularioReclamoAbierto === 'reclamo' ? 'Cerrar alta' : 'Nuevo reclamo'}
+          </Button>
+          <Button
+            variant={formularioReclamoAbierto === 'orden' ? 'outlined' : 'contained'}
+            color="secondary"
+            startIcon={formularioReclamoAbierto === 'orden' ? <CloseIcon /> : <AddIcon />}
+            onClick={() => establecerFormularioReclamoAbierto((actual) => (actual === 'orden' ? false : 'orden'))}
+          >
+            {formularioReclamoAbierto === 'orden' ? 'Cerrar alta' : 'Registrar orden'}
+          </Button>
+        </Stack>
+      )}
+    >
+      {contenidoPorSeccion[seccion]}
+    </AppLayout>
+  );
+}
+
+// Panel de administración: 3 pedidos, uno por recurso, y ninguno trae listas completas.
+// - GET /tecnicos: mapa, tabla de rendimiento y "Técnicos activos" (cada técnico trae
+//   estado, ubicación, recorrido, trabajos y horas).
+// - GET /reclamos/resumen: "Reclamos pendientes" y "Servicios gestionados" (solo los números).
+// - GET /usuarios/resumen: "Usuarios registrados" (solo el número).
+function PanelAdmin() {
+  const data = useRecursos('tecnicos', 'resumenReclamos', 'resumenUsuarios');
+  const tecnicosActivos = data.tecnicos.filter((tecnico) => tecnico.activo).length;
+
+  return (
+    <Stack spacing={3}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 2 }}>
+        <TarjetaMetrica icono={<AssignmentIcon fontSize="large" />} etiqueta="Reclamos pendientes" valor={data.resumenReclamos.pendientes ?? 0} color="warning.main" />
+        <TarjetaMetrica icono={<SupportAgentIcon fontSize="large" />} etiqueta="Técnicos activos" valor={tecnicosActivos} color="success.main" />
+        <TarjetaMetrica icono={<GroupIcon fontSize="large" />} etiqueta="Usuarios registrados" valor={data.resumenUsuarios.registrados ?? 0} color="info.main" />
+        <TarjetaMetrica icono={<QueryStatsIcon fontSize="large" />} etiqueta="Servicios gestionados" valor={data.resumenReclamos.serviciosGestionados ?? 0} color="secondary.main" />
+      </Box>
+      <MapaTecnicos tecnicos={data.tecnicos} />
+      <Card>
+        <CardContent>
+          <Typography variant="h6" sx={{ fontWeight: 800 }}>Rendimiento del equipo técnico</Typography>
+          <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5, mb: 2 }}>
+            Trabajos finalizados y horas registradas en jornadas cerradas.
+          </Typography>
+          <TablaRendimiento rendimiento={data.tecnicos} />
+        </CardContent>
+      </Card>
+    </Stack>
+  );
+}
+
+// Reportes: mismo cálculo que antes, ahora en su propio componente para que sus datos
+// se pidan solo al entrar a Reportes.
+function ReportesAdmin() {
+  const [filtrosReporte, establecerFiltrosReporte] = useState({ tecnicoId: 'Todos', desde: '', hasta: '' });
   const data = useRecursos('reclamos', 'usuarios', 'jornadas');
 
-  const ordenesServicio = useMemo(() => (
-    data.reclamos.filter((r) => r.esOrden || r.tipo === 'Instalación' || r.tipo === 'Baja de servicio')
-  ), [data.reclamos]);
-
   const tecnicos = data.usuarios.filter((item) => item.rol === 'Tecnico');
-  const usuarios = data.usuarios;
   const reclamosFinalizados = data.reclamos.filter((reclamo) => reclamo.estado === 'Finalizado');
-  const reclamosPendientes = data.reclamos.filter((reclamo) => reclamo.estado !== 'Finalizado');
 
   const rendimiento = useMemo(() => tecnicos.map((tecnico) => {
     const trabajos = reclamosFinalizados.filter((reclamo) => reclamo.tecnicoId === tecnico.id).length;
@@ -125,63 +246,7 @@ function AdminHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
     establecerFiltrosReporte((actual) => ({ ...actual, [campo]: valor }));
   };
 
-  const agregarVehiculo = async (evento) => {
-    evento.preventDefault();
-    if (!vehiculoNuevo.patente.trim() || !vehiculoNuevo.marca.trim() || !vehiculoNuevo.modelo.trim()) return;
-    await crearVehiculo({
-      patente: vehiculoNuevo.patente.trim().toUpperCase(),
-      marca: vehiculoNuevo.marca.trim(),
-      modelo: vehiculoNuevo.modelo.trim(),
-      kilometraje: {
-        inicial: Number(vehiculoNuevo.kilometrajeInicial) || 0,
-        actual: Number(vehiculoNuevo.kilometrajeActual) || 0,
-        final: null,
-      },
-      seguro: {
-        compania: vehiculoNuevo.companiaSeguro.trim(),
-        poliza: vehiculoNuevo.poliza.trim(),
-        vence: vehiculoNuevo.venceSeguro,
-      },
-      ultimoService: vehiculoNuevo.ultimoService,
-      detalle: vehiculoNuevo.detalle.trim(),
-      tecnicoAsignado: null,
-    });
-    establecerVehiculoNuevo({ patente: '', marca: '', modelo: '', kilometrajeInicial: '', kilometrajeActual: '', companiaSeguro: '', poliza: '', venceSeguro: '', ultimoService: '', detalle: '' });
-  };
-
-  const contenidoPanel = (
-    <Stack spacing={3}>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 2 }}>
-        <TarjetaMetrica icono={<AssignmentIcon fontSize="large" />} etiqueta="Reclamos pendientes" valor={reclamosPendientes.length} color="warning.main" />
-        <TarjetaMetrica icono={<SupportAgentIcon fontSize="large" />} etiqueta="Técnicos activos" valor={tecnicos.filter((item) => item.activo).length} color="success.main" />
-        <TarjetaMetrica icono={<GroupIcon fontSize="large" />} etiqueta="Usuarios registrados" valor={usuarios.length} color="info.main" />
-        <TarjetaMetrica icono={<QueryStatsIcon fontSize="large" />} etiqueta="Servicios gestionados" valor={ordenesServicio.length} color="secondary.main" />
-      </Box>
-      <MapaTecnicos />
-      <Card>
-        <CardContent>
-          <Typography variant="h6" sx={{ fontWeight: 800 }}>Rendimiento del equipo técnico</Typography>
-          <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5, mb: 2 }}>
-            Trabajos finalizados y horas registradas en jornadas cerradas.
-          </Typography>
-          <TablaRendimiento rendimiento={rendimiento} />
-        </CardContent>
-      </Card>
-    </Stack>
-  );
-
-  const contenidoReclamos = (
-    <Stack spacing={3}>
-      <Reclamos
-        formularioAbierto={formularioReclamoAbierto}
-        establecerFormularioAbierto={establecerFormularioReclamoAbierto}
-      />
-    </Stack>
-  );
-
-  const contenidoUsuarios = <UsuariosAdmin />;
-
-  const contenidoReportes = (
+  return (
     <Stack spacing={3}>
       <Card>
         <CardContent>
@@ -219,62 +284,6 @@ function AdminHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
         </CardContent>
       </Card>
     </Stack>
-  );
-
-  const contenidoPorSeccion = {
-    'Panel de administración': contenidoPanel,
-    Usuarios: contenidoUsuarios,
-    Clientes: <Clientes />,
-    Reclamos: contenidoReclamos,
-    Vehículos: (
-      <Vehiculos
-        gestionable
-        accionNuevo={(
-          <GestionVehiculos
-            vehiculoNuevo={vehiculoNuevo}
-            establecerVehiculoNuevo={establecerVehiculoNuevo}
-            agregarVehiculo={agregarVehiculo}
-          />
-        )}
-      />
-    ),
-    Reportes: contenidoReportes,
-  };
-
-  return (
-    <AppLayout
-      titulo={seccion}
-      subtitulo="Supervisá la operación general y mantené ordenado el equipo de trabajo."
-      rol="Administrador"
-      usuario={usuario}
-      nombre={nombre}
-      opciones={secciones}
-      alCerrarSesion={alCerrarSesion}
-      alCambiarTema={alCambiarTema}
-      modo={modo}
-      alSeleccionarOpcion={establecerSeccion}
-      accionTitulo={seccion === 'Reclamos' && (
-        <Stack direction="row" spacing={1.5} sx={{ alignSelf: { xs: 'stretch', sm: 'center' }, flexShrink: 0 }}>
-          <Button
-            variant={formularioReclamoAbierto === 'reclamo' ? 'outlined' : 'contained'}
-            startIcon={formularioReclamoAbierto === 'reclamo' ? <CloseIcon /> : <AddIcon />}
-            onClick={() => establecerFormularioReclamoAbierto((actual) => (actual === 'reclamo' ? false : 'reclamo'))}
-          >
-            {formularioReclamoAbierto === 'reclamo' ? 'Cerrar alta' : 'Nuevo reclamo'}
-          </Button>
-          <Button
-            variant={formularioReclamoAbierto === 'orden' ? 'outlined' : 'contained'}
-            color="secondary"
-            startIcon={formularioReclamoAbierto === 'orden' ? <CloseIcon /> : <AddIcon />}
-            onClick={() => establecerFormularioReclamoAbierto((actual) => (actual === 'orden' ? false : 'orden'))}
-          >
-            {formularioReclamoAbierto === 'orden' ? 'Cerrar alta' : 'Registrar orden'}
-          </Button>
-        </Stack>
-      )}
-    >
-      {contenidoPorSeccion[seccion]}
-    </AppLayout>
   );
 }
 

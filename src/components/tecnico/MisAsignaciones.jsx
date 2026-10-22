@@ -41,20 +41,21 @@ function formatearFecha(fecha) {
   return new Intl.DateTimeFormat('es-AR').format(new Date(`${fecha}T12:00:00`));
 }
 
-function MisAsignaciones({ usuario, soloEnCurso = false }) {
+function MisAsignaciones({ soloEnCurso = false }) {
   const [filtro, setFiltro] = useState(soloEnCurso ? 'En progreso' : 'Todos');
   const esMovil = useMediaQuery((theme) => theme.breakpoints.down('sm'));
   const { actualizarEstado, registrarControlVehiculo } = useAppData();
-  const data = useRecursos('usuarios', 'vehiculos', 'reclamos', 'clientes', 'jornadas');
-  const tecnico = data.usuarios.find((usuarioRegistrado) => usuarioRegistrado.usuario === usuario);
-  const vehiculo = data.vehiculos.find((vehiculoRegistrado) => vehiculoRegistrado.tecnicoAsignado === tecnico?.id);
-  const asignaciones = data.reclamos
-    .filter((reclamo) => reclamo.tecnicoId === tecnico?.id)
-    .map((reclamo) => ({
-      reclamo,
-      cliente: data.clientes.find((cliente) => cliente.id === reclamo.clienteId)
-        ?? { nombre: 'Cliente no disponible', telefono: '', direccion: '' },
-    }));
+  // GET /reclamos devuelve solo los del técnico, cada uno con su cliente adentro.
+  // El vehículo llega en el login.
+  const { sesion } = useAppData();
+  // "Servicio en curso" pide solo el reclamo en progreso; "Mis asignaciones", todos.
+  const recurso = soloEnCurso ? 'reclamosEnCurso' : 'reclamos';
+  const data = useRecursos(recurso);
+  const { vehiculo } = sesion;
+  const asignaciones = data[recurso].map((reclamo) => ({
+    reclamo,
+    cliente: reclamo.cliente ?? { nombre: 'Cliente no disponible', telefono: '', direccion: '' },
+  }));
   const tieneReclamoEnProgreso = asignaciones.some(
     ({ reclamo }) => reclamo.estado === 'En progreso',
   );
@@ -72,7 +73,9 @@ function MisAsignaciones({ usuario, soloEnCurso = false }) {
               {soloEnCurso ? 'Servicio en curso' : 'Asignaciones de hoy'}
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-              {asignaciones.length} reclamos asociados a tu usuario.
+              {soloEnCurso
+                ? (asignacionesFiltradas.length ? 'El reclamo que estás realizando.' : 'No tenés un reclamo en curso.')
+                : `${asignaciones.length} reclamos asociados a tu usuario.`}
             </Typography>
           </Box>
           {!soloEnCurso && esMovil ? (
@@ -103,9 +106,11 @@ function MisAsignaciones({ usuario, soloEnCurso = false }) {
               <Tab label="Finalizados" value="Finalizado" />
             </Tabs>
           )}
-          <Typography variant="body2" color="text.secondary">
-            {asignacionesFiltradas.length} de {asignaciones.length} asignaciones visibles
-          </Typography>
+          {!soloEnCurso && (
+            <Typography variant="body2" color="text.secondary">
+              {asignacionesFiltradas.length} de {asignaciones.length} asignaciones visibles
+            </Typography>
+          )}
         </Stack>
       </Paper>
 
@@ -363,7 +368,7 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
       <ControlVehiculoDialog
         abierto={controlInicioAbierto}
         titulo="Control inicial del servicio"
-        kilometrajeMinimo={vehiculo?.kilometraje.actual || 0}
+        kilometrajeMinimo={vehiculo?.kilometraje?.actual || 0}
         cerrar={() => establecerControlInicioAbierto(false)}
         confirmar={iniciarAsignacion}
       />

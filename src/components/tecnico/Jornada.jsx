@@ -19,7 +19,6 @@ import PendingActionsIcon from '@mui/icons-material/PendingActions';
 import { useAppData } from '../../context/useAppData.js';
 import { useRecursos } from '../../context/useRecursos.js';
 import ControlVehiculoDialog from './ControlVehiculoDialog.jsx';
-import { calcularRecorridoKm, obtenerParadasTecnico } from '../../services/recorrido.js';
 
 function formatearDuracion(inicio, fin = new Date()) {
   const minutos = Math.max(0, Math.floor((new Date(fin) - new Date(inicio)) / 60000));
@@ -27,9 +26,12 @@ function formatearDuracion(inicio, fin = new Date()) {
   return `${horas} h ${String(minutos % 60).padStart(2, '0')} min`;
 }
 
-function Jornada({ usuario }) {
-  const data = useRecursos('usuarios', 'vehiculos', 'jornadas', 'reclamos', 'clientes', 'ubicacionesTecnicos');
+function Jornada() {
+  // GET /jornadas devuelve solo las del técnico, cada una con sus servicios finalizados.
+  // El técnico y su vehículo llegan en el login.
+  const data = useRecursos('jornadas');
   const {
+    sesion,
     iniciarJornada,
     finalizarJornada,
     registrarControlVehiculo,
@@ -39,10 +41,9 @@ function Jornada({ usuario }) {
   const [periodo, establecerPeriodo] = useState('semanal');
   const [error, establecerError] = useState('');
   const [controlFinalAbierto, establecerControlFinalAbierto] = useState(false);
-  const tecnico = data.usuarios.find((usuarioRegistrado) => usuarioRegistrado.usuario === usuario);
-  const vehiculo = data.vehiculos.find((vehiculoRegistrado) => vehiculoRegistrado.tecnicoAsignado === tecnico?.id);
-  const jornadas = data.jornadas
-    .filter((jornada) => jornada.tecnicoId === tecnico?.id)
+  const tecnico = sesion.usuario;
+  const { vehiculo } = sesion;
+  const jornadas = [...data.jornadas]
     .sort((primera, segunda) => new Date(segunda.inicio) - new Date(primera.inicio));
   const jornadaActiva = jornadas.find((jornada) => jornada.activa);
   const marcaActual = ahora || jornadaActiva?.inicio;
@@ -58,23 +59,12 @@ function Jornada({ usuario }) {
     if (periodo === 'anual') fechaInicioPeriodo.setMonth(0, 1);
   }
 
-  const serviciosFinalizados = data.reclamos.filter((reclamo) => {
-    if (reclamo.tecnicoId !== tecnico?.id || reclamo.estado !== 'Finalizado') return false;
-    return !fechaInicioPeriodo
-      || new Date(reclamo.finalizadoEn || reclamo.fechaProgramada || reclamo.creadoEn) >= fechaInicioPeriodo;
-  });
-  const totalServicios = data.reclamos.filter(
-    (reclamo) => reclamo.tecnicoId === tecnico?.id && reclamo.estado === 'Finalizado',
-  ).length;
-  const paradasTecnico = obtenerParadasTecnico(
-    tecnico?.id,
-    data,
-    data.ubicacionesTecnicos.find((item) => item.tecnicoId === tecnico?.id),
-  );
-  const recorridoSugerido = calcularRecorridoKm(paradasTecnico);
-  const kilometrosJornada = jornadaActiva?.kilometrajeInicial != null && vehiculo
-    ? Math.max(0, vehiculo.kilometraje.actual - jornadaActiva.kilometrajeInicial)
-    : null;
+  const todosLosServicios = jornadas.flatMap((jornada) => jornada.servicios || []);
+  const serviciosFinalizados = todosLosServicios.filter((servicio) => (
+    !fechaInicioPeriodo
+      || new Date(servicio.finalizadoEn || servicio.fechaProgramada || servicio.creadoEn) >= fechaInicioPeriodo
+  ));
+  const totalServicios = todosLosServicios.length;
 
   useEffect(() => {
     if (!jornadaActiva) return undefined;
@@ -115,10 +105,6 @@ function Jornada({ usuario }) {
     const intervalo = setInterval(registrarPosicion, 300000);
     return () => clearInterval(intervalo);
   }, [jornadaActiva, registrarUbicacionTecnico, tecnico]);
-
-  const serviciosDeJornada = (jornada) => data.reclamos
-    .filter((reclamo) => reclamo.jornadaId === jornada.id && reclamo.estado === 'Finalizado')
-    .map((reclamo) => reclamo.id);
 
   const comenzarJornada = async () => {
     establecerError('');
@@ -176,7 +162,7 @@ function Jornada({ usuario }) {
       <ControlVehiculoDialog
         abierto={controlFinalAbierto}
         titulo="Control final de jornada"
-        kilometrajeMinimo={vehiculo?.kilometraje.actual || 0}
+        kilometrajeMinimo={vehiculo?.kilometraje?.actual || 0}
         cerrar={() => establecerControlFinalAbierto(false)}
         confirmar={cerrarJornada}
       />
@@ -202,10 +188,6 @@ function Jornada({ usuario }) {
             <Indicador icon={<PendingActionsIcon />} etiqueta="Total resueltas" valor={totalServicios} color="primary.main" />
             <Indicador icon={<DoneAllIcon />} etiqueta="Total de servicios realizados" valor={totalServicios} color="secondary.main" />
           </Stack>
-          <Typography variant="body2" color="text.secondary">
-            Recorrido sugerido entre los servicios asignados: {recorridoSugerido.toFixed(1)} km
-            {kilometrosJornada != null && ` · Recorrido de la jornada: ${kilometrosJornada.toFixed(1)} km`}
-          </Typography>
         </Stack>
       </Paper>
 
@@ -217,7 +199,7 @@ function Jornada({ usuario }) {
         {jornadas.length === 0 ? (
           <Typography color="text.secondary">Todavía no registraste jornadas.</Typography>
         ) : jornadas.map((jornada, indice) => {
-          const servicios = serviciosDeJornada(jornada);
+          const servicios = (jornada.servicios || []).map((servicio) => servicio.id);
           return (
             <Stack key={jornada.id} spacing={1} sx={{ py: 1.5 }}>
               {indice > 0 && <Divider />}

@@ -39,6 +39,18 @@ import StickyNote2OutlinedIcon from '@mui/icons-material/StickyNote2Outlined';
 import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined';
 import { useAppData } from '../../context/useAppData.js';
 import { useRecursos } from '../../context/useRecursos.js';
+import { useCargaDiferida } from '../../context/useCargaDiferida.js';
+import { clientesApi, usuariosApi } from '../../services/api.js';
+
+// Listas de los formularios (alta de reclamo y asignación de técnico): se piden recién
+// cuando se abre alguno de ellos.
+const cargarOpcionesFormulario = async () => {
+  const [clientes, usuarios] = await Promise.all([clientesApi.listar(), usuariosApi.listar()]);
+  return {
+    clientes: clientes.filter((cliente) => cliente.activo !== false),
+    tecnicos: usuarios.filter((usuario) => usuario.rol === 'Tecnico' && usuario.activo),
+  };
+};
 import FichaDetalle from '../comunes/FichaDetalle.jsx';
 import GaleriaImagenes from '../comunes/GaleriaImagenes.jsx';
 
@@ -84,24 +96,27 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
     hasta: '',
   });
   const { actualizarAsignacion, actualizarEstado, crearReclamo: crearReclamoData } = useAppData();
-  const data = useRecursos('reclamos', 'usuarios', 'clientes');
+  // GET /reclamos: cada reclamo ya trae su cliente y su técnico.
+  const data = useRecursos('reclamos');
   const reclamos = data.reclamos;
 
   const esModoOrden = formularioAbierto === 'orden';
   const mostrarFormulario = Boolean(formularioAbierto);
 
-  const tecnicos = data.usuarios.filter(
-    (usuario) => usuario.rol === 'Tecnico' && usuario.activo,
+  const opciones = useCargaDiferida(
+    cargarOpcionesFormulario,
+    mostrarFormulario || Boolean(reclamoParaAsignar),
   );
+  const tecnicos = opciones?.tecnicos || [];
+  const clientes = opciones?.clientes || [];
+  // El filtro por técnico usa los técnicos que ya vienen dentro de los reclamos.
+  const tecnicosDelFiltro = [...new Map(reclamos
+    .filter((reclamo) => reclamo.tecnico)
+    .map((reclamo) => [reclamo.tecnico.id, reclamo.tecnico])).values()]
+    .sort((primero, segundo) => primero.nombre.localeCompare(segundo.nombre, 'es'));
 
-  const nombreCliente = (clienteId) => data.clientes.find(
-    (cliente) => cliente.id === clienteId,
-  )?.nombre || 'Cliente no encontrado';
-
-  const todosLosTecnicos = data.usuarios.filter((usuario) => usuario.rol === 'Tecnico');
-  const nombreTecnico = (tecnicoId) => todosLosTecnicos.find(
-    (tecnico) => tecnico.id === tecnicoId,
-  )?.nombre || 'Sin asignar';
+  const nombreCliente = (reclamo) => reclamo.cliente?.nombre || 'Cliente no encontrado';
+  const nombreTecnico = (reclamo) => reclamo.tecnico?.nombre || 'Sin asignar';
 
   const colorEstado = {
     Abierto: 'warning.main',
@@ -149,12 +164,8 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
   const reclamoAbierto = reclamoAbiertoId != null
     ? reclamos.find((reclamo) => reclamo.id === reclamoAbiertoId) || null
     : null;
-  const tecnicoDelReclamoAbierto = reclamoAbierto
-    ? todosLosTecnicos.find((tecnico) => tecnico.id === reclamoAbierto.tecnicoId)
-    : null;
-  const clienteDelReclamoAbierto = reclamoAbierto
-    ? data.clientes.find((cliente) => cliente.id === reclamoAbierto.clienteId)
-    : null;
+  const tecnicoDelReclamoAbierto = reclamoAbierto?.tecnico || null;
+  const clienteDelReclamoAbierto = reclamoAbierto?.cliente || null;
 
   const abrirReclamo = (reclamo) => establecerReclamoExpandido((actual) => (
     actual?.id === reclamo.id ? null : reclamo
@@ -186,7 +197,7 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
 
   const guardarNuevoReclamo = async (event) => {
     event.preventDefault();
-    const cliente = data.clientes.find((item) => String(item.id) === String(formularioNuevo.clienteId));
+    const cliente = clientes.find((item) => String(item.id) === String(formularioNuevo.clienteId));
     if (!cliente) {
       establecerErrorAlta('Seleccioná un cliente.');
       return;
@@ -254,7 +265,7 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                       onChange={(evento) => establecerFormularioNuevo((actual) => ({ ...actual, clienteId: evento.target.value }))}
                       label="Cliente"
                     >
-                      {data.clientes.filter((cliente) => cliente.activo !== false).map((cliente) => (
+                      {clientes.map((cliente) => (
                         <MenuItem key={cliente.id} value={cliente.id}>
                           {cliente.nombre}{cliente.zona ? ` - ${cliente.zona}` : ''}
                         </MenuItem>
@@ -383,7 +394,7 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                 >
                   <MenuItem value="Todos">Todos</MenuItem>
                   <MenuItem value="Sin asignar">Sin asignar</MenuItem>
-                  {tecnicos.map((tecnico) => (
+                  {tecnicosDelFiltro.map((tecnico) => (
                     <MenuItem key={tecnico.id} value={tecnico.id}>{tecnico.nombre}</MenuItem>
                   ))}
                 </Select>
@@ -438,7 +449,9 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
             }}
           >
             <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={0} sx={{ alignItems: 'stretch' }}>
+              {/* En pantallas chicas Estado y Técnico van en franjas debajo del reclamo;
+                  desde md, en columnas a la derecha. */}
+              <Stack direction={{ xs: 'column', md: 'row' }} spacing={0} sx={{ alignItems: 'stretch' }}>
                 <Stack spacing={0} sx={{ flex: 1, minWidth: 0 }}>
                   <Box sx={{ p: { xs: 1.5, sm: 2 } }}>
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', mb: 0.5 }}>
@@ -458,7 +471,7 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                     </Stack>
                     <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.2 }}>{reclamo.tipo}</Typography>
                     <Stack direction={{ xs: 'column', md: 'row' }} spacing={{ xs: 0.25, md: 1.5 }} sx={{ mt: 0.5 }}>
-                      <Typography variant="body2" color="text.secondary">{nombreCliente(reclamo.clienteId)}</Typography>
+                      <Typography variant="body2" color="text.secondary">{nombreCliente(reclamo)}</Typography>
                       <Typography variant="body2" color="text.secondary">
                         {reclamo.fechaProgramada || (reclamo.creadoEn ? new Date(reclamo.creadoEn).toLocaleDateString('es-AR') : 'Sin fecha')}
                       </Typography>
@@ -473,11 +486,14 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                     width: { xs: '100%', md: 150 },
                     flexShrink: 0,
                     display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: { xs: 'flex-start', md: 'center' },
-                    justifyContent: 'center',
+                    flexDirection: { xs: 'row', md: 'column' },
+                    alignItems: 'center',
+                    justifyContent: { xs: 'space-between', md: 'center' },
                     gap: 0.75,
                     py: 1,
+                    px: { xs: 1.5, sm: 2, md: 0 },
+                    borderTop: { xs: 1, md: 0 },
+                    borderColor: 'divider',
                   }}
                 >
                   <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>Estado</Typography>
@@ -494,13 +510,17 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                     width: { xs: '100%', md: 190 },
                     flexShrink: 0,
                     display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: { xs: 'flex-start', md: 'center' },
-                    justifyContent: 'center',
+                    flexDirection: { xs: 'row', md: 'column' },
+                    alignItems: 'center',
+                    justifyContent: { xs: 'space-between', md: 'center' },
+                    gap: 1,
                     py: 1,
+                    px: { xs: 1.5, sm: 2, md: 0 },
+                    borderTop: { xs: 1, md: 0 },
+                    borderColor: 'divider',
                   }}
                 >
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, mb: 0.75 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, mb: { md: 0.75 } }}>
                     Técnico
                   </Typography>
                   {reclamo.tecnicoId ? (
@@ -512,14 +532,15 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                           abrirEdicionTecnico(reclamo);
                         }}
                         sx={{
-                          display: 'flex',
-                          flexDirection: 'column',
+                          display: 'grid',
+                          gridTemplateColumns: { xs: 'auto auto', md: '1fr' },
+                          columnGap: 1,
+                          justifyItems: { xs: 'start', md: 'center' },
                           alignItems: 'center',
-                          justifyContent: 'center',
                           textTransform: 'none',
                           p: 0.75,
                           borderRadius: 2,
-                          width: '100%',
+                          width: { xs: 'auto', md: '100%' },
                           maxWidth: 170,
                           '&:hover': {
                             backgroundColor: 'action.hover',
@@ -528,15 +549,16 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                       >
                         <Avatar
                           sx={{
-                            width: 44,
-                            height: 44,
+                            width: { xs: 32, md: 44 },
+                            height: { xs: 32, md: 44 },
+                            gridRow: { xs: 'span 2', md: 'auto' },
                             bgcolor: 'primary.main',
                             color: 'primary.contrastText',
-                            mb: 0.5,
+                            mb: { md: 0.5 },
                             boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
                           }}
                         >
-                          <PersonIcon sx={{ fontSize: 28 }} />
+                          <PersonIcon sx={{ fontSize: { xs: 20, md: 28 } }} />
                         </Avatar>
                         <Typography
                           variant="body2"
@@ -551,7 +573,7 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                             whiteSpace: 'nowrap',
                           }}
                         >
-                          {nombreTecnico(reclamo.tecnicoId)}
+                          {nombreTecnico(reclamo)}
                         </Typography>
                         <Typography
                           variant="caption"
@@ -603,7 +625,7 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                   </Typography>
                   <Typography variant="body2" sx={{ mt: 0.5 }}>{reclamo.descripcion}</Typography>
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 0.25, sm: 2 }} sx={{ mt: 1 }}>
-                    <Typography variant="body2" color="text.secondary">Cliente: {nombreCliente(reclamo.clienteId)}</Typography>
+                    <Typography variant="body2" color="text.secondary">Cliente: {nombreCliente(reclamo)}</Typography>
                     <Typography variant="body2" color="text.secondary">Zona: {reclamo.agrupacionGeografica}</Typography>
                     <Typography variant="body2" color="text.secondary">Fecha: {reclamo.fechaProgramada || 'No informada'}</Typography>
                   </Stack>
@@ -695,10 +717,10 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                 </Avatar>
                 <Box>
                   <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                    {nombreTecnico(reclamoParaAsignar.tecnicoId)}
+                    {nombreTecnico(reclamoParaAsignar)}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {tecnicos.find((t) => t.id === reclamoParaAsignar.tecnicoId)?.email || 'Técnico de campo'}
+                    {reclamoParaAsignar.tecnico?.email || 'Técnico de campo'}
                   </Typography>
                 </Box>
               </Stack>
@@ -781,7 +803,7 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
             titulo: 'Cliente',
             icono: <PersonOutlineIcon fontSize="small" />,
             campos: [
-              ['Nombre', clienteDelReclamoAbierto?.nombre || nombreCliente(reclamoAbierto.clienteId)],
+              ['Nombre', nombreCliente(reclamoAbierto)],
               ['Teléfono', clienteDelReclamoAbierto?.telefono],
               ['Domicilio', clienteDelReclamoAbierto?.direccion, { anchoCompleto: true }],
               ['Zona', reclamoAbierto.agrupacionGeografica || clienteDelReclamoAbierto?.zona],

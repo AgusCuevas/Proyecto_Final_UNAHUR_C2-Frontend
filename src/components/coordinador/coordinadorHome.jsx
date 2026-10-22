@@ -6,13 +6,20 @@ import MapaTecnicos from './MapaTecnicos.jsx';
 import Reclamos from './Reclamos.jsx';
 import Tecnicos from './Tecnicos.jsx';
 import Vehiculos from './Vehiculos.jsx';
+import { useRecursos } from '../../context/useRecursos.js';
+
+// Panel: el mapa con un solo pedido (GET /tecnicos).
+function PanelCoordinador() {
+  const data = useRecursos('tecnicos');
+  return <MapaTecnicos tecnicos={data.tecnicos} />;
+}
 
 function CoordinadorHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
   const [seccion, establecerSeccion] = useState('Panel del coordinador');
   const [formularioReclamoAbierto, establecerFormularioReclamoAbierto] = useState(false);
 
   const contenidoPorSeccion = {
-    'Panel del coordinador': <MapaTecnicos />,
+    'Panel del coordinador': <PanelCoordinador />,
     Reclamos: (
       <Reclamos
         formularioAbierto={formularioReclamoAbierto}
@@ -48,7 +55,7 @@ function CoordinadorHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo 
         </Button>
       )}
     >
-      {contenidoPorSeccion[seccion] || <MapaTecnicos />}
+      {contenidoPorSeccion[seccion] || <PanelCoordinador />}
     </AppLayout>
   );
 }

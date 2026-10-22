@@ -11,31 +11,21 @@ export function distanciaEntrePuntos(origen, destino) {
   return radioTierraKm * 2 * Math.atan2(Math.sqrt(mitad), Math.sqrt(1 - mitad));
 }
 
-export function obtenerParadasTecnico(tecnicoId, data, ubicacionActual) {
-  const reclamos = data.reclamos
-    .filter((reclamo) => reclamo.tecnicoId === tecnicoId && reclamo.estado !== 'Bloqueado')
-    .sort((primero, segundo) => (
-      new Date(primero.fechaProgramada || primero.creadoEn) - new Date(segundo.fechaProgramada || segundo.creadoEn)
-    ));
-  const clientes = reclamos
-    .map((reclamo) => {
-      const cliente = data.clientes.find((item) => item.id === reclamo.clienteId);
-      return cliente?.coordenadas ? {
-        latitud: cliente.coordenadas.latitud,
-        longitud: cliente.coordenadas.longitud,
-        etiqueta: `Servicio #${reclamo.id}`,
-        tipo: reclamo.tipo,
-      } : null;
-    })
-    .filter(Boolean);
-  const inicio = ubicacionActual || data.ubicacionesTecnicos.find((item) => item.tecnicoId === tecnicoId);
-  const puntos = inicio ? [{
-    latitud: inicio.latitud,
-    longitud: inicio.longitud,
+// Paradas del recorrido: la ubicación del técnico y después los domicilios de sus servicios,
+// que el backend ya envía en orden dentro de cada técnico ("recorrido").
+export function obtenerParadasTecnico(ubicacion, recorrido = []) {
+  const servicios = recorrido.map((parada) => ({
+    latitud: parada.latitud,
+    longitud: parada.longitud,
+    etiqueta: `Servicio #${parada.reclamoId}`,
+    tipo: parada.tipo,
+  }));
+  return ubicacion ? [{
+    latitud: ubicacion.latitud,
+    longitud: ubicacion.longitud,
     etiqueta: 'Inicio de jornada',
     tipo: 'inicio',
-  }, ...clientes] : clientes;
-  return puntos;
+  }, ...servicios] : servicios;
 }
 
 export function calcularRecorridoKm(paradas) {

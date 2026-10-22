@@ -23,7 +23,7 @@ function ServicioEnCurso({ usuario, nombre, alCerrarSesion, alCambiarTema, modo 
       modo={modo}
       alSeleccionarOpcion={seleccionarOpcion}
     >
-      <MisAsignaciones usuario={usuario} soloEnCurso />
+      <MisAsignaciones soloEnCurso />
     </AppLayout>
   );
 }

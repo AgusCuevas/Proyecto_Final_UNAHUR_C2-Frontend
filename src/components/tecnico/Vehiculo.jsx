@@ -2,10 +2,10 @@ import { Box, Paper, Stack, Typography } from '@mui/material';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import { useRecursos } from '../../context/useRecursos.js';
 
-function Vehiculo({ usuario }) {
-  const data = useRecursos('usuarios', 'vehiculos');
-  const tecnico = data.usuarios.find((usuarioRegistrado) => usuarioRegistrado.usuario === usuario);
-  const vehiculo = data.vehiculos.find((vehiculoRegistrado) => vehiculoRegistrado.tecnicoAsignado === tecnico?.id);
+// GET /vehiculos ya devuelve solo el vehículo asignado al técnico.
+function Vehiculo() {
+  const data = useRecursos('vehiculos');
+  const vehiculo = data.vehiculos[0];
 
   return (
     <Paper sx={{ p: { xs: 2, md: 3 } }}>
@@ -18,8 +18,8 @@ function Vehiculo({ usuario }) {
           </Box>
         </Stack>
         <Stack spacing={0.5}>
-          <Typography variant="body2"><strong>Seguro:</strong> {vehiculo?.seguro.compania} · Póliza {vehiculo?.seguro.poliza}</Typography>
-          <Typography variant="body2"><strong>Vencimiento:</strong> {vehiculo?.seguro.vence}</Typography>
+          <Typography variant="body2"><strong>Seguro:</strong> {vehiculo?.seguro?.compania} · Póliza {vehiculo?.seguro?.poliza}</Typography>
+          <Typography variant="body2"><strong>Vencimiento:</strong> {vehiculo?.seguro?.vence}</Typography>
           <Typography variant="body2"><strong>Último service:</strong> {vehiculo?.ultimoService}</Typography>
           <Typography variant="body2" color="text.secondary">{vehiculo?.detalle}</Typography>
         </Stack>

@@ -3,6 +3,7 @@ import {
   clientesApi,
   jornadasApi,
   reclamosApi,
+  tecnicosApi,
   ubicacionesApi,
   usuariosApi,
   vehiculosApi,
@@ -10,8 +11,14 @@ import {
 import { DataContext } from './dataContext.js';
 
 // Cada recurso se pide al backend cada vez que una pantalla lo necesita (ver useRecursos).
+// Las respuestas ya traen sus datos relacionados (por ejemplo, cada vehículo trae su técnico),
+// así cada pantalla pide un solo recurso.
 const cargadores = {
   usuarios: usuariosApi.listar,
+  tecnicos: tecnicosApi.listar,
+  reclamosEnCurso: reclamosApi.listarEnCurso,
+  resumenUsuarios: usuariosApi.resumen,
+  resumenReclamos: reclamosApi.resumen,
   clientes: clientesApi.listar,
   vehiculos: vehiculosApi.listar,
   reclamos: reclamosApi.listar,
@@ -28,6 +35,17 @@ export function DataProvider({ children }) {
   const enCurso = useRef({});
   // Las respuestas de una sesión anterior se descartan al cerrar sesión.
   const sesion = useRef(0);
+  // Datos del usuario que llegan en el login. Para el técnico incluye su jornada activa
+  // y su vehículo, que se muestran en todas sus pantallas sin volver a pedirlos.
+  const [datosSesion, establecerDatosSesion] = useState({ usuario: null, jornadaActiva: null, vehiculo: null });
+
+  const iniciarSesion = useCallback((respuestaLogin) => {
+    establecerDatosSesion({
+      usuario: respuestaLogin.usuario,
+      jornadaActiva: respuestaLogin.jornadaActiva ?? null,
+      vehiculo: respuestaLogin.vehiculo ?? null,
+    });
+  }, []);
 
   // Si ya hay una petición en curso del mismo recurso se reutiliza; si no, se pide de nuevo.
   const cargarRecurso = useCallback((nombre) => {
@@ -67,7 +85,13 @@ export function DataProvider({ children }) {
     setData({});
     setErrores({});
     setPendientes({});
+    establecerDatosSesion({ usuario: null, jornadaActiva: null, vehiculo: null });
   }, []);
+
+  // Si cambia el vehículo del técnico logueado, se actualiza también el de la sesión.
+  const actualizarVehiculoDeSesion = (vehiculo) => establecerDatosSesion((actual) => (
+    actual.vehiculo && String(actual.vehiculo.id) === String(vehiculo.id) ? { ...actual, vehiculo } : actual
+  ));
 
   // Las modificaciones solo tocan recursos ya cargados; si no, se pedirán completos al necesitarlos.
   const agregar = (nombre, item) => setData((actual) => (
@@ -86,7 +110,7 @@ export function DataProvider({ children }) {
     const vehiculos = actual.vehiculos.map((item) => {
       if (esElMismo(item)) return vehiculo;
       return vehiculo.tecnicoAsignado != null && item.tecnicoAsignado === vehiculo.tecnicoAsignado
-        ? { ...item, tecnicoAsignado: null }
+        ? { ...item, tecnicoAsignado: null, tecnico: null }
         : item;
     });
     return { ...actual, vehiculos: actual.vehiculos.some(esElMismo) ? vehiculos : [...vehiculos, vehiculo] };
@@ -133,11 +157,12 @@ export function DataProvider({ children }) {
       ? {
         ...cambios,
         finalizadoEn: cambios.finalizadoEn || new Date().toISOString(),
-        jornadaId: (data.jornadas ?? []).find((jornada) => jornada.activa)?.id || null,
+        jornadaId: datosSesion.jornadaActiva?.id || null,
       }
       : cambios;
     const reclamoActualizado = await reclamosApi.actualizarEstado(reclamoId, cambiosConJornada);
     reemplazar('reclamos', reclamoId, reclamoActualizado);
+    reemplazar('reclamosEnCurso', reclamoId, reclamoActualizado);
     return reclamoActualizado;
   };
 
@@ -150,6 +175,7 @@ export function DataProvider({ children }) {
   const actualizarControlVehiculo = async (vehiculoId, kilometraje) => {
     const vehiculoActualizado = await vehiculosApi.actualizarKilometraje(vehiculoId, kilometraje);
     reemplazar('vehiculos', vehiculoId, vehiculoActualizado);
+    actualizarVehiculoDeSesion(vehiculoActualizado);
     return vehiculoActualizado;
   };
 
@@ -162,6 +188,7 @@ export function DataProvider({ children }) {
   const registrarControlVehiculo = async (vehiculoId, control) => {
     const vehiculoActualizado = await vehiculosApi.registrarControl(vehiculoId, control);
     reemplazar('vehiculos', vehiculoId, vehiculoActualizado);
+    actualizarVehiculoDeSesion(vehiculoActualizado);
     return vehiculoActualizado;
   };
 
@@ -183,26 +210,29 @@ export function DataProvider({ children }) {
     return ubicacion;
   }, []);
 
-  const actualizarUbicaciones = useCallback(async () => {
-    const ubicaciones = await ubicacionesApi.listar();
-    setData((actual) => ({ ...actual, ubicacionesTecnicos: ubicaciones }));
-    return ubicaciones;
+  // El mapa refresca las ubicaciones cada 5 minutos pidiendo de nuevo los técnicos,
+  // sin mostrar el indicador de carga.
+  const actualizarTecnicos = useCallback(async () => {
+    const tecnicos = await tecnicosApi.listar();
+    setData((actual) => ({ ...actual, tecnicos }));
+    return tecnicos;
   }, []);
 
   const actualizarKilometraje = async (vehiculoId, kilometraje) => {
     const vehiculoActualizado = await vehiculosApi.actualizarKilometraje(vehiculoId, kilometraje);
     reemplazar('vehiculos', vehiculoId, vehiculoActualizado);
+    actualizarVehiculoDeSesion(vehiculoActualizado);
     return vehiculoActualizado;
   };
 
   const iniciarJornada = async (tecnicoId) => {
-    const vehiculo = (data.vehiculos ?? []).find((item) => item.tecnicoAsignado === tecnicoId);
+    const { vehiculo } = datosSesion;
     const jornada = {
       id: Date.now(),
       tecnicoId,
       inicio: new Date().toISOString(),
       fin: null,
-      kilometrajeInicial: vehiculo?.kilometraje.actual || 0,
+      kilometrajeInicial: vehiculo?.kilometraje?.actual || 0,
       kilometrajeFinal: null,
       activa: true,
     };
@@ -211,15 +241,22 @@ export function DataProvider({ children }) {
       ...actual,
       jornadas: [
         ...actual.jornadas.map((item) => ({ ...item, activa: false })),
-        jornadaCreada,
+        { ...jornadaCreada, servicios: [] },
       ],
     } : actual));
+    establecerDatosSesion((actual) => ({ ...actual, jornadaActiva: jornadaCreada }));
     return jornadaCreada;
   };
 
   const finalizarJornada = async (jornadaId, controlFinal) => {
     const jornadaFinalizada = await jornadasApi.finalizar(jornadaId, controlFinal);
-    reemplazar('jornadas', jornadaId, jornadaFinalizada);
+    setData((actual) => (actual.jornadas ? {
+      ...actual,
+      jornadas: actual.jornadas.map((item) => (
+        String(item.id) === String(jornadaId) ? { ...jornadaFinalizada, servicios: item.servicios } : item
+      )),
+    } : actual));
+    establecerDatosSesion((actual) => ({ ...actual, jornadaActiva: null }));
     return jornadaFinalizada;
   };
 
@@ -231,6 +268,8 @@ export function DataProvider({ children }) {
       cargando: Object.keys(pendientes).length > 0,
       cargarRecurso,
       limpiarDatos,
+      sesion: datosSesion,
+      iniciarSesion,
       actualizarAsignacion,
       actualizarEstado,
       actualizarAsignacionVehiculo,
@@ -239,7 +278,7 @@ export function DataProvider({ children }) {
       registrarControlVehiculo,
       actualizarEstadoVehiculo,
       registrarUbicacionTecnico,
-      actualizarUbicaciones,
+      actualizarTecnicos,
       actualizarKilometraje,
       crearCliente,
       actualizarCliente,

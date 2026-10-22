@@ -23,7 +23,6 @@ import LightModeIcon from '@mui/icons-material/LightMode';
 import { useState } from 'react';
 import { appTheme } from '../theme/theme.js';
 import { useAppData } from '../context/useAppData.js';
-import { useRecursos } from '../context/useRecursos.js';
 import LimiteDeErrores from './comunes/LimiteDeErrores.jsx';
 
 const anchoMenu = 264;
@@ -51,17 +50,10 @@ function MarcaGalacticApp({ compact = false }) {
 
 function AppLayout({ titulo, subtitulo, rol, usuario, nombre, opciones = [], alCerrarSesion, alSeleccionarOpcion, alCambiarTema, modo = 'light', accionTitulo, children }) {
   const [menuAbierto, establecerMenuAbierto] = useState(false);
-  const { cargando, errores } = useAppData();
-  // Solo el técnico necesita estos datos para mostrar su jornada activa.
-  const data = useRecursos(...(rol === 'Técnico' ? ['usuarios', 'jornadas'] : []));
+  const { cargando, errores, sesion } = useAppData();
   const hayErrorDeCarga = Object.keys(errores).length > 0;
-
-  const tecnico = rol === 'Técnico'
-    ? data.usuarios?.find((u) => u.usuario === usuario)
-    : null;
-  const jornadaActiva = tecnico
-    ? data.jornadas?.find((j) => j.tecnicoId === tecnico.id && j.activa)
-    : null;
+  // La jornada activa del técnico llega en el login y se actualiza al iniciarla o finalizarla.
+  const jornadaActiva = rol === 'Técnico' ? sesion.jornadaActiva : null;
   const horaInicioJornada = jornadaActiva?.inicio
     ? new Date(jornadaActiva.inicio).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
     : '';
