@@ -27,7 +27,8 @@ function CoordinadorHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo 
       />
     ),
     Técnicos: <Tecnicos />,
-    Vehículos: <Vehiculos />,
+    // Puede asignar técnicos y editar datos; el alta de vehículos queda para el admin.
+    Vehículos: <Vehiculos gestionable />,
   };
 
   return (

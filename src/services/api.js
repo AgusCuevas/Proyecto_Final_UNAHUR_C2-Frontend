@@ -94,6 +94,8 @@ export const clientesApi = {
 
 export const vehiculosApi = {
   listar: async () => (await apiClient.get('/vehiculos')).data,
+  // Lista del diálogo "Asignar técnico": { tecnicos: [{ id, nombre }] }.
+  opciones: async () => (await apiClient.get('/vehiculos/opciones')).data,
   crear: async (vehiculo) => (await apiClient.post('/vehiculos', vehiculo)).data,
   actualizar: async (vehiculoId, cambios) => (
     await apiClient.patch(`/vehiculos/${vehiculoId}`, cambios)
@@ -133,6 +135,8 @@ export const reclamosApi = {
   listarEnCurso: async () => (await apiClient.get('/reclamos', { params: { estado: 'En progreso' } })).data,
   // Totales para el panel: { pendientes, serviciosGestionados }.
   resumen: async () => (await apiClient.get('/reclamos/resumen')).data,
+  // Listas de los formularios: { clientes: [{ id, nombre, zona }], tecnicos: [{ id, nombre, email }] }.
+  opciones: async () => (await apiClient.get('/reclamos/opciones')).data,
   crear: async (reclamo) => (await apiClient.post('/reclamos', reclamo)).data,
   eliminar: async (reclamoId) => (await apiClient.delete(`/reclamos/${reclamoId}`)).data,
   actualizarAsignacion: async (reclamoId, tecnicoId) => (

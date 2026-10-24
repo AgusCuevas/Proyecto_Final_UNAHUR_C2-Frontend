@@ -192,6 +192,14 @@ export function DataProvider({ children }) {
     return vehiculoActualizado;
   };
 
+  // Admin y coordinador: seguro, último service, detalle y si está en servicio.
+  const actualizarVehiculo = async (vehiculoId, cambios) => {
+    const vehiculoActualizado = await vehiculosApi.actualizar(vehiculoId, cambios);
+    reemplazar('vehiculos', vehiculoId, vehiculoActualizado);
+    actualizarVehiculoDeSesion(vehiculoActualizado);
+    return vehiculoActualizado;
+  };
+
   const actualizarEstadoVehiculo = async (vehiculoId, enServicio) => {
     const vehiculoActualizado = await vehiculosApi.actualizar(vehiculoId, { enServicio });
     reemplazar('vehiculos', vehiculoId, vehiculoActualizado);
@@ -277,6 +285,7 @@ export function DataProvider({ children }) {
       actualizarControlVehiculo,
       registrarControlVehiculo,
       actualizarEstadoVehiculo,
+      actualizarVehiculo,
       registrarUbicacionTecnico,
       actualizarTecnicos,
       actualizarKilometraje,

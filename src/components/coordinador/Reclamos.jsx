@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import {
   Alert,
-  Autocomplete,
   Avatar,
   Box,
   Button,
@@ -40,17 +39,12 @@ import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined';
 import { useAppData } from '../../context/useAppData.js';
 import { useRecursos } from '../../context/useRecursos.js';
 import { useCargaDiferida } from '../../context/useCargaDiferida.js';
-import { clientesApi, usuariosApi } from '../../services/api.js';
+import { reclamosApi } from '../../services/api.js';
+import SelectorBuscable from '../comunes/SelectorBuscable.jsx';
 
 // Listas de los formularios (alta de reclamo y asignación de técnico): se piden recién
-// cuando se abre alguno de ellos.
-const cargarOpcionesFormulario = async () => {
-  const [clientes, usuarios] = await Promise.all([clientesApi.listar(), usuariosApi.listar()]);
-  return {
-    clientes: clientes.filter((cliente) => cliente.activo !== false),
-    tecnicos: usuarios.filter((usuario) => usuario.rol === 'Tecnico' && usuario.activo),
-  };
-};
+// cuando se abre alguno de ellos, en un solo pedido (GET /reclamos/opciones).
+const cargarOpcionesFormulario = reclamosApi.opciones;
 import FichaDetalle from '../comunes/FichaDetalle.jsx';
 import GaleriaImagenes from '../comunes/GaleriaImagenes.jsx';
 
@@ -257,21 +251,18 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                   </Button>
                 </Stack>
                 <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-                  <FormControl fullWidth required>
-                    <InputLabel id="cliente-label">Cliente</InputLabel>
-                    <Select
-                      labelId="cliente-label"
-                      value={formularioNuevo.clienteId}
-                      onChange={(evento) => establecerFormularioNuevo((actual) => ({ ...actual, clienteId: evento.target.value }))}
-                      label="Cliente"
-                    >
-                      {clientes.map((cliente) => (
-                        <MenuItem key={cliente.id} value={cliente.id}>
-                          {cliente.nombre}{cliente.zona ? ` - ${cliente.zona}` : ''}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                  <SelectorBuscable
+                    label="Cliente"
+                    required
+                    opciones={clientes}
+                    cargando={!opciones}
+                    valor={formularioNuevo.clienteId}
+                    alCambiar={(clienteId) => establecerFormularioNuevo((actual) => ({ ...actual, clienteId: clienteId ?? '' }))}
+                    etiqueta={(cliente) => cliente.nombre}
+                    detalle={(cliente) => cliente.zona}
+                    placeholder="Buscar cliente por nombre o zona..."
+                    textoSinOpciones="No hay clientes que coincidan"
+                  />
                   {esModoOrden ? (
                     <FormControl fullWidth required>
                       <InputLabel id="tipo-orden-label">Tipo de orden</InputLabel>
@@ -327,21 +318,17 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                     value={formularioNuevo.fechaProgramada}
                     onChange={(evento) => establecerFormularioNuevo((actual) => ({ ...actual, fechaProgramada: evento.target.value }))}
                   />
-                  <FormControl fullWidth>
-                    <InputLabel id="tecnico-label">Asignar técnico</InputLabel>
-                    <Select
-                      labelId="tecnico-label"
-                      value={formularioNuevo.tecnicoId}
-                      onChange={(evento) => establecerFormularioNuevo((actual) => ({ ...actual, tecnicoId: evento.target.value }))}
-                      label="Asignar técnico"
-                      startAdornment={<PersonIcon sx={{ mr: 1, color: 'text.secondary' }} />}
-                    >
-                      <MenuItem value="">Sin asignar</MenuItem>
-                      {tecnicos.map((tecnico) => (
-                        <MenuItem key={tecnico.id} value={tecnico.id}>{tecnico.nombre}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                  <SelectorBuscable
+                    label="Asignar técnico"
+                    opciones={tecnicos}
+                    cargando={!opciones}
+                    valor={formularioNuevo.tecnicoId}
+                    alCambiar={(tecnicoId) => establecerFormularioNuevo((actual) => ({ ...actual, tecnicoId: tecnicoId ?? '' }))}
+                    etiqueta={(tecnico) => tecnico.nombre}
+                    detalle={(tecnico) => tecnico.email}
+                    placeholder="Sin asignar (escribí para buscar)"
+                    textoSinOpciones="No hay técnicos que coincidan"
+                  />
                 </Stack>
                 {errorAlta && <Alert severity="error">{errorAlta}</Alert>}
                 <Button
@@ -727,35 +714,17 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
             </Box>
           )}
 
-          <Autocomplete
-            options={tecnicos}
-            value={tecnicos.find((tecnico) => String(tecnico.id) === String(tecnicoSeleccionado)) || null}
-            onChange={(_, tecnico) => establecerTecnicoSeleccionado(tecnico ? String(tecnico.id) : '')}
-            getOptionLabel={(tecnico) => tecnico.nombre}
-            isOptionEqualToValue={(opcion, valor) => opcion.id === valor.id}
-            noOptionsText="No se encontraron técnicos disponibles"
-            clearText="Dejar sin asignar"
-            openText="Mostrar técnicos"
-            closeText="Cerrar lista"
-            renderOption={(props, tecnico) => (
-              <Box component="li" {...props} key={tecnico.id} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1 }}>
-                <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.light', color: 'primary.contrastText' }}>
-                  <PersonIcon fontSize="small" />
-                </Avatar>
-                <Box>
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>{tecnico.nombre}</Typography>
-                  <Typography variant="caption" color="text.secondary">{tecnico.email || 'Técnico de campo'}</Typography>
-                </Box>
-              </Box>
-            )}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Seleccionar técnico"
-                placeholder="Buscar por nombre..."
-                helperText="Podés seleccionar un técnico o borrar el campo para dejarlo sin asignar."
-              />
-            )}
+          <SelectorBuscable
+            label="Seleccionar técnico"
+            opciones={tecnicos}
+            cargando={!opciones}
+            valor={tecnicoSeleccionado}
+            alCambiar={(tecnicoId) => establecerTecnicoSeleccionado(tecnicoId ? String(tecnicoId) : '')}
+            etiqueta={(tecnico) => tecnico.nombre}
+            detalle={(tecnico) => tecnico.email || 'Técnico de campo'}
+            placeholder="Buscar por nombre o correo..."
+            textoSinOpciones="No se encontraron técnicos disponibles"
+            helperText="Podés seleccionar un técnico o borrar el campo para dejarlo sin asignar."
           />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>

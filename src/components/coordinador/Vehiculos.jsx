@@ -26,6 +26,8 @@ import {
 import AssignmentIndOutlinedIcon from '@mui/icons-material/AssignmentIndOutlined';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import DirectionsCarOutlinedIcon from '@mui/icons-material/DirectionsCarOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import SaveIcon from '@mui/icons-material/Save';
 import EngineeringOutlinedIcon from '@mui/icons-material/EngineeringOutlined';
 import SearchIcon from '@mui/icons-material/Search';
 import SpeedOutlinedIcon from '@mui/icons-material/SpeedOutlined';
@@ -35,11 +37,11 @@ import { useState } from 'react';
 import { useAppData } from '../../context/useAppData.js';
 import { useRecursos } from '../../context/useRecursos.js';
 import { useCargaDiferida } from '../../context/useCargaDiferida.js';
-import { usuariosApi } from '../../services/api.js';
+import { vehiculosApi } from '../../services/api.js';
+import SelectorBuscable from '../comunes/SelectorBuscable.jsx';
 
-// Lista del selector "Asignar técnico": se pide recién al abrir el diálogo.
-const cargarTecnicosActivos = async () => (await usuariosApi.listar())
-  .filter((usuario) => usuario.rol === 'Tecnico' && usuario.activo);
+// Lista del selector "Asignar técnico": se pide recién al abrir el diálogo (GET /vehiculos/opciones).
+const cargarTecnicosActivos = async () => (await vehiculosApi.opciones()).tecnicos;
 import FichaDetalle from '../comunes/FichaDetalle.jsx';
 import GaleriaImagenes from '../comunes/GaleriaImagenes.jsx';
 
@@ -59,6 +61,16 @@ const estadoVehiculo = (vehiculo) => {
     : { label: 'Disponible', color: 'success' };
 };
 
+// Formulario de edición: solo los datos que admin y coordinador pueden modificar.
+const formularioDesdeVehiculo = (vehiculo) => ({
+  compania: vehiculo.seguro?.compania || '',
+  poliza: vehiculo.seguro?.poliza || '',
+  vence: String(vehiculo.seguro?.vence || '').slice(0, 10),
+  ultimoService: String(vehiculo.ultimoService || '').slice(0, 10),
+  detalle: vehiculo.detalle || '',
+  enServicio: vehiculo.enServicio !== false,
+});
+
 const seguroVencido = (vehiculo) => Boolean(vehiculo.seguro?.vence)
   && String(vehiculo.seguro.vence).slice(0, 10) < new Date().toISOString().slice(0, 10);
 
@@ -70,7 +82,7 @@ const controlesUltimos30Dias = (vehiculo) => (vehiculo.controles || [])
   .sort((a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0));
 
 function Vehiculos({ gestionable = false, accionNuevo }) {
-  const { actualizarAsignacionVehiculo } = useAppData();
+  const { actualizarAsignacionVehiculo, actualizarVehiculo } = useAppData();
   // GET /vehiculos: cada vehículo ya trae su técnico.
   const data = useRecursos('vehiculos');
   const [busqueda, establecerBusqueda] = useState('');
@@ -79,8 +91,12 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
   const [asignacionPendiente, establecerAsignacionPendiente] = useState(null);
   const [guardando, establecerGuardando] = useState(false);
   const [error, establecerError] = useState('');
+  const [vehiculoEditando, establecerVehiculoEditando] = useState(null);
+  const [formularioEdicion, establecerFormularioEdicion] = useState(null);
+  const [errorEdicion, establecerErrorEdicion] = useState('');
 
-  const tecnicos = useCargaDiferida(cargarTecnicosActivos, Boolean(asignacionPendiente)) || [];
+  const tecnicosCargados = useCargaDiferida(cargarTecnicosActivos, Boolean(asignacionPendiente));
+  const tecnicos = tecnicosCargados || [];
   const nombreTecnico = (tecnicoId) => (
     data.vehiculos.find((vehiculo) => vehiculo.tecnico?.id === tecnicoId)?.tecnico
     || tecnicos.find((tecnico) => tecnico.id === tecnicoId)
@@ -122,6 +138,39 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
       establecerAsignacionPendiente(null);
     } catch (causa) {
       establecerError(causa?.response?.data?.mensaje || 'No se pudo cambiar la asignación del vehículo.');
+    } finally {
+      establecerGuardando(false);
+    }
+  };
+
+  const abrirEdicion = (vehiculo) => {
+    establecerErrorEdicion('');
+    establecerFormularioEdicion(formularioDesdeVehiculo(vehiculo));
+    establecerVehiculoEditando(vehiculo);
+  };
+  const actualizarCampoEdicion = (campo, valor) => (
+    establecerFormularioEdicion((actual) => ({ ...actual, [campo]: valor }))
+  );
+
+  const guardarEdicion = async (evento) => {
+    evento.preventDefault();
+    if (!vehiculoEditando) return;
+    establecerGuardando(true);
+    establecerErrorEdicion('');
+    try {
+      await actualizarVehiculo(vehiculoEditando.id, {
+        seguro: {
+          compania: formularioEdicion.compania.trim(),
+          poliza: formularioEdicion.poliza.trim(),
+          vence: formularioEdicion.vence,
+        },
+        ultimoService: formularioEdicion.ultimoService,
+        detalle: formularioEdicion.detalle.trim(),
+        enServicio: formularioEdicion.enServicio,
+      });
+      establecerVehiculoEditando(null);
+    } catch (causa) {
+      establecerErrorEdicion(causa?.response?.data?.mensaje || 'No se pudieron guardar los cambios del vehículo.');
     } finally {
       establecerGuardando(false);
     }
@@ -264,6 +313,16 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
                           </IconButton>
                         </Tooltip>
                         {gestionable && (
+                          <Tooltip title="Modificar datos">
+                            <IconButton
+                              aria-label={`Modificar vehículo ${vehiculo.patente}`}
+                              onClick={() => abrirEdicion(vehiculo)}
+                            >
+                              <EditOutlinedIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        {gestionable && (
                           <Tooltip title="Asignar técnico">
                             <IconButton
                               aria-label={`Asignar técnico al vehículo ${vehiculo.patente}`}
@@ -337,6 +396,18 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
             <Button onClick={() => establecerVehiculoSeleccionado(null)}>Cerrar</Button>
             {gestionable && (
               <Button
+                variant="outlined"
+                startIcon={<EditOutlinedIcon />}
+                onClick={() => {
+                  abrirEdicion(vehiculoDetalle);
+                  establecerVehiculoSeleccionado(null);
+                }}
+              >
+                Modificar datos
+              </Button>
+            )}
+            {gestionable && (
+              <Button
                 variant="contained"
                 startIcon={<AssignmentIndOutlinedIcon />}
                 onClick={() => {
@@ -352,6 +423,70 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
       />
 
       <Dialog
+        open={Boolean(vehiculoEditando)}
+        onClose={() => !guardando && establecerVehiculoEditando(null)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <Box component="form" onSubmit={guardarEdicion}>
+          <DialogTitle>Modificar vehículo {vehiculoEditando?.patente}</DialogTitle>
+          {formularioEdicion && (
+            <DialogContent sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2, pt: '8px !important' }}>
+              <TextField
+                label="Compañía de seguro"
+                value={formularioEdicion.compania}
+                onChange={(evento) => actualizarCampoEdicion('compania', evento.target.value)}
+              />
+              <TextField
+                label="Número de póliza"
+                value={formularioEdicion.poliza}
+                onChange={(evento) => actualizarCampoEdicion('poliza', evento.target.value)}
+              />
+              <TextField
+                type="date"
+                label="Vencimiento del seguro"
+                slotProps={{ inputLabel: { shrink: true } }}
+                value={formularioEdicion.vence}
+                onChange={(evento) => actualizarCampoEdicion('vence', evento.target.value)}
+              />
+              <TextField
+                type="date"
+                label="Último service"
+                slotProps={{ inputLabel: { shrink: true } }}
+                value={formularioEdicion.ultimoService}
+                onChange={(evento) => actualizarCampoEdicion('ultimoService', evento.target.value)}
+              />
+              <TextField
+                select
+                label="Estado del vehículo"
+                value={formularioEdicion.enServicio ? 'En servicio' : 'Fuera de servicio'}
+                onChange={(evento) => actualizarCampoEdicion('enServicio', evento.target.value === 'En servicio')}
+                sx={{ gridColumn: { sm: '1 / -1' } }}
+              >
+                <MenuItem value="En servicio">En servicio</MenuItem>
+                <MenuItem value="Fuera de servicio">Fuera de servicio</MenuItem>
+              </TextField>
+              <TextField
+                multiline
+                minRows={2}
+                label="Detalle"
+                value={formularioEdicion.detalle}
+                onChange={(evento) => actualizarCampoEdicion('detalle', evento.target.value)}
+                sx={{ gridColumn: { sm: '1 / -1' } }}
+              />
+              {errorEdicion && <Alert severity="error" sx={{ gridColumn: { sm: '1 / -1' } }}>{errorEdicion}</Alert>}
+            </DialogContent>
+          )}
+          <DialogActions>
+            <Button onClick={() => establecerVehiculoEditando(null)} disabled={guardando}>Cancelar</Button>
+            <Button type="submit" variant="contained" startIcon={<SaveIcon />} disabled={guardando}>
+              {guardando ? 'Guardando...' : 'Guardar cambios'}
+            </Button>
+          </DialogActions>
+        </Box>
+      </Dialog>
+
+      <Dialog
         open={Boolean(asignacionPendiente)}
         onClose={() => !guardando && establecerAsignacionPendiente(null)}
         fullWidth
@@ -364,20 +499,19 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
               Vehículo {asignacionPendiente?.vehiculo.patente} · Técnico actual:{' '}
               {nombreTecnico(asignacionPendiente?.vehiculo.tecnicoAsignado) || 'sin asignar'}
             </Typography>
-            <TextField
-              select
+            <SelectorBuscable
               label="Técnico"
-              value={asignacionPendiente?.tecnicoId ?? ''}
-              onChange={(evento) => establecerAsignacionPendiente((actual) => ({
+              opciones={tecnicos}
+              cargando={!tecnicosCargados}
+              valor={asignacionPendiente?.tecnicoId ?? ''}
+              alCambiar={(tecnicoId) => establecerAsignacionPendiente((actual) => ({
                 ...actual,
-                tecnicoId: Number(evento.target.value) || null,
+                tecnicoId: tecnicoId ?? null,
               }))}
-            >
-              <MenuItem value="">Sin asignar</MenuItem>
-              {tecnicos.map((tecnico) => (
-                <MenuItem key={tecnico.id} value={tecnico.id}>{tecnico.nombre}</MenuItem>
-              ))}
-            </TextField>
+              etiqueta={(tecnico) => tecnico.nombre}
+              placeholder="Sin asignar (escribí para buscar)"
+              textoSinOpciones="No hay técnicos que coincidan"
+            />
             {vehiculoAnteriorDelTecnico && (
               <Alert severity="warning">
                 {nombreTecnico(asignacionPendiente.tecnicoId)} ya tiene asignado el vehículo {vehiculoAnteriorDelTecnico.patente}, que quedará sin técnico.
