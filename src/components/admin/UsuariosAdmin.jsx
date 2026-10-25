@@ -36,6 +36,7 @@ import { useState } from 'react';
 import FichaDetalle from '../comunes/FichaDetalle.jsx';
 import { useAppData } from '../../context/useAppData.js';
 import { useRecursos } from '../../context/useRecursos.js';
+import PaginacionLista from '../comunes/PaginacionLista.jsx';
 
 const perfilesVacios = {
   Administrador: { departamento: '', nivelAcceso: '' },
@@ -112,6 +113,8 @@ function UsuariosAdmin() {
   const [formulario, establecerFormulario] = useState(crearFormularioVacio);
   const [error, establecerError] = useState('');
   const [guardando, establecerGuardando] = useState(false);
+  const [pagina, establecerPagina] = useState(1);
+  const [resultadosPorPagina, establecerResultadosPorPagina] = useState(10);
 
   const termino = busqueda.trim().toLocaleLowerCase('es');
   const usuarios = data.usuarios
@@ -132,6 +135,12 @@ function UsuariosAdmin() {
       return coincideEstado && coincideRol && texto.includes(termino);
     })
     .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  const cantidadPaginas = Math.max(1, Math.ceil(usuarios.length / resultadosPorPagina));
+  const paginaActual = Math.min(pagina, cantidadPaginas);
+  const usuariosVisibles = usuarios.slice(
+    (paginaActual - 1) * resultadosPorPagina,
+    paginaActual * resultadosPorPagina,
+  );
 
   const abrirFormulario = (usuario = null) => {
     establecerUsuarioEditando(usuario);
@@ -391,7 +400,7 @@ function UsuariosAdmin() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {usuarios.map((usuario) => {
+                {usuariosVisibles.map((usuario) => {
                   const activo = estaActivo(usuario);
                   return (
                     <TableRow key={usuario.id} hover>
@@ -442,6 +451,13 @@ function UsuariosAdmin() {
               </TableBody>
             </Table>
           </TableContainer>
+          <PaginacionLista
+            pagina={paginaActual}
+            total={usuarios.length}
+            resultadosPorPagina={resultadosPorPagina}
+            establecerPagina={establecerPagina}
+            establecerResultadosPorPagina={establecerResultadosPorPagina}
+          />
         </CardContent>
       </Card>
 

@@ -1,5 +1,22 @@
 import { apiClient } from './apiClient.js';
 
+const PAGINA_FRONTEND = 50;
+
+async function listarTodasLasPaginas(ruta, params = {}) {
+  const datos = [];
+  let paginaActual = 1;
+  while (true) {
+    const respuesta = (await apiClient.get(ruta, {
+      params: { ...params, pagina: paginaActual, limite: PAGINA_FRONTEND },
+    })).data;
+    if (Array.isArray(respuesta)) return respuesta;
+    datos.push(...(respuesta.datos || []));
+    if (paginaActual >= (respuesta.paginacion?.paginas || 1)) break;
+    paginaActual += 1;
+  }
+  return datos;
+}
+
 const camposPerfilPorRol = {
   1: ['departamento', 'nivelAcceso'],
   2: ['zonaAsignada', 'maxTecnicosACargo'],
@@ -51,14 +68,14 @@ export const authApi = {
 };
 
 export const usuariosApi = {
-  listar: async () => (await apiClient.get('/usuarios')).data.map(normalizarUsuario),
+  listar: async () => (await listarTodasLasPaginas('/usuarios')).map(normalizarUsuario),
   obtener: async (usuarioId) => normalizarUsuario(
     (await apiClient.get(`/usuarios/${usuarioId}`)).data,
   ),
   // Totales para el panel del administrador: { registrados }.
   resumen: async () => (await apiClient.get('/usuarios/resumen')).data,
   buscarPorUsuario: async (usuario) => {
-    const encontrado = (await apiClient.get('/usuarios', { params: { usuario } })).data[0];
+    const encontrado = (await listarTodasLasPaginas('/usuarios', { usuario }))[0];
     return encontrado ? normalizarUsuario(encontrado) : undefined;
   },
   crear: async (usuario) => {
@@ -75,11 +92,11 @@ export const usuariosApi = {
 // Admin y coordinador reciben cada técnico con estado, reclamos, vehículo, ubicación,
 // recorrido y rendimiento (mapa, pantalla Técnicos y panel).
 export const tecnicosApi = {
-  listar: async () => (await apiClient.get('/tecnicos')).data.map(normalizarUsuario),
+  listar: async () => (await listarTodasLasPaginas('/tecnicos')).map(normalizarUsuario),
 };
 
 export const clientesApi = {
-  listar: async () => (await apiClient.get('/clientes')).data,
+  listar: async () => listarTodasLasPaginas('/clientes'),
   obtener: async (clienteId) => (await apiClient.get(`/clientes/${clienteId}`)).data,
   crear: async (cliente) => {
     const creado = (await apiClient.post('/clientes', cliente)).data;
@@ -93,7 +110,7 @@ export const clientesApi = {
 };
 
 export const vehiculosApi = {
-  listar: async () => (await apiClient.get('/vehiculos')).data,
+  listar: async () => listarTodasLasPaginas('/vehiculos'),
   // Lista del diálogo "Asignar técnico": { tecnicos: [{ id, nombre }] }.
   opciones: async () => (await apiClient.get('/vehiculos/opciones')).data,
   crear: async (vehiculo) => (await apiClient.post('/vehiculos', vehiculo)).data,
@@ -113,7 +130,7 @@ export const vehiculosApi = {
 };
 
 export const jornadasApi = {
-  listar: async () => (await apiClient.get('/jornadas')).data,
+  listar: async () => listarTodasLasPaginas('/jornadas'),
   crear: async (jornada) => (await apiClient.post('/jornadas', jornada)).data,
   finalizar: async (jornadaId, controlFinal) => (
     await apiClient.patch(`/jornadas/${jornadaId}/finalizar`, controlFinal)
@@ -130,9 +147,9 @@ export const ubicacionesApi = {
 
 // Cada reclamo trae su cliente y su técnico.
 export const reclamosApi = {
-  listar: async () => (await apiClient.get('/reclamos')).data,
+  listar: async () => listarTodasLasPaginas('/reclamos'),
   // Solo los reclamos en progreso (pantalla "Servicio en curso").
-  listarEnCurso: async () => (await apiClient.get('/reclamos', { params: { estado: 'En progreso' } })).data,
+  listarEnCurso: async () => listarTodasLasPaginas('/reclamos', { estado: 'En progreso' }),
   // Totales para el panel: { pendientes, serviciosGestionados }.
   resumen: async () => (await apiClient.get('/reclamos/resumen')).data,
   // Listas de los formularios: { clientes: [{ id, nombre, zona }], tecnicos: [{ id, nombre, email }] }.

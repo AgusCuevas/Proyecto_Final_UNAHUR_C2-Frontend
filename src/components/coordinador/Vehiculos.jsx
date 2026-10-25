@@ -44,6 +44,7 @@ import SelectorBuscable from '../comunes/SelectorBuscable.jsx';
 const cargarTecnicosActivos = async () => (await vehiculosApi.opciones()).tecnicos;
 import FichaDetalle from '../comunes/FichaDetalle.jsx';
 import GaleriaImagenes from '../comunes/GaleriaImagenes.jsx';
+import PaginacionLista from '../comunes/PaginacionLista.jsx';
 
 // Las fechas llegan como 'AAAA-MM-DD' o como ISO completo desde MongoDB.
 const formatearFecha = (fecha) => {
@@ -94,6 +95,8 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
   const [vehiculoEditando, establecerVehiculoEditando] = useState(null);
   const [formularioEdicion, establecerFormularioEdicion] = useState(null);
   const [errorEdicion, establecerErrorEdicion] = useState('');
+  const [pagina, establecerPagina] = useState(1);
+  const [resultadosPorPagina, establecerResultadosPorPagina] = useState(10);
 
   const tecnicosCargados = useCargaDiferida(cargarTecnicosActivos, Boolean(asignacionPendiente));
   const tecnicos = tecnicosCargados || [];
@@ -114,6 +117,12 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
       return coincideAsignacion && texto.includes(termino);
     })
     .sort((a, b) => String(a.patente).localeCompare(String(b.patente), 'es'));
+  const cantidadPaginas = Math.max(1, Math.ceil(vehiculosFiltrados.length / resultadosPorPagina));
+  const paginaActual = Math.min(pagina, cantidadPaginas);
+  const vehiculosVisibles = vehiculosFiltrados.slice(
+    (paginaActual - 1) * resultadosPorPagina,
+    paginaActual * resultadosPorPagina,
+  );
 
   const vehiculoDetalle = vehiculoSeleccionado
     ? data.vehiculos.find((vehiculo) => vehiculo.id === vehiculoSeleccionado.id) || vehiculoSeleccionado
@@ -280,7 +289,7 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {vehiculosFiltrados.map((vehiculo) => {
+                {vehiculosVisibles.map((vehiculo) => {
                   const estado = estadoVehiculo(vehiculo);
                   const descripcion = [vehiculo.marca, vehiculo.modelo].filter(Boolean).join(' ');
                   return (
@@ -346,6 +355,13 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
               </TableBody>
             </Table>
           </TableContainer>
+          <PaginacionLista
+            pagina={paginaActual}
+            total={vehiculosFiltrados.length}
+            resultadosPorPagina={resultadosPorPagina}
+            establecerPagina={establecerPagina}
+            establecerResultadosPorPagina={establecerResultadosPorPagina}
+          />
         </CardContent>
       </Card>
 

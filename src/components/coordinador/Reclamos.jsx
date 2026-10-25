@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert,
   Avatar,
@@ -15,7 +15,6 @@ import {
   FormControl,
   InputLabel,
   MenuItem,
-  Pagination,
   Select,
   Stack,
   TextField,
@@ -47,6 +46,7 @@ import SelectorBuscable from '../comunes/SelectorBuscable.jsx';
 const cargarOpcionesFormulario = reclamosApi.opciones;
 import FichaDetalle from '../comunes/FichaDetalle.jsx';
 import GaleriaImagenes from '../comunes/GaleriaImagenes.jsx';
+import PaginacionLista from '../comunes/PaginacionLista.jsx';
 
 const esOrdenDeServicio = (reclamo) => Boolean(reclamo)
   && (reclamo.esOrden || reclamo.tipo === 'Instalación' || reclamo.tipo === 'Baja de servicio');
@@ -83,6 +83,7 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
   const [errorNotas, establecerErrorNotas] = useState('');
   const [tecnicoSeleccionado, establecerTecnicoSeleccionado] = useState('');
   const [pagina, establecerPagina] = useState(1);
+  const [resultadosPorPagina, establecerResultadosPorPagina] = useState(10);
   const [filtros, establecerFiltros] = useState({
     estado: 'Abierto',
     tecnicoId: 'Todos',
@@ -151,9 +152,12 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
       && (!desde || fechaCreacion >= desde)
       && (!hasta || fechaCreacion <= hasta);
   }).sort((primero, segundo) => segundo.id - primero.id);
-  const cantidadPaginas = Math.ceil(reclamosFiltrados.length / 10);
+  const cantidadPaginas = Math.ceil(reclamosFiltrados.length / resultadosPorPagina);
   const paginaActual = Math.min(pagina, Math.max(cantidadPaginas, 1));
-  const reclamosVisibles = reclamosFiltrados.slice((paginaActual - 1) * 10, paginaActual * 10);
+  const reclamosVisibles = useMemo(
+    () => reclamosFiltrados.slice((paginaActual - 1) * resultadosPorPagina, paginaActual * resultadosPorPagina),
+    [paginaActual, reclamosFiltrados, resultadosPorPagina],
+  );
 
   const reclamoAbierto = reclamoAbiertoId != null
     ? reclamos.find((reclamo) => reclamo.id === reclamoAbiertoId) || null
@@ -651,20 +655,13 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
             </CardContent>
           </Card>
         ))}
-        {cantidadPaginas > 1 && (
-          <Stack spacing={1} sx={{ alignItems: 'center', pt: 2 }}>
-            <Pagination
-              count={cantidadPaginas}
-              page={paginaActual}
-              onChange={(_, nuevaPagina) => establecerPagina(nuevaPagina)}
-              color="primary"
-              aria-label="Paginación de reclamos"
-            />
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75 }}>
-              Página {paginaActual} de {cantidadPaginas}
-            </Typography>
-          </Stack>
-        )}
+        <PaginacionLista
+          pagina={paginaActual}
+          total={reclamosFiltrados.length}
+          resultadosPorPagina={resultadosPorPagina}
+          establecerPagina={establecerPagina}
+          establecerResultadosPorPagina={establecerResultadosPorPagina}
+        />
       </Stack>
 
       {/* Diálogo para asignar o reasignar técnico */}

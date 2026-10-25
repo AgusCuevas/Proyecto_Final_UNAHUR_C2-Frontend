@@ -33,6 +33,7 @@ import EntradaVoz from './EntradaVoz.jsx';
 import ControlVehiculoDialog from './ControlVehiculoDialog.jsx';
 import GaleriaImagenes from '../comunes/GaleriaImagenes.jsx';
 import SelectorImagenes from '../comunes/SelectorImagenes.jsx';
+import PaginacionLista from '../comunes/PaginacionLista.jsx';
 import { subirImagenes } from '../../utils/subirImagenes.js';
 
 const MAXIMO_IMAGENES = 5;
@@ -43,6 +44,8 @@ function formatearFecha(fecha) {
 
 function MisAsignaciones({ soloEnCurso = false }) {
   const [filtro, setFiltro] = useState(soloEnCurso ? 'En progreso' : 'Todos');
+  const [pagina, establecerPagina] = useState(1);
+  const [resultadosPorPagina, establecerResultadosPorPagina] = useState(10);
   const esMovil = useMediaQuery((theme) => theme.breakpoints.down('sm'));
   const { actualizarEstado, registrarControlVehiculo } = useAppData();
   // GET /reclamos devuelve solo los del técnico, cada uno con su cliente adentro.
@@ -62,6 +65,12 @@ function MisAsignaciones({ soloEnCurso = false }) {
   const filtroActivo = soloEnCurso ? 'En progreso' : filtro;
   const asignacionesFiltradas = asignaciones.filter(
     ({ reclamo }) => filtroActivo === 'Todos' || reclamo.estado === filtroActivo,
+  );
+  const cantidadPaginas = Math.max(1, Math.ceil(asignacionesFiltradas.length / resultadosPorPagina));
+  const paginaActual = Math.min(pagina, cantidadPaginas);
+  const asignacionesVisibles = asignacionesFiltradas.slice(
+    (paginaActual - 1) * resultadosPorPagina,
+    paginaActual * resultadosPorPagina,
   );
 
   return (
@@ -118,7 +127,7 @@ function MisAsignaciones({ soloEnCurso = false }) {
         <Paper sx={{ p: 4, textAlign: 'center' }}>
           <Typography color="text.secondary">No hay asignaciones con este estado.</Typography>
         </Paper>
-      ) : asignacionesFiltradas.map(({ reclamo, cliente }) => (
+      ) : asignacionesVisibles.map(({ reclamo, cliente }) => (
         <Asignacion
           key={reclamo.id}
           reclamo={reclamo}
@@ -130,6 +139,15 @@ function MisAsignaciones({ soloEnCurso = false }) {
           vehiculo={vehiculo}
         />
       ))}
+      {asignacionesFiltradas.length > 0 && (
+        <PaginacionLista
+          pagina={paginaActual}
+          total={asignacionesFiltradas.length}
+          resultadosPorPagina={resultadosPorPagina}
+          establecerPagina={establecerPagina}
+          establecerResultadosPorPagina={establecerResultadosPorPagina}
+        />
+      )}
     </Stack>
   );
 }

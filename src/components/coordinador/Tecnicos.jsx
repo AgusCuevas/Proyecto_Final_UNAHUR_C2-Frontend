@@ -25,6 +25,7 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import { useRecursos } from '../../context/useRecursos.js';
 import MapaTecnicos from './MapaTecnicos.jsx';
 import FichaDetalle from '../comunes/FichaDetalle.jsx';
+import PaginacionLista from '../comunes/PaginacionLista.jsx';
 
 const colorEstado = { Activo: 'success', Asignado: 'warning', Libre: 'default' };
 
@@ -42,7 +43,8 @@ function Tecnicos() {
   const data = useRecursos('tecnicos');
   const [busqueda, establecerBusqueda] = useState('');
   const [filtroEstado, establecerFiltroEstado] = useState('Todos');
-  const [cantidadVisible, establecerCantidadVisible] = useState(10);
+  const [pagina, establecerPagina] = useState(1);
+  const [resultadosPorPagina, establecerResultadosPorPagina] = useState(10);
   const tecnicos = data.tecnicos
     .filter((tecnico) => tecnico.activo)
     .sort((primero, segundo) => primero.nombre.localeCompare(segundo.nombre, 'es'));
@@ -55,7 +57,12 @@ function Tecnicos() {
       const coincideEstado = filtroEstado === 'Todos' || tecnico.estado === filtroEstado;
       return coincideBusqueda && coincideEstado;
     });
-  const tecnicosVisibles = tecnicosFiltrados.slice(0, cantidadVisible);
+  const cantidadPaginas = Math.max(1, Math.ceil(tecnicosFiltrados.length / resultadosPorPagina));
+  const paginaActual = Math.min(pagina, cantidadPaginas);
+  const tecnicosVisibles = tecnicosFiltrados.slice(
+    (paginaActual - 1) * resultadosPorPagina,
+    paginaActual * resultadosPorPagina,
+  );
   const [tecnicoSeleccionado, establecerTecnicoSeleccionado] = useState(tecnicos[0]?.id);
   const [fichaAbierta, establecerFichaAbierta] = useState(false);
   const [tecnicoEnMapa, establecerTecnicoEnMapa] = useState(null);
@@ -130,6 +137,13 @@ function Tecnicos() {
           </Select>
         </FormControl>
       </Stack>
+      <PaginacionLista
+        pagina={paginaActual}
+        total={tecnicosFiltrados.length}
+        resultadosPorPagina={resultadosPorPagina}
+        establecerPagina={establecerPagina}
+        establecerResultadosPorPagina={establecerResultadosPorPagina}
+      />
       <Typography variant="body2" color="text.secondary">
         Mostrando {tecnicosVisibles.length} de {tecnicosFiltrados.length} técnicos encontrados.
       </Typography>
@@ -242,15 +256,6 @@ function Tecnicos() {
           </Stack>
           </Stack>
         </>
-      )}
-      {tecnicosVisibles.length < tecnicosFiltrados.length && (
-        <Button
-          variant="outlined"
-          onClick={() => establecerCantidadVisible((actual) => actual + 10)}
-          sx={{ alignSelf: 'center' }}
-        >
-          Mostrar más
-        </Button>
       )}
     </Stack>
   );

@@ -36,6 +36,7 @@ import { useState } from 'react';
 import FichaDetalle from '../comunes/FichaDetalle.jsx';
 import { useAppData } from '../../context/useAppData.js';
 import { useRecursos } from '../../context/useRecursos.js';
+import PaginacionLista from '../comunes/PaginacionLista.jsx';
 
 const formularioVacio = {
   nombre: '',
@@ -60,6 +61,8 @@ function Clientes() {
   const [formulario, establecerFormulario] = useState(formularioVacio);
   const [error, establecerError] = useState('');
   const [guardando, establecerGuardando] = useState(false);
+  const [pagina, establecerPagina] = useState(1);
+  const [resultadosPorPagina, establecerResultadosPorPagina] = useState(10);
 
   const clientes = data.clientes || [];
   const termino = busqueda.trim().toLocaleLowerCase('es');
@@ -74,6 +77,12 @@ function Clientes() {
       return coincideEstado && texto.includes(termino);
     })
     .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  const cantidadPaginas = Math.max(1, Math.ceil(clientesFiltrados.length / resultadosPorPagina));
+  const paginaActual = Math.min(pagina, cantidadPaginas);
+  const clientesVisibles = clientesFiltrados.slice(
+    (paginaActual - 1) * resultadosPorPagina,
+    paginaActual * resultadosPorPagina,
+  );
 
   const abrirFormulario = (cliente = null) => {
     establecerClienteEditando(cliente);
@@ -233,7 +242,7 @@ function Clientes() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {clientesFiltrados.map((cliente) => {
+                {clientesVisibles.map((cliente) => {
                   const activo = estaActivo(cliente);
                   return (
                     <TableRow key={cliente.id} hover>
@@ -295,6 +304,13 @@ function Clientes() {
               </TableBody>
             </Table>
           </TableContainer>
+          <PaginacionLista
+            pagina={paginaActual}
+            total={clientesFiltrados.length}
+            resultadosPorPagina={resultadosPorPagina}
+            establecerPagina={establecerPagina}
+            establecerResultadosPorPagina={establecerResultadosPorPagina}
+          />
         </CardContent>
       </Card>
 
