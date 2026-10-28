@@ -18,8 +18,10 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { appTheme } from '../theme/theme.js';
 import { authApi } from '../services/api.js';
+import { guardarSesion } from '../services/apiClient.js';
 
-function Login({ alIniciarSesion }) {
+// aviso: mensaje informativo opcional (por ejemplo, "Tu sesión venció").
+function Login({ alIniciarSesion, aviso = '' }) {
   // Estado para gestionar las credenciales del usuario y los errores de inicio de sesión.
   const [credenciales, setCredenciales] = useState({ usuario: '', contrasena: '' });
   const [mensajeError, setMensajeError] = useState('');
@@ -33,7 +35,8 @@ function Login({ alIniciarSesion }) {
         usuario: credenciales.usuario.toLowerCase(),
         contrasena: credenciales.contrasena,
       });
-      sessionStorage.setItem('galacticappToken', respuesta.token);
+      // Guarda el token y las demás pestañas abiertas entran con la misma sesión.
+      guardarSesion(respuesta.token);
       setMensajeError('');
       alIniciarSesion(respuesta.usuario.usuario, respuesta.usuario, respuesta);
     } catch {
@@ -74,6 +77,7 @@ function Login({ alIniciarSesion }) {
             </Typography>
           </Box>
 
+          {aviso && !mensajeError && <Alert severity="info">{aviso}</Alert>}
           {mensajeError && <Alert severity="error">{mensajeError}</Alert>}
 
           <Stack spacing={2}>

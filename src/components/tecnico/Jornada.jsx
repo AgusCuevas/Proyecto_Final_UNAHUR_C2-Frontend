@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react';
 import {
   Alert,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   FormControl,
   MenuItem,
@@ -120,14 +124,17 @@ function Jornada() {
     }
   };
 
-  const cerrarJornada = async (control) => {
-    if (!vehiculo) return;
+  // Con vehículo se registra el control del vehículo y después se cierra la jornada.
+  // Sin vehículo asignado no hay control: la jornada se cierra directamente.
+  const cerrarJornada = async (control = {}) => {
     try {
-      await registrarControlVehiculo(vehiculo.id, control);
-      await finalizarJornada(jornadaActiva.id, control);
+      if (vehiculo) await registrarControlVehiculo(vehiculo.id, control);
+      await finalizarJornada(jornadaActiva.id, vehiculo ? control : {});
+      establecerControlFinalAbierto(false);
       establecerError('');
     } catch (causa) {
       establecerError(causa?.response?.data?.mensaje || 'No se pudo finalizar la jornada.');
+      establecerControlFinalAbierto(false);
     }
   };
 
@@ -164,13 +171,28 @@ function Jornada() {
         </Stack>
       </Paper>
 
-      <ControlVehiculoDialog
-        abierto={controlFinalAbierto}
-        titulo="Control final de jornada"
-        kilometrajeMinimo={vehiculo?.kilometraje?.actual || 0}
-        cerrar={() => establecerControlFinalAbierto(false)}
-        confirmar={cerrarJornada}
-      />
+      {vehiculo ? (
+        <ControlVehiculoDialog
+          abierto={controlFinalAbierto}
+          titulo="Control final de jornada"
+          kilometrajeMinimo={vehiculo?.kilometraje?.actual || 0}
+          cerrar={() => establecerControlFinalAbierto(false)}
+          confirmar={cerrarJornada}
+        />
+      ) : (
+        <Dialog open={controlFinalAbierto} onClose={() => establecerControlFinalAbierto(false)} fullWidth maxWidth="xs">
+          <DialogTitle>Finalizar jornada</DialogTitle>
+          <DialogContent>
+            <Typography color="text.secondary">
+              No tenés un vehículo asignado, así que no hace falta el control del vehículo. ¿Finalizás la jornada?
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => establecerControlFinalAbierto(false)}>Cancelar</Button>
+            <Button variant="contained" startIcon={<LogoutIcon />} onClick={() => cerrarJornada()}>Finalizar jornada</Button>
+          </DialogActions>
+        </Dialog>
+      )}
 
       <Paper sx={{ p: { xs: 2, md: 3 } }}>
         <Stack spacing={2}>
@@ -211,9 +233,9 @@ function Jornada() {
               {indice > 0 && <Divider />}
               <Typography sx={{ fontWeight: 700 }}>Jornada del {new Date(jornada.inicio).toLocaleDateString('es-AR')}</Typography>
               <Typography variant="body2" color="text.secondary">
-                Duración: {formatearDuracion(jornada.inicio, jornada.fin || marcaActual)} · Kilometraje final: {kilometrajeFinal(jornada) ?? 'Pendiente'}{kilometrajeFinal(jornada) != null ? ' km' : ''}
+                Duración: {formatearDuracion(jornada.inicio, jornada.fin || marcaActual)} · Kilometraje final: {jornada.controlFinal?.sinVehiculo ? 'Sin vehículo' : `${kilometrajeFinal(jornada) ?? 'Pendiente'}${kilometrajeFinal(jornada) != null ? ' km' : ''}`}
               </Typography>
-              {jornada.controlFinal && (
+              {jornada.controlFinal && !jornada.controlFinal.sinVehiculo && (
                 <Typography variant="body2" color="text.secondary">
                   Control final: {jornada.controlFinal.litros} litros · Estado: {jornada.controlFinal.estado} · {jornada.controlFinal.imagenes?.length || 0} imágenes
                 </Typography>

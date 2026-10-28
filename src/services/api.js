@@ -75,6 +75,10 @@ const normalizarUsuario = (usuario) => {
 
 export const authApi = {
   iniciarSesion: async (credenciales) => (await apiClient.post('/auth/login', credenciales)).data,
+  // Sesión actual (con el token guardado en la pestaña) y un token renovado.
+  sesion: async () => (await apiClient.get('/auth/sesion')).data,
+  // Cierra la sesión en el backend: el token deja de servir en todos lados.
+  cerrarSesion: async () => (await apiClient.post('/auth/logout', null, { timeout: 3000 })).data,
 };
 
 export const usuariosApi = {

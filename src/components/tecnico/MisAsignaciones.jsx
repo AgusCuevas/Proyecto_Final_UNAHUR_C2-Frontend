@@ -1,16 +1,15 @@
 import { useState } from 'react';
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
   Alert,
   Box,
   Button,
   Chip,
+  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   FormControl,
   InputLabel,
   Link,
@@ -23,9 +22,15 @@ import {
   Typography,
 } from '@mui/material';
 import DoneIcon from '@mui/icons-material/Done';
+import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import PlaceIcon from '@mui/icons-material/Place';
+import MapOutlinedIcon from '@mui/icons-material/MapOutlined';
+import PersonOutlineIcon from '@mui/icons-material/PersonOutlined';
+import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
+import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
+import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useAppData } from '../../context/useAppData.js';
 import { usePaginado } from '../../context/usePaginado.js';
@@ -41,7 +46,9 @@ import { subirImagenes } from '../../utils/subirImagenes.js';
 const MAXIMO_IMAGENES = 5;
 
 function formatearFecha(fecha) {
-  return new Intl.DateTimeFormat('es-AR').format(new Date(`${fecha}T12:00:00`));
+  if (!fecha) return 'Sin fecha';
+  const valor = new Date(String(fecha).length === 10 ? `${fecha}T12:00:00` : fecha);
+  return Number.isNaN(valor.getTime()) ? 'Sin fecha' : new Intl.DateTimeFormat('es-AR').format(valor);
 }
 
 function MisAsignaciones({ soloEnCurso = false }) {
@@ -80,12 +87,12 @@ function MisAsignaciones({ soloEnCurso = false }) {
         <Stack spacing={2.5}>
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 800 }}>
-              {soloEnCurso ? 'Servicio en curso' : 'Asignaciones de hoy'}
+              {soloEnCurso ? 'Servicio en curso' : 'Tus reclamos'}
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 0.5 }}>
               {soloEnCurso
                 ? (totalFiltradas ? 'El reclamo que estás realizando.' : 'No tenés un reclamo en curso.')
-                : `${totalAsignaciones} reclamos asociados a tu usuario.`}
+                : `${totalAsignaciones} reclamos asociados a tu usuario: primero el que está en curso, después los asignados y al final los finalizados.`}
             </Typography>
           </Box>
           {!soloEnCurso && esMovil ? (
@@ -97,10 +104,10 @@ function MisAsignaciones({ soloEnCurso = false }) {
                 label="Filtrar servicios"
                 onChange={(event) => cambiarFiltro(event.target.value)}
               >
-                <MenuItem value="Todos">Todos los servicios</MenuItem>
-                <MenuItem value="En progreso">Servicio en curso</MenuItem>
-                <MenuItem value="Asignado">Asignados</MenuItem>
-                <MenuItem value="Finalizado">Finalizados</MenuItem>
+                <MenuItem value="Todos">Todos los servicios ({totalAsignaciones})</MenuItem>
+                <MenuItem value="En progreso">Servicio en curso ({totalesPorEstado['En progreso'] || 0})</MenuItem>
+                <MenuItem value="Asignado">Asignados ({totalesPorEstado.Asignado || 0})</MenuItem>
+                <MenuItem value="Finalizado">Finalizados ({totalesPorEstado.Finalizado || 0})</MenuItem>
               </Select>
             </FormControl>
           ) : !soloEnCurso && (
@@ -110,10 +117,10 @@ function MisAsignaciones({ soloEnCurso = false }) {
               variant="fullWidth"
               aria-label="Filtrar asignaciones por estado"
             >
-              <Tab label="Todos los servicios" value="Todos" />
-              <Tab label="Servicio en curso" value="En progreso" />
-              <Tab label="Asignados" value="Asignado" />
-              <Tab label="Finalizados" value="Finalizado" />
+              <Tab label={`Todos (${totalAsignaciones})`} value="Todos" />
+              <Tab label={`En curso (${totalesPorEstado['En progreso'] || 0})`} value="En progreso" />
+              <Tab label={`Asignados (${totalesPorEstado.Asignado || 0})`} value="Asignado" />
+              <Tab label={`Finalizados (${totalesPorEstado.Finalizado || 0})`} value="Finalizado" />
             </Tabs>
           )}
           {!soloEnCurso && (
@@ -156,8 +163,34 @@ function MisAsignaciones({ soloEnCurso = false }) {
   );
 }
 
-// Muestra la información de un reclamo asignado a un técnico, incluyendo detalles del cliente y 
-// la opción de finalizar el reclamo si está en progreso.
+// Color de cada estado: los mismos que ven el admin y el coordinador (coordinador/Reclamos.jsx).
+const COLOR_ESTADO = {
+  Abierto: 'warning',
+  Asignado: 'info',
+  'En progreso': 'secondary',
+  Bloqueado: 'error',
+  Finalizado: 'success',
+};
+
+// Dato con ícono, etiqueta y valor (y una acción opcional debajo).
+function Dato({ icono, etiqueta, children, accion }) {
+  return (
+    <Stack direction="row" spacing={1.5} sx={{ minWidth: 0 }}>
+      <Box sx={{ color: 'text.secondary', pt: 0.25, display: 'flex' }}>{icono}</Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          {etiqueta}
+        </Typography>
+        <Box sx={{ overflowWrap: 'anywhere' }}>{children}</Box>
+        {accion}
+      </Box>
+    </Stack>
+  );
+}
+
+// Tarjeta de un reclamo del técnico, con el mismo formato que la lista del admin y el coordinador:
+// arriba el resumen (número, prioridad, tipo, cliente, fecha, dirección y estado);
+// al desplegarla, el detalle y las acciones (comenzar, finalizar o reportar un inconveniente).
 function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, actualizarEstado, registrarControlVehiculo, vehiculo }) {
   const [comentario, setComentario] = useState('');
   const [imagenes, setImagenes] = useState([]);
@@ -168,8 +201,13 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
   const [motivoInconveniente, establecerMotivoInconveniente] = useState('');
   const [controlInicioAbierto, establecerControlInicioAbierto] = useState(false);
   const estaEnProgreso = reclamo.estado === 'En progreso';
+  // El reclamo en progreso aparece desplegado: es el que el técnico está trabajando.
+  const [desplegado, establecerDesplegado] = useState(estaEnProgreso);
+  const abierto = noDesplegable || desplegado;
+  const color = COLOR_ESTADO[reclamo.estado] || 'primary';
   const formularioId = `formulario-reclamo-${reclamo.id}`;
-  const urlMaps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cliente.direccion)}`;
+  const urlMaps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cliente.direccion || '')}`;
+
   const reportarInconveniente = async (event) => {
     event.preventDefault();
     const motivo = motivoInconveniente.trim();
@@ -229,111 +267,224 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
 
   return (
     <>
-      <Accordion expanded={noDesplegable || undefined} disableGutters>
-      <AccordionSummary
-        expandIcon={<ExpandMoreIcon />}
-        sx={{ alignItems: 'flex-start', display: noDesplegable ? 'none' : 'flex' }}
+      <Paper
+        variant="outlined"
+        sx={{
+          borderRadius: 1.5,
+          overflow: 'hidden',
+          borderColor: 'divider',
+          borderLeft: 4,
+          borderLeftColor: `${color}.main`,
+          transition: 'transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease',
+          ...(abierto
+            ? { boxShadow: 3 }
+            : !noDesplegable && { '&:hover': { borderColor: 'primary.main', borderLeftColor: `${color}.main`, boxShadow: 3, transform: 'translateY(-2px)' } }),
+        }}
       >
-        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-          <Typography sx={{ fontWeight: 800, overflowWrap: 'anywhere' }}>{reclamo.tipo}</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
-            Reclamo #{reclamo.id} · {cliente.nombre}
-          </Typography>
-        </Box>
-        <Chip
-          label={reclamo.estado}
-          color={reclamo.estado === 'Finalizado' ? 'success' : reclamo.estado === 'En progreso' ? 'warning' : 'info'}
-          size="small"
-          sx={{ mr: 1, flexShrink: 0 }}
-        />
-      </AccordionSummary>
-
-      <AccordionDetails>
-        <Stack spacing={2}>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-            <Box sx={{ flex: 1 }}>
-              <Typography variant="overline" color="text.secondary">Cliente</Typography>
-              <Typography>{cliente.nombre}</Typography>
-              <Typography variant="body2" color="text.secondary">{cliente.telefono}</Typography>
-            </Box>
-            <Box sx={{ flex: 1 }}>
-              <Typography variant="overline" color="text.secondary">Visita programada</Typography>
-              <Typography>{formatearFecha(reclamo.fechaProgramada)}</Typography>
-              <Typography variant="body2" color="text.secondary">Prioridad: {reclamo.prioridad}</Typography>
-            </Box>
-          </Stack>
-
-          <Box>
-            <Typography variant="overline" color="text.secondary">Descripcion</Typography>
-            <Typography>{reclamo.descripcion}</Typography>
-            {reclamo.imagenes?.length > 0 && (
-              <Box sx={{ mt: 1.5 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75, fontWeight: 700 }}>
-                  Imágenes del trabajo ({reclamo.imagenes.length})
-                </Typography>
-                <GaleriaImagenes
-                  key={reclamo.imagenes.join()}
-                  ids={reclamo.imagenes}
-                  descripcion={`Imagen del reclamo #${reclamo.id}`}
-                />
-              </Box>
-            )}
-          </Box>
-
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
-            <PlaceIcon color="primary" fontSize="small" />
-            <Typography variant="body2" sx={{ flexGrow: 1, minWidth: 0, overflowWrap: 'anywhere' }}>
-              {cliente.direccion}
-            </Typography>
-            {estaEnProgreso && (
-              <Link href={urlMaps} target="_blank" rel="noreferrer" underline="none">
-                <Button size="small" variant="outlined" startIcon={<PlaceIcon />}>Ver en Maps</Button>
-              </Link>
-            )}
-          </Stack>
-
-          {reclamo.estado === 'Asignado' && (
-            <Stack spacing={0.75} sx={{ alignItems: 'flex-start' }}>
-              <Button
-                variant="contained"
-                startIcon={<PlayArrowIcon />}
-                disabled={!puedeComenzar}
-                onClick={() => establecerControlInicioAbierto(true)}
-                sx={{ width: { xs: '100%', sm: 'auto' } }}
-              >
-                Comenzar asignacion
-              </Button>
-              {!puedeComenzar && (
-                <Typography variant="caption" color="text.secondary">
-                  Finalizá el reclamo en progreso antes de comenzar otro.
-                </Typography>
+        {/* Resumen (mismo formato que la lista del admin y el coordinador): siempre visible.
+            Al tocarlo se despliega el detalle. */}
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          role={noDesplegable ? undefined : 'button'}
+          tabIndex={noDesplegable ? undefined : 0}
+          aria-expanded={noDesplegable ? undefined : abierto}
+          onClick={noDesplegable ? undefined : () => establecerDesplegado((actual) => !actual)}
+          onKeyDown={noDesplegable ? undefined : (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              establecerDesplegado((actual) => !actual);
+            }
+          }}
+          sx={{
+            alignItems: 'stretch',
+            cursor: noDesplegable ? 'default' : 'pointer',
+            '&:focus-visible': { outline: 2, outlineColor: 'primary.main', outlineOffset: -2 },
+          }}
+        >
+          <Box sx={{ flex: 1, minWidth: 0, p: { xs: 1.5, sm: 2 } }}>
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', mb: 0.5 }}>
+              <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 800, letterSpacing: '0.08em' }}>
+                Reclamo #{reclamo.id}
+              </Typography>
+              <Chip
+                size="small"
+                label={`Prioridad ${reclamo.prioridad || 'Normal'}`}
+                color={reclamo.prioridad === 'Urgente' ? 'error' : reclamo.prioridad === 'Alta' ? 'warning' : 'default'}
+              />
+            </Stack>
+            <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.2, overflowWrap: 'anywhere' }}>{reclamo.tipo}</Typography>
+            <Stack
+              direction="row"
+              sx={{ mt: 0.75, color: 'text.secondary', flexWrap: 'wrap', columnGap: 2, rowGap: 0.5, alignItems: 'center' }}
+            >
+              <ResumenItem icono={<PersonOutlineIcon fontSize="inherit" />}>{cliente.nombre}</ResumenItem>
+              <ResumenItem icono={<EventOutlinedIcon fontSize="inherit" />}>{formatearFecha(reclamo.fechaProgramada)}</ResumenItem>
+              {cliente.direccion && (
+                <ResumenItem icono={<PlaceOutlinedIcon fontSize="inherit" />}>{cliente.direccion}</ResumenItem>
               )}
             </Stack>
-          )}
+          </Box>
 
-          {estaEnProgreso && (
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-              <Button
-                variant="outlined"
-                color="success"
-                startIcon={<DoneIcon />}
-                onClick={() => establecerDialogoAbierto(true)}
-                sx={{ width: { xs: '100%', sm: 'auto' } }}
-              >
-                Finalizar reclamo
-              </Button>
-              <Button
-                variant="outlined"
-                color="warning"
-                onClick={() => establecerInconvenienteAbierto(true)}
-                sx={{ width: { xs: '100%', sm: 'auto' } }}
-              >
-                Reportar inconveniente
-              </Button>
+          <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
+
+          <Box
+            sx={{
+              width: { xs: '100%', md: 150 },
+              flexShrink: 0,
+              display: 'flex',
+              flexDirection: { xs: 'row', md: 'column' },
+              alignItems: 'center',
+              justifyContent: { xs: 'space-between', md: 'center' },
+              gap: 0.75,
+              py: 1,
+              px: { xs: 1.5, sm: 2, md: 0 },
+              borderTop: { xs: 1, md: 0 },
+              borderColor: 'divider',
+            }}
+          >
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>Estado</Typography>
+            <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+              <Chip size="small" label={reclamo.estado} color={color} />
+              {!noDesplegable && (
+                <ExpandMoreIcon
+                  aria-hidden
+                  sx={{ display: { md: 'none' }, color: 'text.secondary', transition: 'transform .2s', transform: abierto ? 'rotate(180deg)' : 'none' }}
+                />
+              )}
             </Stack>
+          </Box>
+
+          {!noDesplegable && (
+            <>
+              <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
+              <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', px: 1.5 }}>
+                <ExpandMoreIcon
+                  aria-hidden
+                  sx={{ color: 'text.secondary', transition: 'transform .2s', transform: abierto ? 'rotate(180deg)' : 'none' }}
+                />
+              </Box>
+            </>
           )}
         </Stack>
-      </AccordionDetails>
+
+        <Collapse in={abierto} unmountOnExit>
+          <Divider />
+          <Stack spacing={2.5} sx={{ p: { xs: 2, sm: 2.5 } }}>
+            <Box sx={{ display: 'grid', gap: 2.5, gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' } }}>
+              <Dato
+                icono={<PersonOutlineIcon fontSize="small" />}
+                etiqueta="Cliente"
+                accion={cliente.telefono && (
+                  <Link href={`tel:${cliente.telefono}`} underline="hover" variant="body2" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                    <PhoneOutlinedIcon fontSize="inherit" /> {cliente.telefono}
+                  </Link>
+                )}
+              >
+                <Typography>{cliente.nombre}</Typography>
+              </Dato>
+              <Dato icono={<EventOutlinedIcon fontSize="small" />} etiqueta="Visita programada">
+                <Typography>{formatearFecha(reclamo.fechaProgramada)}</Typography>
+                <Typography variant="body2" color="text.secondary">Prioridad {reclamo.prioridad?.toLowerCase() || 'normal'}</Typography>
+              </Dato>
+              <Dato
+                icono={<PlaceOutlinedIcon fontSize="small" />}
+                etiqueta="Dirección"
+                accion={cliente.direccion && (
+                  <Link href={urlMaps} target="_blank" rel="noreferrer" underline="hover" variant="body2" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                    <MapOutlinedIcon fontSize="inherit" /> Ver en Maps
+                  </Link>
+                )}
+              >
+                <Typography>{cliente.direccion || 'Sin dirección'}</Typography>
+              </Dato>
+            </Box>
+
+            {reclamo.descripcion && (
+              <Box sx={{ bgcolor: 'action.hover', borderRadius: 2, p: 2 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  Descripción
+                </Typography>
+                <Typography sx={{ mt: 0.5, whiteSpace: 'pre-line' }}>{reclamo.descripcion}</Typography>
+              </Box>
+            )}
+
+            {reclamo.notasCoordinador && (
+              <Alert severity="info" variant="outlined">
+                <strong>Notas del coordinador:</strong> {reclamo.notasCoordinador}
+              </Alert>
+            )}
+
+            {reclamo.comentarioFinalizacion && (
+              <Alert severity="success" variant="outlined" icon={<TaskAltIcon />}>
+                <strong>Trabajo realizado:</strong> {reclamo.comentarioFinalizacion}
+              </Alert>
+            )}
+
+            {reclamo.imagenes?.length > 0 && (
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  Imágenes del trabajo ({reclamo.imagenes.length})
+                </Typography>
+                <Box sx={{ mt: 1 }}>
+                  <GaleriaImagenes
+                    key={reclamo.imagenes.join()}
+                    ids={reclamo.imagenes}
+                    descripcion={`Imagen del reclamo #${reclamo.id}`}
+                  />
+                </Box>
+              </Box>
+            )}
+          </Stack>
+
+          {(reclamo.estado === 'Asignado' || estaEnProgreso) && (
+            <>
+              <Divider />
+              <Stack
+                direction={{ xs: 'column-reverse', sm: 'row' }}
+                spacing={1}
+                sx={{ p: { xs: 2, sm: 2 }, px: { sm: 2.5 }, alignItems: { sm: 'center' }, justifyContent: 'flex-end', bgcolor: 'action.hover' }}
+              >
+                {reclamo.estado === 'Asignado' && (
+                  <>
+                    {!puedeComenzar && (
+                      <Typography variant="body2" color="text.secondary" sx={{ flexGrow: 1 }}>
+                        Finalizá el reclamo en progreso antes de comenzar otro.
+                      </Typography>
+                    )}
+                    <Button
+                      variant="contained"
+                      startIcon={<PlayArrowIcon />}
+                      disabled={!puedeComenzar}
+                      onClick={() => establecerControlInicioAbierto(true)}
+                    >
+                      Comenzar asignación
+                    </Button>
+                  </>
+                )}
+                {estaEnProgreso && (
+                  <>
+                    <Button
+                      color="warning"
+                      startIcon={<ReportProblemOutlinedIcon />}
+                      onClick={() => establecerInconvenienteAbierto(true)}
+                    >
+                      Reportar inconveniente
+                    </Button>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      startIcon={<DoneIcon />}
+                      onClick={() => establecerDialogoAbierto(true)}
+                    >
+                      Finalizar reclamo
+                    </Button>
+                  </>
+                )}
+              </Stack>
+            </>
+          )}
+        </Collapse>
+      </Paper>
 
       {estaEnProgreso && (
         <FormularioFinalizar
@@ -386,7 +537,6 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
         </Box>
       </Dialog>
 
-      </Accordion>
       <ControlVehiculoDialog
         abierto={controlInicioAbierto}
         titulo="Control inicial del servicio"
@@ -395,6 +545,16 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
         confirmar={iniciarAsignacion}
       />
     </>
+  );
+}
+
+// Dato chico del resumen de la tarjeta (ícono + texto en una línea).
+function ResumenItem({ icono, children }) {
+  return (
+    <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', minWidth: 0, fontSize: 18 }}>
+      {icono}
+      <Typography variant="body2" noWrap sx={{ maxWidth: { xs: 220, sm: 320 } }}>{children}</Typography>
+    </Stack>
   );
 }
 

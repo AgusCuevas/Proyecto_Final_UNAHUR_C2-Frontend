@@ -240,7 +240,7 @@ export function DataProvider({ children }) {
     // El backend genera el id y la hora de inicio; solo necesita el técnico y el kilometraje inicial.
     const jornada = {
       tecnicoId,
-      kilometrajeInicial: vehiculo?.kilometraje?.actual || 0,
+      ...(vehiculo ? { kilometrajeInicial: vehiculo.kilometraje?.actual || 0 } : {}),
     };
     const jornadaCreada = await jornadasApi.crear(jornada);
     setData((actual) => (actual.jornadas ? {
