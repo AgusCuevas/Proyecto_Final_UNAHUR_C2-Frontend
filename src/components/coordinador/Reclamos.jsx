@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   Avatar,
@@ -36,7 +36,7 @@ import TaskAltOutlinedIcon from '@mui/icons-material/TaskAltOutlined';
 import StickyNote2OutlinedIcon from '@mui/icons-material/StickyNote2Outlined';
 import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined';
 import { useAppData } from '../../context/useAppData.js';
-import { useRecursos } from '../../context/useRecursos.js';
+import { usePaginado } from '../../context/usePaginado.js';
 import { useCargaDiferida } from '../../context/useCargaDiferida.js';
 import { reclamosApi } from '../../services/api.js';
 import SelectorBuscable from '../comunes/SelectorBuscable.jsx';
@@ -47,6 +47,7 @@ const cargarOpcionesFormulario = reclamosApi.opciones;
 import FichaDetalle from '../comunes/FichaDetalle.jsx';
 import GaleriaImagenes from '../comunes/GaleriaImagenes.jsx';
 import PaginacionLista from '../comunes/PaginacionLista.jsx';
+import AvisoCarga from '../comunes/AvisoCarga.jsx';
 
 const esOrdenDeServicio = (reclamo) => Boolean(reclamo)
   && (reclamo.esOrden || reclamo.tipo === 'Instalación' || reclamo.tipo === 'Baja de servicio');
@@ -91,24 +92,31 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
     hasta: '',
   });
   const { actualizarAsignacion, actualizarEstado, crearReclamo: crearReclamoData } = useAppData();
-  // GET /reclamos: cada reclamo ya trae su cliente y su técnico.
-  const data = useRecursos('reclamos');
-  const reclamos = data.reclamos;
+  // Paginación en el servidor: se pide solo la página visible con los filtros (estado, técnico y
+  // fechas). Cada reclamo trae su cliente y su técnico. Las fechas del filtro son de la hora local:
+  // se mandan en UTC para que el servidor las compare bien.
+  const aUtc = (fechaLocal) => (fechaLocal ? new Date(fechaLocal).toISOString() : '');
+  const {
+    datos: reclamosVisibles, paginacion, cargando, error: errorCarga,
+  } = usePaginado(reclamosApi.pagina, {
+    pagina,
+    limite: resultadosPorPagina,
+    estado: filtros.estado,
+    tecnicoId: filtros.tecnicoId,
+    desde: aUtc(filtros.desde),
+    hasta: aUtc(filtros.hasta),
+  });
+  const totalReclamos = paginacion?.total ?? 0;
 
   const esModoOrden = formularioAbierto === 'orden';
   const mostrarFormulario = Boolean(formularioAbierto);
 
-  const opciones = useCargaDiferida(
-    cargarOpcionesFormulario,
-    mostrarFormulario || Boolean(reclamoParaAsignar),
-  );
+  // Las listas de técnicos y clientes se piden una vez al entrar (GET /reclamos/opciones):
+  // los técnicos sirven para el filtro y los dos para los formularios.
+  const opciones = useCargaDiferida(cargarOpcionesFormulario, true);
   const tecnicos = opciones?.tecnicos || [];
   const clientes = opciones?.clientes || [];
-  // El filtro por técnico usa los técnicos que ya vienen dentro de los reclamos.
-  const tecnicosDelFiltro = [...new Map(reclamos
-    .filter((reclamo) => reclamo.tecnico)
-    .map((reclamo) => [reclamo.tecnico.id, reclamo.tecnico])).values()]
-    .sort((primero, segundo) => primero.nombre.localeCompare(segundo.nombre, 'es'));
+  const tecnicosDelFiltro = tecnicos;
 
   const nombreCliente = (reclamo) => reclamo.cliente?.nombre || 'Cliente no encontrado';
   const nombreTecnico = (reclamo) => reclamo.tecnico?.nombre || 'Sin asignar';
@@ -138,29 +146,8 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
     establecerPagina(1);
   };
 
-  const reclamosFiltrados = reclamos.filter((reclamo) => {
-    const fechaCreacion = new Date(reclamo.creadoEn).getTime();
-    const desde = filtros.desde ? new Date(filtros.desde).getTime() : null;
-    const hasta = filtros.hasta ? new Date(filtros.hasta).getTime() : null;
-    const coincideEstado = filtros.estado === 'Todos' || reclamo.estado === filtros.estado;
-    const coincideTecnico = filtros.tecnicoId === 'Todos'
-      || (filtros.tecnicoId === 'Sin asignar' && !reclamo.tecnicoId)
-      || reclamo.tecnicoId === Number(filtros.tecnicoId);
-
-    return coincideEstado
-      && coincideTecnico
-      && (!desde || fechaCreacion >= desde)
-      && (!hasta || fechaCreacion <= hasta);
-  }).sort((primero, segundo) => segundo.id - primero.id);
-  const cantidadPaginas = Math.ceil(reclamosFiltrados.length / resultadosPorPagina);
-  const paginaActual = Math.min(pagina, Math.max(cantidadPaginas, 1));
-  const reclamosVisibles = useMemo(
-    () => reclamosFiltrados.slice((paginaActual - 1) * resultadosPorPagina, paginaActual * resultadosPorPagina),
-    [paginaActual, reclamosFiltrados, resultadosPorPagina],
-  );
-
   const reclamoAbierto = reclamoAbiertoId != null
-    ? reclamos.find((reclamo) => reclamo.id === reclamoAbiertoId) || null
+    ? reclamosVisibles.find((reclamo) => reclamo.id === reclamoAbiertoId) || null
     : null;
   const tecnicoDelReclamoAbierto = reclamoAbierto?.tecnico || null;
   const clienteDelReclamoAbierto = reclamoAbierto?.cliente || null;
@@ -412,13 +399,19 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
               </Stack>
             </Stack>
             <Typography variant="body2" color="text.secondary">
-              {reclamosFiltrados.length} de {reclamos.length} reclamos visibles
+              {totalReclamos} {totalReclamos === 1 ? 'reclamo coincide' : 'reclamos coinciden'} con los filtros
             </Typography>
           </Stack>
         </CardContent>
       </Card>
 
       <Stack spacing={1}>
+        <AvisoCarga cargando={cargando} error={errorCarga} />
+        {!cargando && reclamosVisibles.length === 0 && (
+          <Typography color="text.secondary" sx={{ textAlign: 'center', py: 3 }}>
+            No hay reclamos que coincidan con los filtros.
+          </Typography>
+        )}
         {reclamosVisibles.map((reclamo) => (
           <Card
             key={reclamo.id}
@@ -656,8 +649,8 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
           </Card>
         ))}
         <PaginacionLista
-          pagina={paginaActual}
-          total={reclamosFiltrados.length}
+          pagina={pagina}
+          total={totalReclamos}
           resultadosPorPagina={resultadosPorPagina}
           establecerPagina={establecerPagina}
           establecerResultadosPorPagina={establecerResultadosPorPagina}

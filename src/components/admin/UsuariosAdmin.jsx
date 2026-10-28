@@ -35,7 +35,9 @@ import DirectionsCarOutlinedIcon from '@mui/icons-material/DirectionsCarOutlined
 import { useState } from 'react';
 import FichaDetalle from '../comunes/FichaDetalle.jsx';
 import { useAppData } from '../../context/useAppData.js';
-import { useRecursos } from '../../context/useRecursos.js';
+import { usePagina, usePaginado, useValorDiferido } from '../../context/usePaginado.js';
+import { usuariosApi } from '../../services/api.js';
+import AvisoCarga from '../comunes/AvisoCarga.jsx';
 import PaginacionLista from '../comunes/PaginacionLista.jsx';
 
 const perfilesVacios = {
@@ -100,8 +102,6 @@ const estaActivo = (usuario) => usuario.activo !== false;
 
 function UsuariosAdmin() {
   const { crearUsuario, actualizarUsuario } = useAppData();
-  // GET /usuarios: cada técnico ya trae su vehículo asignado.
-  const data = useRecursos('usuarios');
   const [busqueda, establecerBusqueda] = useState('');
   const [filtroRol, establecerFiltroRol] = useState('Todos');
   const [filtroEstado, establecerFiltroEstado] = useState('Todos');
@@ -113,34 +113,18 @@ function UsuariosAdmin() {
   const [formulario, establecerFormulario] = useState(crearFormularioVacio);
   const [error, establecerError] = useState('');
   const [guardando, establecerGuardando] = useState(false);
-  const [pagina, establecerPagina] = useState(1);
   const [resultadosPorPagina, establecerResultadosPorPagina] = useState(10);
 
-  const termino = busqueda.trim().toLocaleLowerCase('es');
-  const usuarios = data.usuarios
-    .filter((usuario) => {
-      const coincideEstado = filtroEstado === 'Todos'
-        || (filtroEstado === 'Activos' ? estaActivo(usuario) : !estaActivo(usuario));
-      const coincideRol = filtroRol === 'Todos' || usuario.rol === filtroRol;
-      const texto = [
-        usuario.nombre,
-        usuario.usuario,
-        usuario.perfil?.documento,
-        usuario.perfil?.email,
-        usuario.rol,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLocaleLowerCase('es');
-      return coincideEstado && coincideRol && texto.includes(termino);
-    })
-    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
-  const cantidadPaginas = Math.max(1, Math.ceil(usuarios.length / resultadosPorPagina));
-  const paginaActual = Math.min(pagina, cantidadPaginas);
-  const usuariosVisibles = usuarios.slice(
-    (paginaActual - 1) * resultadosPorPagina,
-    paginaActual * resultadosPorPagina,
-  );
+  // Paginación en el servidor: se pide solo la página visible, con la búsqueda, el rol y el estado.
+  // La búsqueda se manda cuando el usuario deja de escribir.
+  const buscar = useValorDiferido(busqueda.trim());
+  const [pagina, establecerPagina] = usePagina(buscar);
+  const {
+    datos: usuariosVisibles, paginacion, cargando, error: errorCarga,
+  } = usePaginado(usuariosApi.pagina, {
+    pagina, limite: resultadosPorPagina, buscar, rol: filtroRol, estado: filtroEstado,
+  });
+  const totalUsuarios = paginacion?.total ?? 0;
 
   const abrirFormulario = (usuario = null) => {
     establecerUsuarioEditando(usuario);
@@ -327,7 +311,10 @@ function UsuariosAdmin() {
                       key={rol}
                       size="small"
                       variant={filtroRol === rol ? 'contained' : 'outlined'}
-                      onClick={() => establecerFiltroRol(rol)}
+                      onClick={() => {
+                        establecerFiltroRol(rol);
+                        establecerPagina(1);
+                      }}
                     >
                       {rol === 'Tecnico' ? 'Técnico' : rol}
                     </Button>
@@ -367,7 +354,10 @@ function UsuariosAdmin() {
                       key={estado}
                       size="small"
                       variant={filtroEstado === estado ? 'contained' : 'outlined'}
-                      onClick={() => establecerFiltroEstado(estado)}
+                      onClick={() => {
+                        establecerFiltroEstado(estado);
+                        establecerPagina(1);
+                      }}
                     >
                       {estado}
                     </Button>
@@ -384,9 +374,10 @@ function UsuariosAdmin() {
           <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Typography variant="h6" sx={{ fontWeight: 800 }}>Usuarios del sistema</Typography>
             <Typography variant="body2" color="text.secondary">
-              {usuarios.length} {usuarios.length === 1 ? 'resultado' : 'resultados'}
+              {totalUsuarios} {totalUsuarios === 1 ? 'resultado' : 'resultados'}
             </Typography>
           </Stack>
+          <AvisoCarga cargando={cargando} error={errorCarga} />
           <TableContainer sx={{ overflowX: 'auto' }}>
             <Table size="small" sx={{ minWidth: 790 }}>
               <TableHead>
@@ -441,7 +432,7 @@ function UsuariosAdmin() {
                     </TableRow>
                   );
                 })}
-                {usuarios.length === 0 && (
+                {!cargando && usuariosVisibles.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={6} sx={{ py: 4, textAlign: 'center' }}>
                       <Typography color="text.secondary">No hay usuarios que coincidan con los filtros.</Typography>
@@ -452,8 +443,8 @@ function UsuariosAdmin() {
             </Table>
           </TableContainer>
           <PaginacionLista
-            pagina={paginaActual}
-            total={usuarios.length}
+            pagina={pagina}
+            total={totalUsuarios}
             resultadosPorPagina={resultadosPorPagina}
             establecerPagina={establecerPagina}
             establecerResultadosPorPagina={establecerResultadosPorPagina}

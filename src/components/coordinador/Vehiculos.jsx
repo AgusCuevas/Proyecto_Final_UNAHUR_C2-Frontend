@@ -35,7 +35,7 @@ import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import { useState } from 'react';
 import { useAppData } from '../../context/useAppData.js';
-import { useRecursos } from '../../context/useRecursos.js';
+import { usePagina, usePaginado, useValorDiferido } from '../../context/usePaginado.js';
 import { useCargaDiferida } from '../../context/useCargaDiferida.js';
 import { vehiculosApi } from '../../services/api.js';
 import SelectorBuscable from '../comunes/SelectorBuscable.jsx';
@@ -45,6 +45,7 @@ const cargarTecnicosActivos = async () => (await vehiculosApi.opciones()).tecnic
 import FichaDetalle from '../comunes/FichaDetalle.jsx';
 import GaleriaImagenes from '../comunes/GaleriaImagenes.jsx';
 import PaginacionLista from '../comunes/PaginacionLista.jsx';
+import AvisoCarga from '../comunes/AvisoCarga.jsx';
 
 // Las fechas llegan como 'AAAA-MM-DD' o como ISO completo desde MongoDB.
 const formatearFecha = (fecha) => {
@@ -85,7 +86,6 @@ const controlesUltimos30Dias = (vehiculo) => (vehiculo.controles || [])
 function Vehiculos({ gestionable = false, accionNuevo }) {
   const { actualizarAsignacionVehiculo, actualizarVehiculo } = useAppData();
   // GET /vehiculos: cada vehículo ya trae su técnico.
-  const data = useRecursos('vehiculos');
   const [busqueda, establecerBusqueda] = useState('');
   const [filtroAsignacion, establecerFiltroAsignacion] = useState('Todos');
   const [vehiculoSeleccionado, establecerVehiculoSeleccionado] = useState(null);
@@ -95,43 +95,35 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
   const [vehiculoEditando, establecerVehiculoEditando] = useState(null);
   const [formularioEdicion, establecerFormularioEdicion] = useState(null);
   const [errorEdicion, establecerErrorEdicion] = useState('');
-  const [pagina, establecerPagina] = useState(1);
   const [resultadosPorPagina, establecerResultadosPorPagina] = useState(10);
 
   const tecnicosCargados = useCargaDiferida(cargarTecnicosActivos, Boolean(asignacionPendiente));
   const tecnicos = tecnicosCargados || [];
+  // Paginación en el servidor: se pide solo la página visible, con la búsqueda (patente, marca,
+  // modelo o técnico) y la asignación. La búsqueda se manda cuando el usuario deja de escribir.
+  const buscar = useValorDiferido(busqueda.trim());
+  const [pagina, establecerPagina] = usePagina(buscar);
+  const {
+    datos: vehiculosVisibles, paginacion, cargando, error: errorCarga,
+  } = usePaginado(vehiculosApi.pagina, {
+    pagina, limite: resultadosPorPagina, buscar, asignacion: filtroAsignacion,
+  });
+  const totalVehiculos = paginacion?.total ?? 0;
+
   const nombreTecnico = (tecnicoId) => (
-    data.vehiculos.find((vehiculo) => vehiculo.tecnico?.id === tecnicoId)?.tecnico
+    vehiculosVisibles.find((vehiculo) => vehiculo.tecnico?.id === tecnicoId)?.tecnico
     || tecnicos.find((tecnico) => tecnico.id === tecnicoId)
   )?.nombre || '';
 
-  const termino = busqueda.trim().toLocaleLowerCase('es');
-  const vehiculosFiltrados = data.vehiculos
-    .filter((vehiculo) => {
-      const coincideAsignacion = filtroAsignacion === 'Todos'
-        || (filtroAsignacion === 'Con técnico' ? vehiculo.tecnicoAsignado != null : vehiculo.tecnicoAsignado == null);
-      const texto = [vehiculo.patente, vehiculo.marca, vehiculo.modelo, vehiculo.tecnico?.nombre]
-        .filter(Boolean)
-        .join(' ')
-        .toLocaleLowerCase('es');
-      return coincideAsignacion && texto.includes(termino);
-    })
-    .sort((a, b) => String(a.patente).localeCompare(String(b.patente), 'es'));
-  const cantidadPaginas = Math.max(1, Math.ceil(vehiculosFiltrados.length / resultadosPorPagina));
-  const paginaActual = Math.min(pagina, cantidadPaginas);
-  const vehiculosVisibles = vehiculosFiltrados.slice(
-    (paginaActual - 1) * resultadosPorPagina,
-    paginaActual * resultadosPorPagina,
-  );
-
   const vehiculoDetalle = vehiculoSeleccionado
-    ? data.vehiculos.find((vehiculo) => vehiculo.id === vehiculoSeleccionado.id) || vehiculoSeleccionado
+    ? vehiculosVisibles.find((vehiculo) => vehiculo.id === vehiculoSeleccionado.id) || vehiculoSeleccionado
     : null;
 
-  const vehiculoAnteriorDelTecnico = asignacionPendiente?.tecnicoId
-    ? data.vehiculos.find((item) => (
-      item.tecnicoAsignado === asignacionPendiente.tecnicoId && item.id !== asignacionPendiente.vehiculo.id
-    ))
+  // El vehículo que hoy tiene el técnico elegido viene en las opciones (puede no estar en esta página).
+  const vehiculoActualDelElegido = tecnicos.find((tecnico) => tecnico.id === asignacionPendiente?.tecnicoId)?.vehiculo;
+  const vehiculoAnteriorDelTecnico = vehiculoActualDelElegido
+    && vehiculoActualDelElegido.id !== asignacionPendiente.vehiculo.id
+    ? vehiculoActualDelElegido
     : null;
 
   const abrirAsignacion = (vehiculo) => {
@@ -254,7 +246,10 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
                 select
                 label="Asignación"
                 value={filtroAsignacion}
-                onChange={(evento) => establecerFiltroAsignacion(evento.target.value)}
+                onChange={(evento) => {
+                  establecerFiltroAsignacion(evento.target.value);
+                  establecerPagina(1);
+                }}
                 sx={{ minWidth: 170 }}
               >
                 <MenuItem value="Todos">Todos</MenuItem>
@@ -272,9 +267,10 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
           <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Typography variant="h6" sx={{ fontWeight: 800 }}>Vehículos</Typography>
             <Typography variant="body2" color="text.secondary">
-              {vehiculosFiltrados.length} {vehiculosFiltrados.length === 1 ? 'resultado' : 'resultados'}
+              {totalVehiculos} {totalVehiculos === 1 ? 'resultado' : 'resultados'}
             </Typography>
           </Stack>
+          <AvisoCarga cargando={cargando} error={errorCarga} />
           <TableContainer sx={{ overflowX: 'auto' }}>
             <Table size="small" sx={{ minWidth: 820 }}>
               <TableHead>
@@ -345,7 +341,7 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
                     </TableRow>
                   );
                 })}
-                {vehiculosFiltrados.length === 0 && (
+                {!cargando && vehiculosVisibles.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                       No hay vehículos que coincidan con la búsqueda.
@@ -356,8 +352,8 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
             </Table>
           </TableContainer>
           <PaginacionLista
-            pagina={paginaActual}
-            total={vehiculosFiltrados.length}
+            pagina={pagina}
+            total={totalVehiculos}
             resultadosPorPagina={resultadosPorPagina}
             establecerPagina={establecerPagina}
             establecerResultadosPorPagina={establecerResultadosPorPagina}

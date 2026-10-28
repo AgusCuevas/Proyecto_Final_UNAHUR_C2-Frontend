@@ -16,7 +16,6 @@ import { DataContext } from './dataContext.js';
 const cargadores = {
   usuarios: usuariosApi.listar,
   tecnicos: tecnicosApi.listar,
-  reclamosEnCurso: reclamosApi.listarEnCurso,
   resumenUsuarios: usuariosApi.resumen,
   resumenReclamos: reclamosApi.resumen,
   clientes: clientesApi.listar,
@@ -38,6 +37,10 @@ export function DataProvider({ children }) {
   // Datos del usuario que llegan en el login. Para el técnico incluye su jornada activa
   // y su vehículo, que se muestran en todas sus pantallas sin volver a pedirlos.
   const [datosSesion, establecerDatosSesion] = useState({ usuario: null, jornadaActiva: null, vehiculo: null });
+  // Sube después de cada cambio (crear, editar, asignar...): las listas paginadas (usePaginado)
+  // vuelven a pedir la página que muestran.
+  const [versionDatos, establecerVersionDatos] = useState(0);
+  const avisarCambio = () => establecerVersionDatos((actual) => actual + 1);
 
   const iniciarSesion = useCallback((respuestaLogin) => {
     establecerDatosSesion({
@@ -162,7 +165,6 @@ export function DataProvider({ children }) {
       : cambios;
     const reclamoActualizado = await reclamosApi.actualizarEstado(reclamoId, cambiosConJornada);
     reemplazar('reclamos', reclamoId, reclamoActualizado);
-    reemplazar('reclamosEnCurso', reclamoId, reclamoActualizado);
     return reclamoActualizado;
   };
 
@@ -235,14 +237,10 @@ export function DataProvider({ children }) {
 
   const iniciarJornada = async (tecnicoId) => {
     const { vehiculo } = datosSesion;
+    // El backend genera el id y la hora de inicio; solo necesita el técnico y el kilometraje inicial.
     const jornada = {
-      id: Date.now(),
       tecnicoId,
-      inicio: new Date().toISOString(),
-      fin: null,
       kilometrajeInicial: vehiculo?.kilometraje?.actual || 0,
-      kilometrajeFinal: null,
-      activa: true,
     };
     const jornadaCreada = await jornadasApi.crear(jornada);
     setData((actual) => (actual.jornadas ? {
@@ -268,6 +266,13 @@ export function DataProvider({ children }) {
     return jornadaFinalizada;
   };
 
+  // Envuelve una modificación para que, si sale bien, avise a las listas paginadas.
+  const conAviso = (modificacion) => async (...argumentos) => {
+    const resultado = await modificacion(...argumentos);
+    avisarCambio();
+    return resultado;
+  };
+
   return (
     <DataContext.Provider value={{
       data,
@@ -278,24 +283,25 @@ export function DataProvider({ children }) {
       limpiarDatos,
       sesion: datosSesion,
       iniciarSesion,
-      actualizarAsignacion,
-      actualizarEstado,
-      actualizarAsignacionVehiculo,
-      crearVehiculo,
-      actualizarControlVehiculo,
-      registrarControlVehiculo,
-      actualizarEstadoVehiculo,
-      actualizarVehiculo,
+      versionDatos,
       registrarUbicacionTecnico,
       actualizarTecnicos,
-      actualizarKilometraje,
-      crearCliente,
-      actualizarCliente,
-      crearUsuario,
-      actualizarUsuario,
-      crearReclamo,
-      iniciarJornada,
-      finalizarJornada,
+      actualizarAsignacion: conAviso(actualizarAsignacion),
+      actualizarEstado: conAviso(actualizarEstado),
+      actualizarAsignacionVehiculo: conAviso(actualizarAsignacionVehiculo),
+      crearVehiculo: conAviso(crearVehiculo),
+      actualizarControlVehiculo: conAviso(actualizarControlVehiculo),
+      registrarControlVehiculo: conAviso(registrarControlVehiculo),
+      actualizarEstadoVehiculo: conAviso(actualizarEstadoVehiculo),
+      actualizarVehiculo: conAviso(actualizarVehiculo),
+      actualizarKilometraje: conAviso(actualizarKilometraje),
+      crearCliente: conAviso(crearCliente),
+      actualizarCliente: conAviso(actualizarCliente),
+      crearUsuario: conAviso(crearUsuario),
+      actualizarUsuario: conAviso(actualizarUsuario),
+      crearReclamo: conAviso(crearReclamo),
+      iniciarJornada: conAviso(iniciarJornada),
+      finalizarJornada: conAviso(finalizarJornada),
     }}>
       {children}
     </DataContext.Provider>

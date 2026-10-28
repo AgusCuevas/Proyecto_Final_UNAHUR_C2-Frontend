@@ -22,10 +22,12 @@ import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import SearchIcon from '@mui/icons-material/Search';
 import PersonIcon from '@mui/icons-material/Person';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
-import { useRecursos } from '../../context/useRecursos.js';
+import { usePagina, usePaginado, useValorDiferido } from '../../context/usePaginado.js';
+import { tecnicosApi } from '../../services/api.js';
 import MapaTecnicos from './MapaTecnicos.jsx';
 import FichaDetalle from '../comunes/FichaDetalle.jsx';
 import PaginacionLista from '../comunes/PaginacionLista.jsx';
+import AvisoCarga from '../comunes/AvisoCarga.jsx';
 
 const colorEstado = { Activo: 'success', Asignado: 'warning', Libre: 'default' };
 
@@ -39,35 +41,24 @@ const formatearFecha = (fecha) => {
 const describirReclamo = (reclamo) => (reclamo ? `#${reclamo.id} · ${reclamo.tipo}` : '');
 
 function Tecnicos() {
-  // GET /tecnicos: cada técnico ya trae estado, reclamos, vehículo y ubicación.
-  const data = useRecursos('tecnicos');
   const [busqueda, establecerBusqueda] = useState('');
   const [filtroEstado, establecerFiltroEstado] = useState('Todos');
-  const [pagina, establecerPagina] = useState(1);
   const [resultadosPorPagina, establecerResultadosPorPagina] = useState(10);
-  const tecnicos = data.tecnicos
-    .filter((tecnico) => tecnico.activo)
-    .sort((primero, segundo) => primero.nombre.localeCompare(segundo.nombre, 'es'));
-  const tecnicosFiltrados = tecnicos
-    .filter((tecnico) => {
-      const texto = busqueda.trim().toLowerCase();
-      const coincideBusqueda = !texto
-        || [tecnico.nombre, tecnico.usuario, tecnico.email]
-          .some((campo) => campo?.toLowerCase().includes(texto));
-      const coincideEstado = filtroEstado === 'Todos' || tecnico.estado === filtroEstado;
-      return coincideBusqueda && coincideEstado;
-    });
-  const cantidadPaginas = Math.max(1, Math.ceil(tecnicosFiltrados.length / resultadosPorPagina));
-  const paginaActual = Math.min(pagina, cantidadPaginas);
-  const tecnicosVisibles = tecnicosFiltrados.slice(
-    (paginaActual - 1) * resultadosPorPagina,
-    paginaActual * resultadosPorPagina,
-  );
-  const [tecnicoSeleccionado, establecerTecnicoSeleccionado] = useState(tecnicos[0]?.id);
+  // Paginación en el servidor: solo técnicos habilitados, con la búsqueda y el estado
+  // (Activo, Asignado o Libre). Cada técnico trae estado, reclamos, vehículo y ubicación.
+  const buscar = useValorDiferido(busqueda.trim());
+  const [pagina, establecerPagina] = usePagina(buscar);
+  const {
+    datos: tecnicosVisibles, paginacion, cargando, error: errorCarga,
+  } = usePaginado(tecnicosApi.pagina, {
+    pagina, limite: resultadosPorPagina, buscar, estado: filtroEstado, activo: 'true',
+  });
+  const totalTecnicos = paginacion?.total ?? 0;
+  const [tecnicoSeleccionado, establecerTecnicoSeleccionado] = useState(null);
   const [fichaAbierta, establecerFichaAbierta] = useState(false);
   const [tecnicoEnMapa, establecerTecnicoEnMapa] = useState(null);
-  const tecnico = tecnicosFiltrados.find((item) => item.id === tecnicoSeleccionado)
-    || tecnicosFiltrados[0];
+  const tecnico = tecnicosVisibles.find((item) => item.id === tecnicoSeleccionado)
+    || tecnicosVisibles[0];
   const vehiculo = tecnico?.vehiculo;
   const seccionesFicha = tecnico ? [
     {
@@ -129,7 +120,10 @@ function Tecnicos() {
             labelId="filtro-estado-tecnicos-label"
             value={filtroEstado}
             label="Estado"
-            onChange={(event) => establecerFiltroEstado(event.target.value)}
+            onChange={(event) => {
+              establecerFiltroEstado(event.target.value);
+              establecerPagina(1);
+            }}
           >
             {['Todos', 'Activo', 'Asignado', 'Libre'].map((estado) => (
               <MenuItem key={estado} value={estado}>{estado}</MenuItem>
@@ -138,18 +132,19 @@ function Tecnicos() {
         </FormControl>
       </Stack>
       <PaginacionLista
-        pagina={paginaActual}
-        total={tecnicosFiltrados.length}
+        pagina={pagina}
+        total={totalTecnicos}
         resultadosPorPagina={resultadosPorPagina}
         establecerPagina={establecerPagina}
         establecerResultadosPorPagina={establecerResultadosPorPagina}
       />
       <Typography variant="body2" color="text.secondary">
-        Mostrando {tecnicosVisibles.length} de {tecnicosFiltrados.length} técnicos encontrados.
+        Mostrando {tecnicosVisibles.length} de {totalTecnicos} técnicos encontrados.
       </Typography>
+      <AvisoCarga cargando={cargando} error={errorCarga} />
 
-      {tecnicosFiltrados.length === 0 ? (
-        <Typography color="text.secondary">No hay técnicos que coincidan con los filtros.</Typography>
+      {tecnicosVisibles.length === 0 ? (
+        !cargando && <Typography color="text.secondary">No hay técnicos que coincidan con los filtros.</Typography>
       ) : (
         <>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ alignItems: 'flex-start' }}>
@@ -252,7 +247,7 @@ function Tecnicos() {
             secciones={seccionesFicha}
             acciones={<Button onClick={() => establecerFichaAbierta(false)}>Cerrar</Button>}
           />
-          {tecnicoEnMapa && <MapaTecnicos tecnicos={data.tecnicos} tecnicoId={tecnicoEnMapa} />}
+          {tecnicoEnMapa && <MapaTecnicos tecnicos={tecnicosVisibles} tecnicoId={tecnicoEnMapa} />}
           </Stack>
           </Stack>
         </>

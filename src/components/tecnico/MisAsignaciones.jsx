@@ -28,7 +28,9 @@ import PlaceIcon from '@mui/icons-material/Place';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useAppData } from '../../context/useAppData.js';
-import { useRecursos } from '../../context/useRecursos.js';
+import { usePaginado } from '../../context/usePaginado.js';
+import { reclamosApi } from '../../services/api.js';
+import AvisoCarga from '../comunes/AvisoCarga.jsx';
 import EntradaVoz from './EntradaVoz.jsx';
 import ControlVehiculoDialog from './ControlVehiculoDialog.jsx';
 import GaleriaImagenes from '../comunes/GaleriaImagenes.jsx';
@@ -48,30 +50,29 @@ function MisAsignaciones({ soloEnCurso = false }) {
   const [resultadosPorPagina, establecerResultadosPorPagina] = useState(10);
   const esMovil = useMediaQuery((theme) => theme.breakpoints.down('sm'));
   const { actualizarEstado, registrarControlVehiculo } = useAppData();
-  // GET /reclamos devuelve solo los del técnico, cada uno con su cliente adentro.
   // El vehículo llega en el login.
   const { sesion } = useAppData();
-  // "Servicio en curso" pide solo el reclamo en progreso; "Mis asignaciones", todos.
-  const recurso = soloEnCurso ? 'reclamosEnCurso' : 'reclamos';
-  const data = useRecursos(recurso);
   const { vehiculo } = sesion;
-  const asignaciones = data[recurso].map((reclamo) => ({
+  // Paginación en el servidor: GET /reclamos devuelve solo los del técnico, de la página visible
+  // y del estado elegido ("Servicio en curso" pide solo los que están en progreso).
+  // También trae cuántos reclamos tiene en cada estado, para los totales y para saber si ya
+  // tiene uno en curso aunque no esté en esta página.
+  const filtroActivo = soloEnCurso ? 'En progreso' : filtro;
+  const {
+    datos: reclamosVisibles, paginacion, respuesta, cargando, error: errorCarga,
+  } = usePaginado(reclamosApi.pagina, { pagina, limite: resultadosPorPagina, estado: filtroActivo });
+  const totalesPorEstado = respuesta?.totalesPorEstado || {};
+  const totalAsignaciones = Object.values(totalesPorEstado).reduce((suma, cantidad) => suma + cantidad, 0);
+  const totalFiltradas = paginacion?.total ?? 0;
+  const tieneReclamoEnProgreso = (totalesPorEstado['En progreso'] || 0) > 0;
+  const asignacionesVisibles = reclamosVisibles.map((reclamo) => ({
     reclamo,
     cliente: reclamo.cliente ?? { nombre: 'Cliente no disponible', telefono: '', direccion: '' },
   }));
-  const tieneReclamoEnProgreso = asignaciones.some(
-    ({ reclamo }) => reclamo.estado === 'En progreso',
-  );
-  const filtroActivo = soloEnCurso ? 'En progreso' : filtro;
-  const asignacionesFiltradas = asignaciones.filter(
-    ({ reclamo }) => filtroActivo === 'Todos' || reclamo.estado === filtroActivo,
-  );
-  const cantidadPaginas = Math.max(1, Math.ceil(asignacionesFiltradas.length / resultadosPorPagina));
-  const paginaActual = Math.min(pagina, cantidadPaginas);
-  const asignacionesVisibles = asignacionesFiltradas.slice(
-    (paginaActual - 1) * resultadosPorPagina,
-    paginaActual * resultadosPorPagina,
-  );
+  const cambiarFiltro = (nuevoFiltro) => {
+    setFiltro(nuevoFiltro);
+    establecerPagina(1);
+  };
 
   return (
     <Stack spacing={3}>
@@ -83,8 +84,8 @@ function MisAsignaciones({ soloEnCurso = false }) {
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 0.5 }}>
               {soloEnCurso
-                ? (asignacionesFiltradas.length ? 'El reclamo que estás realizando.' : 'No tenés un reclamo en curso.')
-                : `${asignaciones.length} reclamos asociados a tu usuario.`}
+                ? (totalFiltradas ? 'El reclamo que estás realizando.' : 'No tenés un reclamo en curso.')
+                : `${totalAsignaciones} reclamos asociados a tu usuario.`}
             </Typography>
           </Box>
           {!soloEnCurso && esMovil ? (
@@ -94,7 +95,7 @@ function MisAsignaciones({ soloEnCurso = false }) {
                 labelId="filtro-estado-label"
                 value={filtro}
                 label="Filtrar servicios"
-                onChange={(event) => setFiltro(event.target.value)}
+                onChange={(event) => cambiarFiltro(event.target.value)}
               >
                 <MenuItem value="Todos">Todos los servicios</MenuItem>
                 <MenuItem value="En progreso">Servicio en curso</MenuItem>
@@ -105,7 +106,7 @@ function MisAsignaciones({ soloEnCurso = false }) {
           ) : !soloEnCurso && (
             <Tabs
               value={filtro}
-              onChange={(_, nuevoFiltro) => setFiltro(nuevoFiltro)}
+              onChange={(_, nuevoFiltro) => cambiarFiltro(nuevoFiltro)}
               variant="fullWidth"
               aria-label="Filtrar asignaciones por estado"
             >
@@ -117,16 +118,19 @@ function MisAsignaciones({ soloEnCurso = false }) {
           )}
           {!soloEnCurso && (
             <Typography variant="body2" color="text.secondary">
-              {asignacionesFiltradas.length} de {asignaciones.length} asignaciones visibles
+              {totalFiltradas} de {totalAsignaciones} asignaciones visibles
             </Typography>
           )}
         </Stack>
       </Paper>
 
-      {asignacionesFiltradas.length === 0 ? (
-        <Paper sx={{ p: 4, textAlign: 'center' }}>
-          <Typography color="text.secondary">No hay asignaciones con este estado.</Typography>
-        </Paper>
+      <AvisoCarga cargando={cargando} error={errorCarga} />
+      {asignacionesVisibles.length === 0 ? (
+        !cargando && (
+          <Paper sx={{ p: 4, textAlign: 'center' }}>
+            <Typography color="text.secondary">No hay asignaciones con este estado.</Typography>
+          </Paper>
+        )
       ) : asignacionesVisibles.map(({ reclamo, cliente }) => (
         <Asignacion
           key={reclamo.id}
@@ -139,10 +143,10 @@ function MisAsignaciones({ soloEnCurso = false }) {
           vehiculo={vehiculo}
         />
       ))}
-      {asignacionesFiltradas.length > 0 && (
+      {totalFiltradas > 0 && (
         <PaginacionLista
-          pagina={paginaActual}
-          total={asignacionesFiltradas.length}
+          pagina={pagina}
+          total={totalFiltradas}
           resultadosPorPagina={resultadosPorPagina}
           establecerPagina={establecerPagina}
           establecerResultadosPorPagina={establecerResultadosPorPagina}

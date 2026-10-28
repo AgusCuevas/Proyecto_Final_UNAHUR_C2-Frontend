@@ -1,26 +1,31 @@
 import { useEffect, useState } from 'react';
 import { Alert, Box, Button, Chip, Paper, Stack } from '@mui/material';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
-import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
+import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useAppData } from '../../context/useAppData.js';
-import { calcularRecorridoKm, obtenerParadasTecnico } from '../../services/recorrido.js';
 
 const centroMapa = [-34.655, -58.63];
 
-function AjustarVistaMapa({ tecnico }) {
+// Centra el mapa en el técnico destacado. "pedido" cambia cada vez que se pide ubicarlo,
+// así vuelve a centrar aunque se toque el mismo técnico dos veces.
+function AjustarVistaMapa({ tecnico, pedido }) {
   const mapa = useMap();
+  const latitud = tecnico?.ubicacion.latitud;
+  const longitud = tecnico?.ubicacion.longitud;
 
   useEffect(() => {
-    if (tecnico) mapa.setView([tecnico.ubicacion.latitud, tecnico.ubicacion.longitud], 15);
-  }, [mapa, tecnico]);
+    if (latitud != null && longitud != null) mapa.setView([latitud, longitud], 15);
+  }, [mapa, latitud, longitud, pedido]);
 
   return null;
 }
 
-// tecnicos: los de GET /tecnicos; cada uno ya trae estado, reclamos, cliente, ubicación y recorrido.
+// tecnicos: los de GET /tecnicos; cada uno ya trae estado, reclamos, cliente y ubicación.
+// Por ahora el mapa muestra solo la posición de cada técnico (sin las líneas del recorrido).
 // El mapa no pide datos: se los pasa la pantalla que lo muestra.
-function MapaTecnicos({ tecnicos = [], tecnicoId = null }) {
+// tecnicoId: técnico a destacar y centrar. pedidoDeEnfoque: cambiarlo vuelve a centrarlo.
+function MapaTecnicos({ tecnicos = [], tecnicoId = null, pedidoDeEnfoque = 0 }) {
   const [filtro, establecerFiltro] = useState('Todos');
   const { actualizarTecnicos } = useAppData();
 
@@ -35,10 +40,6 @@ function MapaTecnicos({ tecnicos = [], tecnicoId = null }) {
     (tecnico) => filtro === 'Todos' || tecnico.estado === filtro || tecnico.id === tecnicoId,
   );
   const tecnicoDestacado = tecnicosConUbicacion.find((tecnico) => tecnico.id === tecnicoId);
-  const recorridos = tecnicosVisibles.map((tecnico) => {
-    const paradas = obtenerParadasTecnico(tecnico.ubicacion, tecnico.recorrido);
-    return { tecnico, paradas, kilometros: calcularRecorridoKm(paradas) };
-  });
   const activos = tecnicosConUbicacion.filter((tecnico) => tecnico.estado === 'Activo').length;
   const libres = tecnicosConUbicacion.filter((tecnico) => tecnico.estado === 'Libre').length;
   const asignados = tecnicosConUbicacion.filter((tecnico) => tecnico.estado === 'Asignado').length;
@@ -95,7 +96,7 @@ function MapaTecnicos({ tecnicos = [], tecnicoId = null }) {
 
       <Box sx={{ mt: 1, height: { xs: 280, sm: 320, md: 380 }, borderRadius: 2, overflow: 'hidden' }}>
         <MapContainer center={centroMapa} zoom={13} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
-          <AjustarVistaMapa tecnico={tecnicoDestacado} />
+          <AjustarVistaMapa tecnico={tecnicoDestacado} pedido={pedidoDeEnfoque} />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -127,22 +128,8 @@ function MapaTecnicos({ tecnicos = [], tecnicoId = null }) {
                     Pendiente de iniciar
                   </>
                 ) : 'Disponible para asignar'}
-                <br />
-                Recorrido sugerido: {Math.round(recorridos.find((item) => item.tecnico.id === tecnico.id)?.kilometros || 0)} km
               </Popup>
             </CircleMarker>
-          ))}
-          {recorridos.map((recorrido) => recorrido.paradas.length > 1 && (
-            <Polyline
-              key={`ruta-${recorrido.tecnico.id}`}
-              positions={recorrido.paradas.map((parada) => [parada.latitud, parada.longitud])}
-              pathOptions={{
-                color: recorrido.tecnico.id === tecnicoId ? '#155e75' : '#8299C8',
-                weight: recorrido.tecnico.id === tecnicoId ? 5 : 3,
-                opacity: recorrido.tecnico.id === tecnicoId ? 0.9 : 0.55,
-                dashArray: recorrido.tecnico.id === tecnicoId ? undefined : '8 8',
-              }}
-            />
           ))}
         </MapContainer>
       </Box>

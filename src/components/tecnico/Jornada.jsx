@@ -17,7 +17,13 @@ import LoginIcon from '@mui/icons-material/Login';
 import LogoutIcon from '@mui/icons-material/Logout';
 import PendingActionsIcon from '@mui/icons-material/PendingActions';
 import { useAppData } from '../../context/useAppData.js';
-import { useRecursos } from '../../context/useRecursos.js';
+import { usePaginado } from '../../context/usePaginado.js';
+import { jornadasApi } from '../../services/api.js';
+import PaginacionLista from '../comunes/PaginacionLista.jsx';
+import AvisoCarga from '../comunes/AvisoCarga.jsx';
+
+// Contadores del período elegido: { totalServicios, serviciosEnPeriodo } (GET /jornadas/resumen).
+const pedirResumen = ({ desde }) => jornadasApi.resumen(desde);
 import ControlVehiculoDialog from './ControlVehiculoDialog.jsx';
 
 function formatearDuracion(inicio, fin = new Date()) {
@@ -27,9 +33,7 @@ function formatearDuracion(inicio, fin = new Date()) {
 }
 
 function Jornada() {
-  // GET /jornadas devuelve solo las del técnico, cada una con sus servicios finalizados.
-  // El técnico y su vehículo llegan en el login.
-  const data = useRecursos('jornadas');
+  // El técnico, su vehículo y su jornada activa llegan en el login.
   const {
     sesion,
     iniciarJornada,
@@ -41,11 +45,14 @@ function Jornada() {
   const [periodo, establecerPeriodo] = useState('semanal');
   const [error, establecerError] = useState('');
   const [controlFinalAbierto, establecerControlFinalAbierto] = useState(false);
+  const [pagina, establecerPagina] = useState(1);
+  const [resultadosPorPagina, establecerResultadosPorPagina] = useState(10);
   const tecnico = sesion.usuario;
-  const { vehiculo } = sesion;
-  const jornadas = [...data.jornadas]
-    .sort((primera, segunda) => new Date(segunda.inicio) - new Date(primera.inicio));
-  const jornadaActiva = jornadas.find((jornada) => jornada.activa);
+  const { vehiculo, jornadaActiva } = sesion;
+  // Paginación en el servidor: sus jornadas (las más nuevas primero), cada una con sus servicios.
+  const {
+    datos: jornadas, paginacion, cargando, error: errorCarga,
+  } = usePaginado(jornadasApi.pagina, { pagina, limite: resultadosPorPagina });
   const marcaActual = ahora || jornadaActiva?.inicio;
   const fechaInicioPeriodo = periodo === 'todos' ? null : new Date();
 
@@ -59,12 +66,10 @@ function Jornada() {
     if (periodo === 'anual') fechaInicioPeriodo.setMonth(0, 1);
   }
 
-  const todosLosServicios = jornadas.flatMap((jornada) => jornada.servicios || []);
-  const serviciosFinalizados = todosLosServicios.filter((servicio) => (
-    !fechaInicioPeriodo
-      || new Date(servicio.finalizadoEn || servicio.fechaProgramada || servicio.creadoEn) >= fechaInicioPeriodo
-  ));
-  const totalServicios = todosLosServicios.length;
+  // Los contadores los calcula el backend: el navegador manda el inicio del período en su hora local.
+  const { respuesta: resumen } = usePaginado(pedirResumen, { desde: fechaInicioPeriodo?.toISOString() || '' });
+  const serviciosEnPeriodo = resumen?.serviciosEnPeriodo ?? 0;
+  const totalServicios = resumen?.totalServicios ?? 0;
 
   useEffect(() => {
     if (!jornadaActiva) return undefined;
@@ -184,7 +189,7 @@ function Jornada() {
             </FormControl>
           </Stack>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-            <Indicador icon={<CheckCircleIcon />} etiqueta="Resueltas en el período" valor={serviciosFinalizados.length} color="success.main" />
+            <Indicador icon={<CheckCircleIcon />} etiqueta="Resueltas en el período" valor={serviciosEnPeriodo} color="success.main" />
             <Indicador icon={<PendingActionsIcon />} etiqueta="Total resueltas" valor={totalServicios} color="primary.main" />
             <Indicador icon={<DoneAllIcon />} etiqueta="Total de servicios realizados" valor={totalServicios} color="secondary.main" />
           </Stack>
@@ -196,8 +201,9 @@ function Jornada() {
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>
           Solo se muestran los números de servicio finalizados.
         </Typography>
+        <AvisoCarga cargando={cargando} error={errorCarga} />
         {jornadas.length === 0 ? (
-          <Typography color="text.secondary">Todavía no registraste jornadas.</Typography>
+          !cargando && <Typography color="text.secondary">Todavía no registraste jornadas.</Typography>
         ) : jornadas.map((jornada, indice) => {
           const servicios = (jornada.servicios || []).map((servicio) => servicio.id);
           return (
@@ -205,7 +211,7 @@ function Jornada() {
               {indice > 0 && <Divider />}
               <Typography sx={{ fontWeight: 700 }}>Jornada del {new Date(jornada.inicio).toLocaleDateString('es-AR')}</Typography>
               <Typography variant="body2" color="text.secondary">
-                Duración: {formatearDuracion(jornada.inicio, jornada.fin || marcaActual)} · Kilometraje final: {jornada.kilometrajeFinal || 'Pendiente'} km
+                Duración: {formatearDuracion(jornada.inicio, jornada.fin || marcaActual)} · Kilometraje final: {kilometrajeFinal(jornada) ?? 'Pendiente'}{kilometrajeFinal(jornada) != null ? ' km' : ''}
               </Typography>
               {jornada.controlFinal && (
                 <Typography variant="body2" color="text.secondary">
@@ -216,9 +222,23 @@ function Jornada() {
             </Stack>
           );
         })}
+        {(paginacion?.total ?? 0) > 0 && (
+          <PaginacionLista
+            pagina={pagina}
+            total={paginacion.total}
+            resultadosPorPagina={resultadosPorPagina}
+            establecerPagina={establecerPagina}
+            establecerResultadosPorPagina={establecerResultadosPorPagina}
+          />
+        )}
       </Paper>
     </Stack>
   );
+}
+
+// El backend guarda el kilometraje del cierre dentro del control final.
+function kilometrajeFinal(jornada) {
+  return jornada.controlFinal?.kilometraje ?? jornada.controlFinal?.kilometrajeFinal ?? jornada.kilometrajeFinal ?? null;
 }
 
 function Indicador({ icon, etiqueta, valor, color }) {

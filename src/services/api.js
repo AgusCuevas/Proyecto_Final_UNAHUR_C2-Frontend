@@ -1,6 +1,16 @@
 import { apiClient } from './apiClient.js';
 
-const PAGINA_FRONTEND = 50;
+// Los listados de la API son paginados: { datos, paginacion }.
+// - pagina(filtros): pide UNA página con sus filtros (lo que usan las pantallas con tabla).
+// - listar(): trae todas las páginas; solo para lo que necesita todos los datos
+//   (mapa, panel, Reportes, datos del técnico).
+const PAGINA_FRONTEND = 100;
+
+// Saca los filtros vacíos o "Todos" para no mandarlos en la URL.
+const filtrosParaUrl = (filtros = {}) => Object.fromEntries(
+  Object.entries(filtros).filter(([, valor]) => valor !== '' && valor != null && valor !== 'Todos'),
+);
+const pedirPagina = async (ruta, filtros) => (await apiClient.get(ruta, { params: filtrosParaUrl(filtros) })).data;
 
 async function listarTodasLasPaginas(ruta, params = {}) {
   const datos = [];
@@ -69,6 +79,11 @@ export const authApi = {
 
 export const usuariosApi = {
   listar: async () => (await listarTodasLasPaginas('/usuarios')).map(normalizarUsuario),
+  // filtros: { pagina, limite, buscar, rol, estado }
+  pagina: async (filtros) => {
+    const respuesta = await pedirPagina('/usuarios', filtros);
+    return { ...respuesta, datos: respuesta.datos.map(normalizarUsuario) };
+  },
   obtener: async (usuarioId) => normalizarUsuario(
     (await apiClient.get(`/usuarios/${usuarioId}`)).data,
   ),
@@ -93,10 +108,17 @@ export const usuariosApi = {
 // recorrido y rendimiento (mapa, pantalla Técnicos y panel).
 export const tecnicosApi = {
   listar: async () => (await listarTodasLasPaginas('/tecnicos')).map(normalizarUsuario),
+  // filtros: { pagina, limite, buscar, estado, activo }
+  pagina: async (filtros) => {
+    const respuesta = await pedirPagina('/tecnicos', filtros);
+    return { ...respuesta, datos: respuesta.datos.map(normalizarUsuario) };
+  },
 };
 
 export const clientesApi = {
   listar: async () => listarTodasLasPaginas('/clientes'),
+  // filtros: { pagina, limite, buscar, estado }
+  pagina: (filtros) => pedirPagina('/clientes', filtros),
   obtener: async (clienteId) => (await apiClient.get(`/clientes/${clienteId}`)).data,
   crear: async (cliente) => {
     const creado = (await apiClient.post('/clientes', cliente)).data;
@@ -111,7 +133,9 @@ export const clientesApi = {
 
 export const vehiculosApi = {
   listar: async () => listarTodasLasPaginas('/vehiculos'),
-  // Lista del diálogo "Asignar técnico": { tecnicos: [{ id, nombre }] }.
+  // filtros: { pagina, limite, buscar, asignacion }
+  pagina: (filtros) => pedirPagina('/vehiculos', filtros),
+  // Lista del diálogo "Asignar técnico": { tecnicos: [{ id, nombre, vehiculo: { id, patente } | null }] }.
   opciones: async () => (await apiClient.get('/vehiculos/opciones')).data,
   crear: async (vehiculo) => (await apiClient.post('/vehiculos', vehiculo)).data,
   actualizar: async (vehiculoId, cambios) => (
@@ -131,6 +155,10 @@ export const vehiculosApi = {
 
 export const jornadasApi = {
   listar: async () => listarTodasLasPaginas('/jornadas'),
+  // filtros: { pagina, limite }. Cada jornada trae sus servicios finalizados.
+  pagina: (filtros) => pedirPagina('/jornadas', filtros),
+  // Contadores del Resumen de servicios: { totalServicios, serviciosEnPeriodo } desde la fecha indicada.
+  resumen: async (desde) => (await apiClient.get('/jornadas/resumen', { params: filtrosParaUrl({ desde }) })).data,
   crear: async (jornada) => (await apiClient.post('/jornadas', jornada)).data,
   finalizar: async (jornadaId, controlFinal) => (
     await apiClient.patch(`/jornadas/${jornadaId}/finalizar`, controlFinal)
@@ -148,8 +176,9 @@ export const ubicacionesApi = {
 // Cada reclamo trae su cliente y su técnico.
 export const reclamosApi = {
   listar: async () => listarTodasLasPaginas('/reclamos'),
-  // Solo los reclamos en progreso (pantalla "Servicio en curso").
-  listarEnCurso: async () => listarTodasLasPaginas('/reclamos', { estado: 'En progreso' }),
+  // filtros: { pagina, limite, estado, tecnicoId, desde, hasta }. Del más nuevo al más viejo.
+  // Para el técnico, la respuesta trae también totalesPorEstado: { 'Asignado': 2, ... }.
+  pagina: (filtros) => pedirPagina('/reclamos', filtros),
   // Totales para el panel: { pendientes, serviciosGestionados }.
   resumen: async () => (await apiClient.get('/reclamos/resumen')).data,
   // Listas de los formularios: { clientes: [{ id, nombre, zona }], tecnicos: [{ id, nombre, email }] }.

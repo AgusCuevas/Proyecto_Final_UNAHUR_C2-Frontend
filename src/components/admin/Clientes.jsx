@@ -35,8 +35,10 @@ import RouterOutlinedIcon from '@mui/icons-material/RouterOutlined';
 import { useState } from 'react';
 import FichaDetalle from '../comunes/FichaDetalle.jsx';
 import { useAppData } from '../../context/useAppData.js';
-import { useRecursos } from '../../context/useRecursos.js';
+import { usePagina, usePaginado, useValorDiferido } from '../../context/usePaginado.js';
+import { clientesApi } from '../../services/api.js';
 import PaginacionLista from '../comunes/PaginacionLista.jsx';
+import AvisoCarga from '../comunes/AvisoCarga.jsx';
 
 const formularioVacio = {
   nombre: '',
@@ -50,7 +52,6 @@ const estaActivo = (cliente) => cliente.activo !== false;
 
 function Clientes() {
   const { crearCliente, actualizarCliente } = useAppData();
-  const data = useRecursos('clientes');
   const [busqueda, establecerBusqueda] = useState('');
   const [filtroEstado, establecerFiltroEstado] = useState('Activos');
   const [dialogoFormularioAbierto, establecerDialogoFormularioAbierto] = useState(false);
@@ -61,28 +62,17 @@ function Clientes() {
   const [formulario, establecerFormulario] = useState(formularioVacio);
   const [error, establecerError] = useState('');
   const [guardando, establecerGuardando] = useState(false);
-  const [pagina, establecerPagina] = useState(1);
   const [resultadosPorPagina, establecerResultadosPorPagina] = useState(10);
 
-  const clientes = data.clientes || [];
-  const termino = busqueda.trim().toLocaleLowerCase('es');
-  const clientesFiltrados = clientes
-    .filter((cliente) => {
-      const coincideEstado = filtroEstado === 'Todos'
-        || (filtroEstado === 'Activos' ? estaActivo(cliente) : !estaActivo(cliente));
-      const texto = [cliente.nombre, cliente.documento, cliente.telefono, cliente.email, cliente.direccion]
-        .filter(Boolean)
-        .join(' ')
-        .toLocaleLowerCase('es');
-      return coincideEstado && texto.includes(termino);
-    })
-    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
-  const cantidadPaginas = Math.max(1, Math.ceil(clientesFiltrados.length / resultadosPorPagina));
-  const paginaActual = Math.min(pagina, cantidadPaginas);
-  const clientesVisibles = clientesFiltrados.slice(
-    (paginaActual - 1) * resultadosPorPagina,
-    paginaActual * resultadosPorPagina,
-  );
+  // Paginación en el servidor: se pide solo la página visible, con la búsqueda y el estado.
+  // La búsqueda se manda cuando el usuario deja de escribir.
+  const buscar = useValorDiferido(busqueda.trim());
+  const [pagina, establecerPagina] = usePagina(buscar);
+  const {
+    datos: clientesVisibles, paginacion, cargando, error: errorCarga,
+  } = usePaginado(clientesApi.pagina, { pagina, limite: resultadosPorPagina, buscar, estado: filtroEstado });
+  const totalClientes = paginacion?.total ?? 0;
+  const hayFiltros = Boolean(buscar) || filtroEstado !== 'Todos';
 
   const abrirFormulario = (cliente = null) => {
     establecerClienteEditando(cliente);
@@ -201,7 +191,10 @@ function Clientes() {
                 select
                 label="Estado"
                 value={filtroEstado}
-                onChange={(evento) => establecerFiltroEstado(evento.target.value)}
+                onChange={(evento) => {
+                  establecerFiltroEstado(evento.target.value);
+                  establecerPagina(1);
+                }}
                 sx={{ minWidth: 150 }}
               >
                 <MenuItem value="Todos">Todos</MenuItem>
@@ -226,9 +219,10 @@ function Clientes() {
           <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Typography variant="h6" sx={{ fontWeight: 800 }}>Clientes</Typography>
             <Typography variant="body2" color="text.secondary">
-              {clientesFiltrados.length} {clientesFiltrados.length === 1 ? 'resultado' : 'resultados'}
+              {totalClientes} {totalClientes === 1 ? 'resultado' : 'resultados'}
             </Typography>
           </Stack>
+          <AvisoCarga cargando={cargando} error={errorCarga} />
           <TableContainer sx={{ overflowX: 'auto' }}>
             <Table size="small" sx={{ minWidth: 760 }}>
               <TableHead>
@@ -292,11 +286,11 @@ function Clientes() {
                     </TableRow>
                   );
                 })}
-                {clientesFiltrados.length === 0 && (
+                {!cargando && clientesVisibles.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={6} sx={{ py: 4, textAlign: 'center' }}>
                       <Typography color="text.secondary">
-                        {clientes.length ? 'No hay clientes que coincidan con la búsqueda.' : 'Todavía no hay clientes registrados.'}
+                        {hayFiltros ? 'No hay clientes que coincidan con la búsqueda.' : 'Todavía no hay clientes registrados.'}
                       </Typography>
                     </TableCell>
                   </TableRow>
@@ -305,8 +299,8 @@ function Clientes() {
             </Table>
           </TableContainer>
           <PaginacionLista
-            pagina={paginaActual}
-            total={clientesFiltrados.length}
+            pagina={pagina}
+            total={totalClientes}
             resultadosPorPagina={resultadosPorPagina}
             establecerPagina={establecerPagina}
             establecerResultadosPorPagina={establecerResultadosPorPagina}
