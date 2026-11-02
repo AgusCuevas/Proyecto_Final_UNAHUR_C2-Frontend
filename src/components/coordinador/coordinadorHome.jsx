@@ -6,6 +6,7 @@ import MapaTecnicos from './MapaTecnicos.jsx';
 import Reclamos from './Reclamos.jsx';
 import Tecnicos from './Tecnicos.jsx';
 import Vehiculos from './Vehiculos.jsx';
+import Reportes from '../Reportes.jsx';
 import { useRecursos } from '../../context/useRecursos.js';
 
 // Panel: el mapa con un solo pedido (GET /tecnicos).
@@ -29,6 +30,7 @@ function CoordinadorHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo 
     Técnicos: <Tecnicos />,
     // Puede asignar técnicos y editar datos; el alta de vehículos queda para el admin.
     Vehículos: <Vehiculos gestionable />,
+    Reportes: <Reportes rolId={2} />,
   };
 
   return (
@@ -36,11 +38,13 @@ function CoordinadorHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo 
       titulo={seccion}
       subtitulo={seccion === 'Panel del coordinador'
         ? 'Seguimiento del equipo en la zona de trabajo.'
-        : 'Organizá los reclamos y coordiná las tareas del equipo.'}
+          : seccion === 'Reportes'
+            ? 'Construí y consultá reportes operativos de tu equipo.'
+            : 'Organizá los reclamos y coordiná las tareas del equipo.'}
       rol="Coordinador"
       usuario={usuario}
       nombre={nombre}
-      opciones={['Panel del coordinador', 'Reclamos', 'Técnicos', 'Vehículos']}
+      opciones={['Panel del coordinador', 'Reclamos', 'Técnicos', 'Vehículos', 'Reportes']}
       alCerrarSesion={alCerrarSesion}
       alCambiarTema={alCambiarTema}
       modo={modo}

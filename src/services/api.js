@@ -197,6 +197,18 @@ export const reclamosApi = {
   ).data,
 };
 
+export const reportesApi = {
+  fuentes: async () => (await apiClient.get('/reportes/fuentes')).data,
+  plantillas: async () => (await apiClient.get('/reportes/plantillas')).data,
+  vistaPrevia: async (datos) => (await apiClient.post('/reportes/vista-previa', datos)).data,
+  exportar: async (datos) => (await apiClient.post('/reportes/exportar', datos, { responseType: 'blob' })),
+  listar: async () => (await apiClient.get('/reportes')).data,
+  obtener: async (id) => (await apiClient.get(`/reportes/${id}`)).data,
+  crear: async (reporte) => (await apiClient.post('/reportes', reporte)).data,
+  actualizar: async (id, reporte) => (await apiClient.put(`/reportes/${id}`, reporte)).data,
+  eliminar: async (id) => (await apiClient.delete(`/reportes/${id}`)).data,
+};
+
 // Imágenes: se suben con subir() y los reclamos, jornadas y vehículos guardan solo sus ids
 // en un campo "imagenes". Para mostrarlas se piden por id con obtener().
 export const imagenesApi = {
