@@ -38,6 +38,7 @@ import { reclamosApi } from '../../services/api.js';
 import AvisoCarga from '../comunes/AvisoCarga.jsx';
 import EntradaVoz from './EntradaVoz.jsx';
 import ControlVehiculoDialog from './ControlVehiculoDialog.jsx';
+import JornadaInactiva from './JornadaInactiva.jsx';
 import GaleriaImagenes from '../comunes/GaleriaImagenes.jsx';
 import SelectorImagenes from '../comunes/SelectorImagenes.jsx';
 import PaginacionLista from '../comunes/PaginacionLista.jsx';
@@ -51,7 +52,14 @@ function formatearFecha(fecha) {
   return Number.isNaN(valor.getTime()) ? 'Sin fecha' : new Intl.DateTimeFormat('es-AR').format(valor);
 }
 
+// Sin jornada activa no se piden los reclamos: se muestra solo el resumen para iniciarla.
 function MisAsignaciones({ soloEnCurso = false }) {
+  const { sesion } = useAppData();
+  if (!sesion.jornadaActiva) return <JornadaInactiva />;
+  return <ListaAsignaciones soloEnCurso={soloEnCurso} />;
+}
+
+function ListaAsignaciones({ soloEnCurso }) {
   const [filtro, setFiltro] = useState(soloEnCurso ? 'En progreso' : 'Todos');
   const [pagina, establecerPagina] = useState(1);
   const [resultadosPorPagina, establecerResultadosPorPagina] = useState(10);

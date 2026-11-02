@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogTitle, IconButton, Stack, Typography } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import AppLayout from '../AppLayout.jsx';
 import MisAsignaciones from './MisAsignaciones.jsx';
 import Vehiculo from './Vehiculo.jsx';
@@ -12,7 +12,9 @@ import { useAppData } from '../../context/useAppData.js';
 const semanaEnMilisegundos = 7 * 24 * 60 * 60 * 1000;
 
 function TecnicoHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
-  const [seccion, establecerSeccion] = useState('Mis asignaciones');
+  // Si se llega desde "Servicio en curso", abre la sección que se eligió en el menú.
+  const ubicacion = useLocation();
+  const [seccion, establecerSeccion] = useState(ubicacion.state?.seccion || 'Mis asignaciones');
   // El técnico y su vehículo llegan en el login: no hace falta pedirlos.
   const { sesion } = useAppData();
   const navegar = useNavigate();

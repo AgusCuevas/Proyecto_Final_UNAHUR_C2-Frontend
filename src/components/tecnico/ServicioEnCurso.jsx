@@ -7,7 +7,8 @@ function ServicioEnCurso({ usuario, nombre, alCerrarSesion, alCambiarTema, modo 
 
   const seleccionarOpcion = (opcion) => {
     if (opcion === 'Servicio en curso') return;
-    navegar('/tecnicoHome');
+    // Vuelve al inicio del técnico abriendo la sección elegida en el menú.
+    navegar('/tecnicoHome', { state: { seccion: opcion } });
   };
 
   return (

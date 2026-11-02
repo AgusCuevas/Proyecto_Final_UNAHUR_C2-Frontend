@@ -22,12 +22,13 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import PendingActionsIcon from '@mui/icons-material/PendingActions';
 import { useAppData } from '../../context/useAppData.js';
 import { usePaginado } from '../../context/usePaginado.js';
-import { jornadasApi } from '../../services/api.js';
+import { jornadasApi, reclamosApi } from '../../services/api.js';
 import PaginacionLista from '../comunes/PaginacionLista.jsx';
 import AvisoCarga from '../comunes/AvisoCarga.jsx';
 
 // Contadores del período elegido: { totalServicios, serviciosEnPeriodo } (GET /jornadas/resumen).
 const pedirResumen = ({ desde }) => jornadasApi.resumen(desde);
+const sinFiltros = {};
 import ControlVehiculoDialog from './ControlVehiculoDialog.jsx';
 
 function formatearDuracion(inicio, fin = new Date()) {
@@ -72,6 +73,8 @@ function Jornada() {
 
   // Los contadores los calcula el backend: el navegador manda el inicio del período en su hora local.
   const { respuesta: resumen } = usePaginado(pedirResumen, { desde: fechaInicioPeriodo?.toISOString() || '' });
+  // Para avisar que un reclamo en curso queda pendiente hasta la próxima jornada.
+  const { respuesta: resumenReclamos } = usePaginado(reclamosApi.resumen, sinFiltros);
   const serviciosEnPeriodo = resumen?.serviciosEnPeriodo ?? 0;
   const totalServicios = resumen?.totalServicios ?? 0;
 
@@ -156,6 +159,11 @@ function Jornada() {
               <Alert severity="success">Jornada activa desde {new Date(jornadaActiva.inicio).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</Alert>
               <Typography variant="h5" sx={{ fontWeight: 800 }}>{formatearDuracion(jornadaActiva.inicio, marcaActual)}</Typography>
               <Typography variant="body2" color="text.secondary">Tiempo transcurrido</Typography>
+              {resumenReclamos?.enProgreso > 0 && (
+                <Alert severity="info">
+                  Tenés un reclamo en curso. Si finalizás la jornada, lo vas a poder continuar en la próxima.
+                </Alert>
+              )}
               <Button variant="contained" color="primary" startIcon={<LogoutIcon />} onClick={() => establecerControlFinalAbierto(true)} sx={{ alignSelf: 'flex-start' }}>
                 Finalizar jornada
               </Button>
