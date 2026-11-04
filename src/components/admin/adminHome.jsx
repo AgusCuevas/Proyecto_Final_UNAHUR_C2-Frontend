@@ -33,7 +33,7 @@ import UsuariosAdmin from './UsuariosAdmin.jsx';
 import MapaTecnicos from '../coordinador/MapaTecnicos.jsx';
 import Reclamos from '../coordinador/Reclamos.jsx';
 import Vehiculos from '../coordinador/Vehiculos.jsx';
-import Reportes from '../Reportes.jsx';
+import Reportes from '../reportes/Reportes.jsx';
 import { useAppData } from '../../context/useAppData.js';
 import { useRecursos } from '../../context/useRecursos.js';
 

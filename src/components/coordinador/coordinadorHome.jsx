@@ -6,7 +6,7 @@ import MapaTecnicos from './MapaTecnicos.jsx';
 import Reclamos from './Reclamos.jsx';
 import Tecnicos from './Tecnicos.jsx';
 import Vehiculos from './Vehiculos.jsx';
-import Reportes from '../Reportes.jsx';
+import Reportes from '../reportes/Reportes.jsx';
 import { useRecursos } from '../../context/useRecursos.js';
 
 // Panel: el mapa con un solo pedido (GET /tecnicos).
