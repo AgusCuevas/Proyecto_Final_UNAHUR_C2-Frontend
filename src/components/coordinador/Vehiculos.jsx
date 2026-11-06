@@ -1,27 +1,5 @@
 import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  InputAdornment,
-  MenuItem,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  Tooltip,
-  Typography,
+  Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Tooltip, Typography,
 } from '@mui/material';
 import AssignmentIndOutlinedIcon from '@mui/icons-material/AssignmentIndOutlined';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
@@ -242,20 +220,18 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
               }}
             />
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-              <TextField
-                select
+              <SelectorBuscable
                 label="Asignación"
-                value={filtroAsignacion}
-                onChange={(evento) => {
-                  establecerFiltroAsignacion(evento.target.value);
+                sinBorrar
+                sx={{ minWidth: 190 }}
+                opciones={['Todos', 'Con técnico', 'Sin técnico'].map((id) => ({ id }))}
+                valor={filtroAsignacion}
+                alCambiar={(asignacion) => {
+                  establecerFiltroAsignacion(asignacion);
                   establecerPagina(1);
                 }}
-                sx={{ minWidth: 170 }}
-              >
-                <MenuItem value="Todos">Todos</MenuItem>
-                <MenuItem value="Con técnico">Con técnico</MenuItem>
-                <MenuItem value="Sin técnico">Sin técnico</MenuItem>
-              </TextField>
+                etiqueta={(opcion) => opcion.id}
+              />
               {accionNuevo}
             </Stack>
           </Stack>
@@ -468,16 +444,15 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
                 value={formularioEdicion.ultimoService}
                 onChange={(evento) => actualizarCampoEdicion('ultimoService', evento.target.value)}
               />
-              <TextField
-                select
+              <SelectorBuscable
                 label="Estado del vehículo"
-                value={formularioEdicion.enServicio ? 'En servicio' : 'Fuera de servicio'}
-                onChange={(evento) => actualizarCampoEdicion('enServicio', evento.target.value === 'En servicio')}
+                sinBorrar
                 sx={{ gridColumn: { sm: '1 / -1' } }}
-              >
-                <MenuItem value="En servicio">En servicio</MenuItem>
-                <MenuItem value="Fuera de servicio">Fuera de servicio</MenuItem>
-              </TextField>
+                opciones={['En servicio', 'Fuera de servicio'].map((id) => ({ id }))}
+                valor={formularioEdicion.enServicio ? 'En servicio' : 'Fuera de servicio'}
+                alCambiar={(estado) => actualizarCampoEdicion('enServicio', estado === 'En servicio')}
+                etiqueta={(opcion) => opcion.id}
+              />
               <TextField
                 multiline
                 minRows={2}

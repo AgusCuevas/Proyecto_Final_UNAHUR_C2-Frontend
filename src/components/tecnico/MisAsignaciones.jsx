@@ -1,25 +1,6 @@
 import { useState } from 'react';
 import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  Collapse,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Divider,
-  FormControl,
-  InputLabel,
-  Link,
-  MenuItem,
-  Paper,
-  Select,
-  Stack,
-  Tab,
-  Tabs,
-  Typography,
+  Alert, Box, Button, Chip, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Link, Paper, Stack, Tab, Tabs, Typography,
 } from '@mui/material';
 import DoneIcon from '@mui/icons-material/Done';
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
@@ -37,12 +18,12 @@ import { usePaginado } from '../../context/usePaginado.js';
 import { reclamosApi } from '../../services/api.js';
 import AvisoCarga from '../comunes/AvisoCarga.jsx';
 import EntradaVoz from './EntradaVoz.jsx';
-import ControlVehiculoDialog from './ControlVehiculoDialog.jsx';
 import JornadaInactiva from './JornadaInactiva.jsx';
 import GaleriaImagenes from '../comunes/GaleriaImagenes.jsx';
 import SelectorImagenes from '../comunes/SelectorImagenes.jsx';
 import PaginacionLista from '../comunes/PaginacionLista.jsx';
 import { subirImagenes } from '../../utils/subirImagenes.js';
+import SelectorBuscable from '../comunes/SelectorBuscable.jsx';
 
 const MAXIMO_IMAGENES = 5;
 
@@ -64,10 +45,7 @@ function ListaAsignaciones({ soloEnCurso }) {
   const [pagina, establecerPagina] = useState(1);
   const [resultadosPorPagina, establecerResultadosPorPagina] = useState(10);
   const esMovil = useMediaQuery((theme) => theme.breakpoints.down('sm'));
-  const { actualizarEstado, registrarControlVehiculo } = useAppData();
-  // El vehículo llega en el login.
-  const { sesion } = useAppData();
-  const { vehiculo } = sesion;
+  const { actualizarEstado } = useAppData();
   // Paginación en el servidor: GET /reclamos devuelve solo los del técnico, de la página visible
   // y del estado elegido ("Servicio en curso" pide solo los que están en progreso).
   // También trae cuántos reclamos tiene en cada estado, para los totales y para saber si ya
@@ -104,20 +82,19 @@ function ListaAsignaciones({ soloEnCurso }) {
             </Typography>
           </Box>
           {!soloEnCurso && esMovil ? (
-            <FormControl fullWidth>
-              <InputLabel id="filtro-estado-label">Filtrar servicios</InputLabel>
-              <Select
-                labelId="filtro-estado-label"
-                value={filtro}
-                label="Filtrar servicios"
-                onChange={(event) => cambiarFiltro(event.target.value)}
-              >
-                <MenuItem value="Todos">Todos los servicios ({totalAsignaciones})</MenuItem>
-                <MenuItem value="En progreso">Servicio en curso ({totalesPorEstado['En progreso'] || 0})</MenuItem>
-                <MenuItem value="Asignado">Asignados ({totalesPorEstado.Asignado || 0})</MenuItem>
-                <MenuItem value="Finalizado">Finalizados ({totalesPorEstado.Finalizado || 0})</MenuItem>
-              </Select>
-            </FormControl>
+            <SelectorBuscable
+              label="Filtrar servicios"
+              sinBorrar
+              opciones={[
+                { id: 'Todos', nombre: `Todos los servicios (${totalAsignaciones})` },
+                { id: 'En progreso', nombre: `Servicio en curso (${totalesPorEstado['En progreso'] || 0})` },
+                { id: 'Asignado', nombre: `Asignados (${totalesPorEstado.Asignado || 0})` },
+                { id: 'Finalizado', nombre: `Finalizados (${totalesPorEstado.Finalizado || 0})` },
+              ]}
+              valor={filtro}
+              alCambiar={cambiarFiltro}
+              etiqueta={(opcion) => opcion.nombre}
+            />
           ) : !soloEnCurso && (
             <Tabs
               value={filtro}
@@ -154,8 +131,6 @@ function ListaAsignaciones({ soloEnCurso }) {
           puedeComenzar={!tieneReclamoEnProgreso}
           noDesplegable={soloEnCurso}
           actualizarEstado={actualizarEstado}
-          registrarControlVehiculo={registrarControlVehiculo}
-          vehiculo={vehiculo}
         />
       ))}
       {totalFiltradas > 0 && (
@@ -199,7 +174,7 @@ function Dato({ icono, etiqueta, children, accion }) {
 // Tarjeta de un reclamo del técnico, con el mismo formato que la lista del admin y el coordinador:
 // arriba el resumen (número, prioridad, tipo, cliente, fecha, dirección y estado);
 // al desplegarla, el detalle y las acciones (comenzar, finalizar o reportar un inconveniente).
-function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, actualizarEstado, registrarControlVehiculo, vehiculo }) {
+function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, actualizarEstado }) {
   const [comentario, setComentario] = useState('');
   const [imagenes, setImagenes] = useState([]);
   const [finalizando, establecerFinalizando] = useState(false);
@@ -207,7 +182,8 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
   const [dialogoAbierto, establecerDialogoAbierto] = useState(false);
   const [inconvenienteAbierto, establecerInconvenienteAbierto] = useState(false);
   const [motivoInconveniente, establecerMotivoInconveniente] = useState('');
-  const [controlInicioAbierto, establecerControlInicioAbierto] = useState(false);
+  const [comenzando, establecerComenzando] = useState(false);
+  const [errorComenzar, establecerErrorComenzar] = useState('');
   const estaEnProgreso = reclamo.estado === 'En progreso';
   // El reclamo en progreso aparece desplegado: es el que el técnico está trabajando.
   const [desplegado, establecerDesplegado] = useState(estaEnProgreso);
@@ -263,14 +239,18 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
       establecerFinalizando(false);
     }
   };
-  const iniciarAsignacion = async (control) => {
-    if (!vehiculo) return;
-    registrarControlVehiculo(vehiculo.id, control);
-    await actualizarEstado(reclamo.id, {
-      estado: 'En progreso',
-      vehiculoId: vehiculo.id,
-      inicioServicio: control,
-    });
+  // Comenzar es un solo paso: el control del vehículo se hace al iniciar y al finalizar la jornada.
+  // El backend anota el vehículo del técnico (si tiene uno).
+  const iniciarAsignacion = async () => {
+    establecerErrorComenzar('');
+    establecerComenzando(true);
+    try {
+      await actualizarEstado(reclamo.id, { estado: 'En progreso' });
+    } catch (causa) {
+      establecerErrorComenzar(causa?.response?.data?.mensaje || 'No se pudo comenzar el reclamo. Verificá la conexión e intentá nuevamente.');
+    } finally {
+      establecerComenzando(false);
+    }
   };
 
   return (
@@ -459,13 +439,16 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
                         Finalizá el reclamo en progreso antes de comenzar otro.
                       </Typography>
                     )}
+                    {errorComenzar && (
+                      <Typography variant="body2" color="error" sx={{ flexGrow: 1 }}>{errorComenzar}</Typography>
+                    )}
                     <Button
                       variant="contained"
                       startIcon={<PlayArrowIcon />}
-                      disabled={!puedeComenzar}
-                      onClick={() => establecerControlInicioAbierto(true)}
+                      disabled={!puedeComenzar || comenzando}
+                      onClick={iniciarAsignacion}
                     >
-                      Comenzar asignación
+                      {comenzando ? 'Comenzando...' : 'Comenzar asignación'}
                     </Button>
                   </>
                 )}
@@ -544,14 +527,6 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
           </DialogActions>
         </Box>
       </Dialog>
-
-      <ControlVehiculoDialog
-        abierto={controlInicioAbierto}
-        titulo="Control inicial del servicio"
-        kilometrajeMinimo={vehiculo?.kilometraje?.actual || 0}
-        cerrar={() => establecerControlInicioAbierto(false)}
-        confirmar={iniciarAsignacion}
-      />
     </>
   );
 }

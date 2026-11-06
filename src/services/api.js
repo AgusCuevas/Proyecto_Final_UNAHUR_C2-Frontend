@@ -78,7 +78,8 @@ export const authApi = {
   // Sesión actual (con el token guardado en la pestaña) y un token renovado.
   sesion: async () => (await apiClient.get('/auth/sesion')).data,
   // Cierra la sesión en el backend: el token deja de servir en todos lados.
-  cerrarSesion: async () => (await apiClient.post('/auth/logout', null, { timeout: 3000 })).data,
+  // Sin cuerpo: un "null" como JSON lo rechaza el backend y la sesión no se cerraría.
+  cerrarSesion: async () => (await apiClient.post('/auth/logout', undefined, { timeout: 3000 })).data,
 };
 
 export const usuariosApi = {
@@ -151,9 +152,6 @@ export const vehiculosApi = {
   ).data,
   actualizarKilometraje: async (vehiculoId, kilometraje) => (
     await apiClient.patch(`/vehiculos/${vehiculoId}/kilometraje`, { kilometraje })
-  ).data,
-  registrarControl: async (vehiculoId, control) => (
-    await apiClient.patch(`/vehiculos/${vehiculoId}/control`, control)
   ).data,
 };
 

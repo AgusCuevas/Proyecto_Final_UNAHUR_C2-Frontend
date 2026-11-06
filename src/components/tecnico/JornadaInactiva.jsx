@@ -7,6 +7,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { useAppData } from '../../context/useAppData.js';
 import { usePaginado } from '../../context/usePaginado.js';
 import { reclamosApi } from '../../services/api.js';
+import ControlVehiculoDialog from './ControlVehiculoDialog.jsx';
 
 const sinFiltros = {};
 
@@ -17,10 +18,16 @@ export default function JornadaInactiva() {
   const { respuesta: resumen } = usePaginado(reclamosApi.resumen, sinFiltros);
   const [iniciando, establecerIniciando] = useState(false);
   const [error, establecerError] = useState('');
+  const [controlAbierto, establecerControlAbierto] = useState(false);
   const pendientes = (resumen?.asignados || 0) + (resumen?.enProgreso || 0);
 
+  // Con vehículo, primero se carga el control inicial del vehículo (ver ControlVehiculoDialog).
   const iniciar = async () => {
     establecerError('');
+    if (sesion.vehiculo) {
+      establecerControlAbierto(true);
+      return;
+    }
     establecerIniciando(true);
     try {
       await iniciarJornada(sesion.usuario.id);
@@ -62,6 +69,15 @@ export default function JornadaInactiva() {
           {iniciando ? 'Iniciando...' : 'Iniciar jornada'}
         </Button>
       </Stack>
+      {sesion.vehiculo && (
+        <ControlVehiculoDialog
+          abierto={controlAbierto}
+          titulo="Control inicial de jornada"
+          kilometrajeMinimo={sesion.vehiculo.kilometraje?.actual || 0}
+          cerrar={() => establecerControlAbierto(false)}
+          confirmar={(control) => iniciarJornada(sesion.usuario.id, control)}
+        />
+      )}
     </Paper>
   );
 }
