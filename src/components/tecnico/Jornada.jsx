@@ -1,35 +1,54 @@
 import { useEffect, useState } from 'react';
 import {
-  Alert,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Divider,
-  FormControl,
-  MenuItem,
-  Paper,
-  Select,
-  Stack,
-  Typography,
+  Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Paper, Stack, TextField, Typography,
 } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import DoneAllIcon from '@mui/icons-material/DoneAll';
 import LoginIcon from '@mui/icons-material/Login';
 import LogoutIcon from '@mui/icons-material/Logout';
-import PendingActionsIcon from '@mui/icons-material/PendingActions';
+import TimerOutlinedIcon from '@mui/icons-material/TimerOutlined';
 import { useAppData } from '../../context/useAppData.js';
-import { usePaginado } from '../../context/usePaginado.js';
+import { usePagina, usePaginado } from '../../context/usePaginado.js';
 import { jornadasApi, reclamosApi } from '../../services/api.js';
 import PaginacionLista from '../comunes/PaginacionLista.jsx';
 import AvisoCarga from '../comunes/AvisoCarga.jsx';
 
-// Contadores del período elegido: { totalServicios, serviciosEnPeriodo } (GET /jornadas/resumen).
+import ControlVehiculoDialog from './ControlVehiculoDialog.jsx';
+import SelectorBuscable from '../comunes/SelectorBuscable.jsx';
+
+// Desempeño del período elegido: { horasTrabajadas, serviciosEnPeriodo } (GET /jornadas/resumen).
 const pedirResumen = ({ desde }) => jornadasApi.resumen(desde);
 const sinFiltros = {};
-import ControlVehiculoDialog from './ControlVehiculoDialog.jsx';
+
+// Períodos del Desempeño (igual que el mobile).
+const PERIODOS = [
+  { valor: 'hoy', etiqueta: 'Hoy' },
+  { valor: 'semana', etiqueta: 'Esta semana' },
+  { valor: 'mes', etiqueta: 'Este mes' },
+  { valor: 'anio', etiqueta: 'Este año' },
+];
+
+// Inicio del período en la hora del navegador: hoy a las 00:00, el lunes, el día 1 o el 1 de enero.
+function inicioDelPeriodo(periodo) {
+  const fecha = new Date();
+  fecha.setHours(0, 0, 0, 0);
+  if (periodo === 'semana') fecha.setDate(fecha.getDate() - ((fecha.getDay() + 6) % 7));
+  if (periodo === 'mes') fecha.setDate(1);
+  if (periodo === 'anio') fecha.setMonth(0, 1);
+  return fecha.toISOString();
+}
+
+// Filtro de "Jornadas trabajadas": los días elegidos ("AAAA-MM-DD") pasan a inicio y fin del día
+// en la hora del navegador, así el backend no depende de su propia zona horaria.
+function filtroDeJornadas(desde, hasta) {
+  if (desde && hasta && desde > hasta) return { error: '"Desde" tiene que ser anterior o igual a "hasta".', desde: '', hasta: '' };
+  return {
+    desde: desde ? new Date(`${desde}T00:00:00`).toISOString() : '',
+    hasta: hasta ? new Date(`${hasta}T23:59:59.999`).toISOString() : '',
+  };
+}
+
+const formatearHoras = (horas) => `${Number(horas || 0).toLocaleString('es-AR', { maximumFractionDigits: 1 })} h`;
 
 function formatearDuracion(inicio, fin = new Date()) {
   const minutos = Math.max(0, Math.floor((new Date(fin) - new Date(inicio)) / 60000));
@@ -43,40 +62,33 @@ function Jornada() {
     sesion,
     iniciarJornada,
     finalizarJornada,
-    registrarControlVehiculo,
     registrarUbicacionTecnico,
   } = useAppData();
   const [ahora, establecerAhora] = useState(null);
-  const [periodo, establecerPeriodo] = useState('semanal');
+  const [periodo, establecerPeriodo] = useState('hoy');
+  const [desde, establecerDesde] = useState('');
+  const [hasta, establecerHasta] = useState('');
   const [error, establecerError] = useState('');
   const [controlFinalAbierto, establecerControlFinalAbierto] = useState(false);
-  const [pagina, establecerPagina] = useState(1);
+  const [controlInicialAbierto, establecerControlInicialAbierto] = useState(false);
   const [resultadosPorPagina, establecerResultadosPorPagina] = useState(10);
   const tecnico = sesion.usuario;
   const { vehiculo, jornadaActiva } = sesion;
-  // Paginación en el servidor: sus jornadas (las más nuevas primero), cada una con sus servicios.
+  // Jornadas trabajadas: paginación en el servidor (las más nuevas primero), cada una con sus
+  // servicios, filtradas por fecha. Al cambiar el filtro vuelve a la página 1.
+  const filtro = filtroDeJornadas(desde, hasta);
+  const [pagina, establecerPagina] = usePagina(filtro.desde, filtro.hasta, resultadosPorPagina);
   const {
     datos: jornadas, paginacion, cargando, error: errorCarga,
-  } = usePaginado(jornadasApi.pagina, { pagina, limite: resultadosPorPagina });
+  } = usePaginado(jornadasApi.pagina, {
+    pagina, limite: resultadosPorPagina, desde: filtro.desde, hasta: filtro.hasta,
+  });
   const marcaActual = ahora || jornadaActiva?.inicio;
-  const fechaInicioPeriodo = periodo === 'todos' ? null : new Date();
 
-  if (fechaInicioPeriodo) {
-    fechaInicioPeriodo.setHours(0, 0, 0, 0);
-    if (periodo === 'semanal') {
-      const dia = fechaInicioPeriodo.getDay();
-      fechaInicioPeriodo.setDate(fechaInicioPeriodo.getDate() - (dia === 0 ? 6 : dia - 1));
-    }
-    if (periodo === 'mensual') fechaInicioPeriodo.setDate(1);
-    if (periodo === 'anual') fechaInicioPeriodo.setMonth(0, 1);
-  }
-
-  // Los contadores los calcula el backend: el navegador manda el inicio del período en su hora local.
-  const { respuesta: resumen } = usePaginado(pedirResumen, { desde: fechaInicioPeriodo?.toISOString() || '' });
+  // Desempeño: lo calcula el backend desde el inicio del período (en la hora del navegador).
+  const { respuesta: resumen } = usePaginado(pedirResumen, { desde: inicioDelPeriodo(periodo) });
   // Para avisar que un reclamo en curso queda pendiente hasta la próxima jornada.
   const { respuesta: resumenReclamos } = usePaginado(reclamosApi.resumen, sinFiltros);
-  const serviciosEnPeriodo = resumen?.serviciosEnPeriodo ?? 0;
-  const totalServicios = resumen?.totalServicios ?? 0;
 
   useEffect(() => {
     if (!jornadaActiva) return undefined;
@@ -118,8 +130,14 @@ function Jornada() {
     return () => clearInterval(intervalo);
   }, [jornadaActiva, registrarUbicacionTecnico, tecnico]);
 
+  // Con vehículo, la jornada empieza con el control del vehículo (kilometraje, nivel de combustible, estado y
+  // 4 fotos); los reclamos después se comienzan sin control. Sin vehículo, se inicia directamente.
   const comenzarJornada = async () => {
     establecerError('');
+    if (vehiculo) {
+      establecerControlInicialAbierto(true);
+      return;
+    }
     try {
       await iniciarJornada(tecnico.id);
     } catch (causa) {
@@ -127,11 +145,10 @@ function Jornada() {
     }
   };
 
-  // Con vehículo se registra el control del vehículo y después se cierra la jornada.
-  // Sin vehículo asignado no hay control: la jornada se cierra directamente.
+  // Con vehículo, la jornada se cierra con el control final (el backend lo registra también en el
+  // vehículo). Sin vehículo asignado no hay control: la jornada se cierra directamente.
   const cerrarJornada = async (control = {}) => {
     try {
-      if (vehiculo) await registrarControlVehiculo(vehiculo.id, control);
       await finalizarJornada(jornadaActiva.id, vehiculo ? control : {});
       establecerControlFinalAbierto(false);
       establecerError('');
@@ -179,6 +196,15 @@ function Jornada() {
         </Stack>
       </Paper>
 
+      {vehiculo && (
+        <ControlVehiculoDialog
+          abierto={controlInicialAbierto}
+          titulo="Control inicial de jornada"
+          kilometrajeMinimo={vehiculo?.kilometraje?.actual || 0}
+          cerrar={() => establecerControlInicialAbierto(false)}
+          confirmar={(control) => iniciarJornada(tecnico.id, control)}
+        />
+      )}
       {vehiculo ? (
         <ControlVehiculoDialog
           abierto={controlFinalAbierto}
@@ -207,33 +233,41 @@ function Jornada() {
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}>
             <Stack spacing={0.5}>
               <Typography variant="h6" sx={{ fontWeight: 800 }}>Desempeño</Typography>
-              <Typography variant="body2" color="text.secondary">Resoluciones realizadas por período.</Typography>
+              <Typography variant="body2" color="text.secondary">Horas trabajadas y reclamos que finalizaste en el período.</Typography>
             </Stack>
-            <FormControl size="small" sx={{ minWidth: 180 }}>
-              <Select value={periodo} onChange={(event) => establecerPeriodo(event.target.value)} aria-label="Período del desempeño">
-                <MenuItem value="semanal">Esta semana</MenuItem>
-                <MenuItem value="mensual">Este mes</MenuItem>
-                <MenuItem value="anual">Este año</MenuItem>
-                <MenuItem value="todos">Todo el histórico</MenuItem>
-              </Select>
-            </FormControl>
+            <SelectorBuscable
+              label="Período"
+              size="small"
+              sinBorrar
+              ariaLabel="Período del desempeño"
+              sx={{ width: { xs: '100%', sm: 200 } }}
+              opciones={PERIODOS.map((opcion) => ({ id: opcion.valor, nombre: opcion.etiqueta }))}
+              valor={periodo}
+              alCambiar={establecerPeriodo}
+              etiqueta={(opcion) => opcion.nombre}
+            />
           </Stack>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-            <Indicador icon={<CheckCircleIcon />} etiqueta="Resueltas en el período" valor={serviciosEnPeriodo} color="success.main" />
-            <Indicador icon={<PendingActionsIcon />} etiqueta="Total resueltas" valor={totalServicios} color="primary.main" />
-            <Indicador icon={<DoneAllIcon />} etiqueta="Total de servicios realizados" valor={totalServicios} color="secondary.main" />
+            <Indicador icon={<TimerOutlinedIcon />} etiqueta="Horas trabajadas" valor={resumen ? formatearHoras(resumen.horasTrabajadas) : '–'} color="success.main" />
+            <Indicador icon={<CheckCircleIcon />} etiqueta="Reclamos finalizados" valor={resumen?.serviciosEnPeriodo ?? '–'} color="primary.main" />
           </Stack>
         </Stack>
       </Paper>
 
       <Paper sx={{ p: { xs: 2, md: 3 } }}>
-        <Typography variant="h6" sx={{ fontWeight: 800 }}>Resumen de servicios por jornada</Typography>
+        <Typography variant="h6" sx={{ fontWeight: 800 }}>Jornadas trabajadas</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>
-          Solo se muestran los números de servicio finalizados.
+          Filtrá por fecha para ver jornadas anteriores. De cada jornada se muestran los servicios finalizados.
         </Typography>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mb: 1, alignItems: { sm: 'center' } }}>
+          <TextField type="date" size="small" label="Desde" value={desde} onChange={(event) => establecerDesde(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+          <TextField type="date" size="small" label="Hasta" value={hasta} onChange={(event) => establecerHasta(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+          {(desde || hasta) && <Button onClick={() => { establecerDesde(''); establecerHasta(''); }}>Quitar filtro</Button>}
+        </Stack>
+        {filtro.error && <Alert severity="warning" sx={{ mb: 1 }}>{filtro.error}</Alert>}
         <AvisoCarga cargando={cargando} error={errorCarga} />
         {jornadas.length === 0 ? (
-          !cargando && <Typography color="text.secondary">Todavía no registraste jornadas.</Typography>
+          !cargando && <Typography color="text.secondary">{desde || hasta ? 'No hay jornadas entre esas fechas.' : 'Todavía no registraste jornadas.'}</Typography>
         ) : jornadas.map((jornada, indice) => {
           const servicios = (jornada.servicios || []).map((servicio) => servicio.id);
           return (

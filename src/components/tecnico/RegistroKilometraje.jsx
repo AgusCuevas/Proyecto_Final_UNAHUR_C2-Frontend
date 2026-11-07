@@ -38,7 +38,7 @@ function RegistroKilometraje({ vehiculo, alGuardar, compacto = false }) {
         type="number"
         value={kilometraje}
         onChange={(event) => establecerKilometraje(event.target.value)}
-        inputProps={{ min: vehiculo.kilometraje.actual }}
+        slotProps={{ htmlInput: { min: vehiculo.kilometraje.actual, step: 'any' } }}
         helperText={`Último registro: ${vehiculo.kilometraje.actual.toLocaleString('es-AR')} km`}
         size="small"
         required

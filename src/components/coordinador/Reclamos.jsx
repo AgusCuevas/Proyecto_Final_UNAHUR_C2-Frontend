@@ -1,25 +1,6 @@
 import { useState } from 'react';
 import {
-  Alert,
-  Avatar,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  Divider,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select,
-  Stack,
-  TextField,
-  Tooltip,
-  Typography,
+  Alert, Avatar, Box, Button, Card, CardContent, Chip, Divider, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Tooltip, Typography,
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import CloseIcon from '@mui/icons-material/Close';
@@ -313,19 +294,15 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                     Nuevo cliente
                   </Button>
                   {esModoOrden ? (
-                    <FormControl fullWidth required>
-                      <InputLabel id="tipo-orden-label">Tipo de orden</InputLabel>
-                      <Select
-                        labelId="tipo-orden-label"
-                        value={formularioNuevo.tipo || 'Instalación'}
-                        onChange={(evento) => establecerFormularioNuevo((actual) => ({ ...actual, tipo: evento.target.value }))}
-                        label="Tipo de orden"
-                      >
-                        <MenuItem value="Instalación">Instalación</MenuItem>
-                        <MenuItem value="Baja de servicio">Baja de servicio</MenuItem>
-                        <MenuItem value="Mantenimiento">Mantenimiento</MenuItem>
-                      </Select>
-                    </FormControl>
+                    <SelectorBuscable
+                      label="Tipo de orden"
+                      required
+                      sinBorrar
+                      opciones={['Instalación', 'Baja de servicio', 'Mantenimiento'].map((id) => ({ id }))}
+                      valor={formularioNuevo.tipo || 'Instalación'}
+                      alCambiar={(tipo) => establecerFormularioNuevo((actual) => ({ ...actual, tipo }))}
+                      etiqueta={(opcion) => opcion.id}
+                    />
                   ) : (
                     <TextField
                       fullWidth
@@ -381,19 +358,15 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                       </DialogActions>
                     </Box>
                   </Dialog>
-                  <FormControl fullWidth required>
-                    <InputLabel id="prioridad-label">Prioridad</InputLabel>
-                    <Select
-                      labelId="prioridad-label"
-                      value={formularioNuevo.prioridad}
-                      onChange={(evento) => establecerFormularioNuevo((actual) => ({ ...actual, prioridad: evento.target.value }))}
-                      label="Prioridad"
-                    >
-                      {['Normal', 'Alta', 'Urgente'].map((prioridad) => (
-                        <MenuItem key={prioridad} value={prioridad}>{prioridad}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                  <SelectorBuscable
+                    label="Prioridad"
+                    required
+                    sinBorrar
+                    opciones={['Normal', 'Alta', 'Urgente'].map((id) => ({ id }))}
+                    valor={formularioNuevo.prioridad}
+                    alCambiar={(prioridad) => establecerFormularioNuevo((actual) => ({ ...actual, prioridad }))}
+                    etiqueta={(opcion) => opcion.id}
+                  />
                 </Stack>
                 <TextField
                   required
@@ -408,7 +381,7 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                     fullWidth
                     type="date"
                     label="Fecha programada"
-                    InputLabelProps={{ shrink: true }}
+                    slotProps={{ inputLabel: { shrink: true } }}
                     value={formularioNuevo.fechaProgramada}
                     onChange={(evento) => establecerFormularioNuevo((actual) => ({ ...actual, fechaProgramada: evento.target.value }))}
                   />
@@ -452,40 +425,28 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                 alignItems: 'end',
               }}
             >
-              <FormControl fullWidth>
-                <InputLabel id="filtro-estado-label">Estado</InputLabel>
-                <Select
-                  labelId="filtro-estado-label"
-                  value={filtros.estado}
-                  label="Estado"
-                  onChange={(evento) => actualizarFiltro('estado', evento.target.value)}
-                >
-                  {['Todos', 'Abierto', 'Asignado', 'En progreso', 'Bloqueado', 'Finalizado'].map((estado) => (
-                    <MenuItem key={estado} value={estado}>{estado}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <FormControl fullWidth>
-                <InputLabel id="filtro-tecnico-label">Técnico</InputLabel>
-                <Select
-                  labelId="filtro-tecnico-label"
-                  value={filtros.tecnicoId}
-                  label="Técnico"
-                  onChange={(evento) => actualizarFiltro('tecnicoId', evento.target.value)}
-                >
-                  <MenuItem value="Todos">Todos</MenuItem>
-                  <MenuItem value="Sin asignar">Sin asignar</MenuItem>
-                  {tecnicosDelFiltro.map((tecnico) => (
-                    <MenuItem key={tecnico.id} value={tecnico.id}>{tecnico.nombre}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <SelectorBuscable
+                label="Estado"
+                sinBorrar
+                opciones={['Todos', 'Abierto', 'Asignado', 'En progreso', 'Bloqueado', 'Finalizado'].map((id) => ({ id }))}
+                valor={filtros.estado}
+                alCambiar={(estado) => actualizarFiltro('estado', estado)}
+                etiqueta={(opcion) => opcion.id}
+              />
+              <SelectorBuscable
+                label="Técnico"
+                sinBorrar
+                opciones={[{ id: 'Todos', nombre: 'Todos' }, { id: 'Sin asignar', nombre: 'Sin asignar' }, ...tecnicosDelFiltro]}
+                valor={filtros.tecnicoId}
+                alCambiar={(tecnicoId) => actualizarFiltro('tecnicoId', tecnicoId)}
+                etiqueta={(opcion) => opcion.nombre}
+              />
               <Stack spacing={0.75} sx={{ flex: 1, minWidth: 0 }}>
                 <TextField
                   fullWidth
                   type="datetime-local"
                   label="Desde fecha y hora"
-                  InputLabelProps={{ shrink: true }}
+                  slotProps={{ inputLabel: { shrink: true } }}
                   value={filtros.desde}
                   onChange={(evento) => actualizarFiltro('desde', evento.target.value)}
                 />
@@ -495,7 +456,7 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                   fullWidth
                   type="datetime-local"
                   label="Hasta fecha y hora"
-                  InputLabelProps={{ shrink: true }}
+                  slotProps={{ inputLabel: { shrink: true } }}
                   value={filtros.hasta}
                   onChange={(evento) => actualizarFiltro('hasta', evento.target.value)}
                 />

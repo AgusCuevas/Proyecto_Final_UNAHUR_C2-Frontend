@@ -1,10 +1,11 @@
 import {
-  Autocomplete, IconButton, InputAdornment, MenuItem, Paper, Stack, TextField, Typography,
+  IconButton, InputAdornment, Paper, Stack, TextField, Typography,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import {
   OPERADORES, esFecha, filtroCompleto, filtroInicial, valorInicial,
 } from './formatoReportes.js';
+import SelectorBuscable from '../comunes/SelectorBuscable.jsx';
 
 const campoFecha = { inputLabel: { shrink: true } };
 
@@ -25,14 +26,15 @@ export default function EditorFiltro({
   const { operador } = filtro;
   if (['esUnoDe', 'noEsNingunoDe'].includes(operador)) {
     control = (
-      <Autocomplete
+      <SelectorBuscable
         multiple
         size="small"
-        options={opciones || []}
-        value={Array.isArray(filtro.valor) ? filtro.valor : []}
-        onChange={(_, valores) => cambiarValor(valores)}
-        noOptionsText="No hay valores para elegir"
-        renderInput={(parametros) => <TextField {...parametros} label="Elegí uno o más" />}
+        label="Elegí uno o más"
+        textoSinOpciones="No hay valores para elegir"
+        opciones={(opciones || []).map((id) => ({ id }))}
+        valor={Array.isArray(filtro.valor) ? filtro.valor : []}
+        alCambiar={cambiarValor}
+        etiqueta={(opcion) => opcion.id}
       />
     );
   } else if (['contiene', 'esIgualA'].includes(operador)) {
@@ -68,33 +70,31 @@ export default function EditorFiltro({
     <Paper variant="outlined" sx={{ p: 1.5 }}>
       <Stack spacing={1.25}>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-          <TextField
-            select
-            size="small"
-            fullWidth
+          <SelectorBuscable
             label="Columna"
-            value={filtro.campo}
-            onChange={(evento) => alCambiar(filtroInicial(columnas.find((item) => item.campo === evento.target.value)))}
-          >
-            {columnas.map((item) => <MenuItem key={item.campo} value={item.campo}>{item.etiqueta}</MenuItem>)}
-          </TextField>
+            size="small"
+            sinBorrar
+            opciones={columnas.map((item) => ({ id: item.campo, nombre: item.etiqueta }))}
+            valor={filtro.campo}
+            alCambiar={(campo) => alCambiar(filtroInicial(columnas.find((item) => item.campo === campo)))}
+            etiqueta={(opcion) => opcion.nombre}
+          />
           <IconButton aria-label="Quitar condición" onClick={alQuitar} size="small">
             <CloseIcon fontSize="small" />
           </IconButton>
         </Stack>
-        <TextField
-          select
-          size="small"
+        <SelectorBuscable
           label="Condición"
-          value={operador}
-          onChange={(evento) => {
-            const nuevo = evento.target.value;
+          size="small"
+          sinBorrar
+          opciones={(columna?.operadores || []).map((item) => ({ id: item, nombre: OPERADORES[item] || item }))}
+          valor={operador}
+          alCambiar={(nuevo) => {
             const valor = valorInicial(nuevo);
             alCambiar(valor === undefined ? { campo: filtro.campo, operador: nuevo } : { campo: filtro.campo, operador: nuevo, valor });
           }}
-        >
-          {(columna?.operadores || []).map((item) => <MenuItem key={item} value={item}>{OPERADORES[item] || item}</MenuItem>)}
-        </TextField>
+          etiqueta={(opcion) => opcion.nombre}
+        />
         {control}
         {columna && !filtroCompleto(filtro, columna) && (
           <Typography variant="caption" color="warning.main">Completá el valor para que se aplique esta condición.</Typography>

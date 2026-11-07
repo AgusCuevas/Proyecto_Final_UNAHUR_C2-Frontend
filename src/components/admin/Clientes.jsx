@@ -1,27 +1,5 @@
 import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  InputAdornment,
-  MenuItem,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  Tooltip,
-  Typography,
+  Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Tooltip, Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import BlockOutlinedIcon from '@mui/icons-material/BlockOutlined';
@@ -39,6 +17,7 @@ import { usePagina, usePaginado, useValorDiferido } from '../../context/usePagin
 import { clientesApi } from '../../services/api.js';
 import PaginacionLista from '../comunes/PaginacionLista.jsx';
 import AvisoCarga from '../comunes/AvisoCarga.jsx';
+import SelectorBuscable from '../comunes/SelectorBuscable.jsx';
 
 const formularioVacio = {
   nombre: '',
@@ -114,8 +93,8 @@ function Clientes() {
         await crearCliente(cambios);
       }
       establecerDialogoFormularioAbierto(false);
-    } catch {
-      establecerError('No se pudo guardar el cliente. Revisá los datos e intentá nuevamente.');
+    } catch (causa) {
+      establecerError(causa?.response?.data?.mensaje || 'No se pudo guardar el cliente. Revisá los datos e intentá nuevamente.');
     } finally {
       establecerGuardando(false);
     }
@@ -199,20 +178,18 @@ function Clientes() {
               }}
             />
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-              <TextField
-                select
+              <SelectorBuscable
                 label="Estado"
-                value={filtroEstado}
-                onChange={(evento) => {
-                  establecerFiltroEstado(evento.target.value);
+                sinBorrar
+                sx={{ minWidth: 170 }}
+                opciones={['Todos', 'Activos', 'Inactivos'].map((id) => ({ id }))}
+                valor={filtroEstado}
+                alCambiar={(id) => {
+                  establecerFiltroEstado(id);
                   establecerPagina(1);
                 }}
-                sx={{ minWidth: 150 }}
-              >
-                <MenuItem value="Todos">Todos</MenuItem>
-                <MenuItem value="Activos">Activos</MenuItem>
-                <MenuItem value="Inactivos">Inactivos</MenuItem>
-              </TextField>
+                etiqueta={(opcion) => opcion.id}
+              />
               <Button
                 variant="contained"
                 startIcon={<AddIcon />}

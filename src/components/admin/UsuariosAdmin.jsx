@@ -1,27 +1,5 @@
 import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  InputAdornment,
-  MenuItem,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  Tooltip,
-  Typography,
+  Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Tooltip, Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import BlockOutlinedIcon from '@mui/icons-material/BlockOutlined';
@@ -39,6 +17,7 @@ import { usePagina, usePaginado, useValorDiferido } from '../../context/usePagin
 import { usuariosApi } from '../../services/api.js';
 import AvisoCarga from '../comunes/AvisoCarga.jsx';
 import PaginacionLista from '../comunes/PaginacionLista.jsx';
+import SelectorBuscable from '../comunes/SelectorBuscable.jsx';
 
 const perfilesVacios = {
   Administrador: { departamento: '', nivelAcceso: '' },
@@ -195,8 +174,8 @@ function UsuariosAdmin() {
         activo: !estaActivo(usuarioPendienteEstado),
       });
       establecerUsuarioPendienteEstado(null);
-    } catch {
-      establecerError('No se pudo cambiar el estado del usuario. Intentá nuevamente.');
+    } catch (causa) {
+      establecerError(causa?.response?.data?.mensaje || 'No se pudo cambiar el estado del usuario. Intentá nuevamente.');
       establecerUsuarioPendienteEstado(null);
     }
   };
@@ -467,18 +446,23 @@ function UsuariosAdmin() {
               value={formulario.contrasena}
               onChange={(evento) => actualizarCampo('contrasena', evento.target.value)}
             />
-            <TextField select required label="Rol" value={formulario.rol} onChange={(evento) => {
-              const rol = evento.target.value;
-              establecerFormulario((actual) => ({
+            <SelectorBuscable
+              label="Rol"
+              required
+              sinBorrar
+              opciones={[
+                { id: 'Tecnico', nombre: 'Técnico' },
+                { id: 'Coordinador', nombre: 'Coordinador' },
+                { id: 'Administrador', nombre: 'Administrador' },
+              ]}
+              valor={formulario.rol}
+              alCambiar={(rol) => establecerFormulario((actual) => ({
                 ...actual,
                 rol,
                 perfil: { ...perfilesVacios[rol] },
-              }));
-            }}>
-              <MenuItem value="Tecnico">Técnico</MenuItem>
-              <MenuItem value="Coordinador">Coordinador</MenuItem>
-              <MenuItem value="Administrador">Administrador</MenuItem>
-            </TextField>
+              }))}
+              etiqueta={(opcion) => opcion.nombre}
+            />
             {Object.entries(formulario.perfil).map(([campo, valor]) => (
               <TextField
                 key={campo}
@@ -488,10 +472,10 @@ function UsuariosAdmin() {
                   : campo === 'maxTecnicosACargo' ? 'number' : campo === 'email' ? 'email' : 'text'}
                 value={valor}
                 onChange={(evento) => actualizarPerfil(campo, evento.target.value)}
-                inputProps={campo === 'maxTecnicosACargo' ? { min: 0, step: 1 } : undefined}
-                InputLabelProps={campo === 'fechaNacimiento' || campo === 'vencimientoRegistro'
-                  ? { shrink: true }
-                  : undefined}
+                slotProps={{
+                  ...(campo === 'maxTecnicosACargo' ? { htmlInput: { min: 0, step: 1 } } : {}),
+                  ...(campo === 'fechaNacimiento' || campo === 'vencimientoRegistro' ? { inputLabel: { shrink: true } } : {}),
+                }}
               />
             ))}
           </DialogContent>
@@ -540,7 +524,9 @@ function UsuariosAdmin() {
         <DialogContent>
           <Typography>
             {usuarioPendienteEstado && estaActivo(usuarioPendienteEstado)
-              ? `¿Querés deshabilitar a ${usuarioPendienteEstado.nombre}? Sus datos se conservarán.`
+              ? `¿Querés deshabilitar a ${usuarioPendienteEstado.nombre}? Sus datos se conservarán.${usuarioPendienteEstado.rolId === 3
+                ? ' Sus reclamos pendientes quedarán sin técnico para reasignarlos y su vehículo quedará libre.'
+                : ''}`
               : `¿Querés volver a habilitar a ${usuarioPendienteEstado?.nombre}?`}
           </Typography>
         </DialogContent>

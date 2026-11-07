@@ -8,9 +8,6 @@ import {
   DialogTitle,
   FormControl,
   FormLabel,
-  InputLabel,
-  MenuItem,
-  Select,
   Stack,
   TextField,
   ToggleButton,
@@ -21,6 +18,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import SelectorImagenes from '../comunes/SelectorImagenes.jsx';
 import { subirImagenes } from '../../utils/subirImagenes.js';
 import { NIVELES_COMBUSTIBLE } from '../../utils/combustible.js';
+import SelectorBuscable from '../comunes/SelectorBuscable.jsx';
 
 const IMAGENES_REQUERIDAS = 4;
 
@@ -48,9 +46,11 @@ function ControlVehiculoDialog({ abierto, titulo, kilometrajeMinimo = 0, cerrar,
 
   const guardar = async (event) => {
     event.preventDefault();
-    const km = Number(kilometraje);
-    if (!kilometraje || km < kilometrajeMinimo) {
-      establecerError(`El kilometraje debe ser igual o mayor a ${kilometrajeMinimo} km.`);
+    // Acepta coma o punto decimal ("12,5") y rechaza lo que no es un número.
+    const aNumero = (texto) => (String(texto).trim() === '' ? NaN : Number(String(texto).trim().replace(',', '.')));
+    const km = aNumero(kilometraje);
+    if (!Number.isFinite(km) || km < kilometrajeMinimo) {
+      establecerError(`El kilometraje debe ser un número igual o mayor a ${kilometrajeMinimo} km.`);
       return;
     }
     if (!nivelCombustible) {
@@ -88,7 +88,8 @@ function ControlVehiculoDialog({ abierto, titulo, kilometrajeMinimo = 0, cerrar,
                 type="number"
                 value={kilometraje}
                 onChange={(event) => establecerKilometraje(event.target.value)}
-                inputProps={{ min: kilometrajeMinimo }}
+                // Sin "min" en el campo: el mínimo lo valida la app, con un mensaje en castellano.
+                slotProps={{ htmlInput: { step: 'any' } }}
                 helperText={`Mínimo: ${kilometrajeMinimo} km`}
                 required
                 fullWidth
@@ -113,18 +114,14 @@ function ControlVehiculoDialog({ abierto, titulo, kilometrajeMinimo = 0, cerrar,
                 </Typography>
               </FormControl>
             </Stack>
-            <FormControl fullWidth>
-              <InputLabel id="estado-control-vehiculo-label">Estado del vehículo</InputLabel>
-              <Select
-                labelId="estado-control-vehiculo-label"
-                value={estado}
-                label="Estado del vehículo"
-                onChange={(event) => establecerEstado(event.target.value)}
-              >
-                <MenuItem value="Activo">Activo</MenuItem>
-                <MenuItem value="Fuera de servicio">Fuera de servicio</MenuItem>
-              </Select>
-            </FormControl>
+            <SelectorBuscable
+              label="Estado del vehículo"
+              sinBorrar
+              opciones={['Activo', 'Fuera de servicio'].map((id) => ({ id }))}
+              valor={estado}
+              alCambiar={establecerEstado}
+              etiqueta={(opcion) => opcion.id}
+            />
             <Typography variant="subtitle2">Imágenes del vehículo y del tablero</Typography>
             <SelectorImagenes
               archivos={imagenes}

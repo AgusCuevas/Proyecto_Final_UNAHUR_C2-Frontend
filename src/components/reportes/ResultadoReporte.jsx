@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
-  Alert, Box, Button, Checkbox, Chip, IconButton, InputAdornment, LinearProgress, ListItemText, Menu, MenuItem,
+  Alert, Box, Button, Checkbox, Chip, IconButton, InputAdornment, LinearProgress, List, ListItemButton, ListItemText, Popover,
   Paper, Snackbar, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableSortLabel,
   TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography,
 } from '@mui/material';
@@ -23,6 +23,7 @@ import ValorCelda from './ValorCelda.jsx';
 import {
   PERIODOS, definicionNueva, definicionParaEnviar, describirReporte, esAgrupable, esFecha, formatearNumero, rangoDelMes,
 } from './formatoReportes.js';
+import SelectorBuscable from '../comunes/SelectorBuscable.jsx';
 
 // Nombre del archivo: el del reporte, sin caracteres raros, y la fecha de hoy.
 function nombreDeArchivo(nombre) {
@@ -44,6 +45,10 @@ async function mensajeDeError(causa, porDefecto) {
   }
 }
 
+// Alto de cada columna en el menú "Columnas" (se ven 6; el resto con scroll).
+const ALTO_COLUMNA = 40;
+const sinAcentos = (texto) => String(texto ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
 // Un filtro rápido: lista desplegable de varios valores para una columna (por ejemplo, Estado).
 function FiltroRapido({
   columna, opciones, filtros, alCambiar,
@@ -52,34 +57,21 @@ function FiltroRapido({
   const personalizado = !propio && filtros.some((filtro) => filtro.campo === columna.campo);
   const valores = propio?.valor || [];
   return (
-    <TextField
-      select
+    <SelectorBuscable
+      multiple
       size="small"
       label={personalizado ? `${columna.etiqueta} (personalizado)` : columna.etiqueta}
-      value={valores}
-      sx={{ minWidth: 170 }}
-      onChange={(evento) => {
-        const elegidos = evento.target.value;
+      placeholder="Todos"
+      textoSinOpciones="No hay valores"
+      sx={{ minWidth: 200, width: 'auto' }}
+      opciones={(opciones || []).map((id) => ({ id }))}
+      valor={valores}
+      alCambiar={(elegidos) => {
         const resto = filtros.filter((filtro) => filtro.campo !== columna.campo);
         alCambiar(elegidos.length ? [...resto, { campo: columna.campo, operador: 'esUnoDe', valor: elegidos }] : resto);
       }}
-      slotProps={{
-        select: {
-          multiple: true,
-          displayEmpty: true,
-          renderValue: (elegidos) => (elegidos.length ? elegidos.join(', ') : 'Todos'),
-        },
-        inputLabel: { shrink: true },
-      }}
-    >
-      {(opciones || []).map((opcion) => (
-        <MenuItem key={opcion} value={opcion} dense>
-          <Checkbox size="small" checked={valores.includes(opcion)} />
-          <ListItemText primary={opcion} />
-        </MenuItem>
-      ))}
-      {!(opciones || []).length && <MenuItem disabled>No hay valores</MenuItem>}
-    </TextField>
+      etiqueta={(opcion) => opcion.id}
+    />
   );
 }
 
@@ -90,21 +82,24 @@ function FiltroPeriodo({ columna, filtros, alCambiar }) {
     && item.filtro.operador === actual[0].operador
     && (item.filtro.valor === undefined || Number(item.filtro.valor) === Number(actual[0].valor)))?.valor) || 'personalizado';
   return (
-    <TextField
-      select
+    <SelectorBuscable
       size="small"
+      sinBorrar
       label={`Período (${columna.etiqueta.toLowerCase()})`}
-      value={periodo}
-      sx={{ minWidth: 200 }}
-      onChange={(evento) => {
-        const elegido = PERIODOS.find((item) => item.valor === evento.target.value);
+      sx={{ minWidth: 220, width: 'auto' }}
+      opciones={[
+        ...PERIODOS.map((item) => ({ id: item.valor, nombre: item.etiqueta })),
+        ...(periodo === 'personalizado' ? [{ id: 'personalizado', nombre: 'Personalizado' }] : []),
+      ]}
+      opcionDeshabilitada={(opcion) => opcion.id === 'personalizado'}
+      valor={periodo}
+      alCambiar={(valor) => {
+        const elegido = PERIODOS.find((item) => item.valor === valor);
         const resto = filtros.filter((filtro) => filtro.campo !== columna.campo);
         alCambiar(elegido?.filtro ? [...resto, { campo: columna.campo, ...elegido.filtro }] : resto);
       }}
-    >
-      {PERIODOS.map((item) => <MenuItem key={item.valor} value={item.valor}>{item.etiqueta}</MenuItem>)}
-      {periodo === 'personalizado' && <MenuItem value="personalizado" disabled>Personalizado</MenuItem>}
-    </TextField>
+      etiqueta={(opcion) => opcion.nombre}
+    />
   );
 }
 
@@ -183,10 +178,13 @@ export default function ResultadoReporte({
   const [filaElegida, establecerFilaElegida] = useState(null);
   const [guardarAbierto, establecerGuardarAbierto] = useState(false);
   const [menuColumnas, establecerMenuColumnas] = useState(null);
+  const [buscarColumna, establecerBuscarColumna] = useState('');
   const [exportando, establecerExportando] = useState(false);
   const [aviso, establecerAviso] = useState(null);
 
   const fuente = fuentes.find((item) => item.clave === definicion.fuente) || fuentes[0];
+  // Columnas del menú "Columnas" que coinciden con lo que se escribe en su buscador.
+  const columnasDelMenu = fuente.columnas.filter((columna) => sinAcentos(columna.etiqueta).includes(sinAcentos(buscarColumna.trim())));
   const columnasPorCampo = useMemo(() => new Map(fuente.columnas.map((columna) => [columna.campo, columna])), [fuente]);
   const enviada = useMemo(() => definicionParaEnviar(definicion, fuente), [definicion, fuente]);
   // Se espera a que el usuario deje de escribir antes de pedir el resultado.
@@ -325,11 +323,17 @@ export default function ResultadoReporte({
           <ToggleButton value="resumen"><BarChartOutlinedIcon fontSize="small" sx={{ mr: 0.75 }} />Resumen</ToggleButton>
         </ToggleButtonGroup>
         {definicion.agrupacion && (
-          <TextField select size="small" label="Resumen por" value={definicion.agrupacion.por} sx={{ minWidth: 170 }} onChange={(evento) => cambiar({ agrupacion: { ...definicion.agrupacion, por: evento.target.value } })}>
-            {fuente.columnas.filter((columna) => esAgrupable(columna.tipo)).map((columna) => (
-              <MenuItem key={columna.campo} value={columna.campo}>{columna.etiqueta}{esFecha(columna.tipo) ? ' (por mes)' : ''}</MenuItem>
-            ))}
-          </TextField>
+          <SelectorBuscable
+            label="Resumen por"
+            size="small"
+            sinBorrar
+            sx={{ minWidth: 200, width: 'auto' }}
+            opciones={fuente.columnas.filter((columna) => esAgrupable(columna.tipo))
+              .map((columna) => ({ id: columna.campo, nombre: `${columna.etiqueta}${esFecha(columna.tipo) ? ' (por mes)' : ''}` }))}
+            valor={definicion.agrupacion.por}
+            alCambiar={(por) => cambiar({ agrupacion: { ...definicion.agrupacion, por } })}
+            etiqueta={(opcion) => opcion.nombre}
+          />
         )}
       </Stack>
 
@@ -352,14 +356,37 @@ export default function ResultadoReporte({
               <Button size="small" startIcon={<ViewColumnOutlinedIcon />} onClick={(evento) => establecerMenuColumnas(evento.currentTarget)}>Columnas</Button>
             </Tooltip>
           </Stack>
-          <Menu anchorEl={menuColumnas} open={Boolean(menuColumnas)} onClose={() => establecerMenuColumnas(null)}>
-            {fuente.columnas.map((columna) => (
-              <MenuItem key={columna.campo} dense onClick={() => alternarColumna(columna.campo)}>
-                <Checkbox size="small" checked={definicion.columnas.includes(columna.campo)} />
-                <ListItemText primary={columna.etiqueta} />
-              </MenuItem>
-            ))}
-          </Menu>
+          <Popover
+            anchorEl={menuColumnas}
+            open={Boolean(menuColumnas)}
+            onClose={() => { establecerMenuColumnas(null); establecerBuscarColumna(''); }}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          >
+            <Box sx={{ p: 1.5, width: 280 }}>
+              <TextField
+                size="small"
+                fullWidth
+                autoFocus
+                placeholder="Buscar columna..."
+                value={buscarColumna}
+                onChange={(evento) => establecerBuscarColumna(evento.target.value)}
+                slotProps={{ htmlInput: { 'aria-label': 'Buscar columna' } }}
+              />
+              {/* Regla de los desplegables: 6 opciones a la vista y el resto con scroll. */}
+              <List dense disablePadding sx={{ maxHeight: 6 * ALTO_COLUMNA, overflowY: 'auto', mt: 1 }}>
+                {columnasDelMenu.map((columna) => (
+                  <ListItemButton key={columna.campo} style={{ height: ALTO_COLUMNA }} sx={{ py: 0 }} onClick={() => alternarColumna(columna.campo)}>
+                    <Checkbox size="small" edge="start" checked={definicion.columnas.includes(columna.campo)} />
+                    <ListItemText primary={columna.etiqueta} />
+                  </ListItemButton>
+                ))}
+                {!columnasDelMenu.length && (
+                  <Typography variant="body2" color="text.secondary" sx={{ px: 2, py: 1 }}>No hay columnas que coincidan</Typography>
+                )}
+              </List>
+            </Box>
+          </Popover>
           <TableContainer sx={{ maxHeight: 560 }}>
             <Table size="small" stickyHeader>
               <TableHead>
