@@ -1,6 +1,25 @@
 import { useState } from 'react';
 import {
-  Alert, Avatar, Box, Button, Card, CardContent, Chip, Divider, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Tooltip, Typography,
+  Alert,
+  Avatar,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
+  Stack,
+  TextField,
+  Tooltip,
+  Typography,
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import CloseIcon from '@mui/icons-material/Close';
@@ -54,9 +73,17 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
     fechaProgramada: '',
     tecnicoId: '',
   };
+  const formularioClienteInicial = {
+    nombre: '',
+    numeroCliente: '',
+  };
   const [formularioNuevo, establecerFormularioNuevo] = useState(formularioNuevoInicial);
+  const [formularioCliente, establecerFormularioCliente] = useState(formularioClienteInicial);
+  const [dialogoClienteAbierto, establecerDialogoClienteAbierto] = useState(false);
   const [errorAlta, establecerErrorAlta] = useState('');
+  const [errorAltaCliente, establecerErrorAltaCliente] = useState('');
   const [guardandoAlta, establecerGuardandoAlta] = useState(false);
+  const [guardandoCliente, establecerGuardandoCliente] = useState(false);
   const [reclamoParaAsignar, establecerReclamoParaAsignar] = useState(null);
   const [reclamoAbiertoId, establecerReclamoAbiertoId] = useState(null);
   const [reclamoEnNotas, establecerReclamoEnNotas] = useState(null);
@@ -72,7 +99,12 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
     desde: '',
     hasta: '',
   });
-  const { actualizarAsignacion, actualizarEstado, crearReclamo: crearReclamoData } = useAppData();
+  const {
+    actualizarAsignacion,
+    actualizarEstado,
+    crearCliente,
+    crearReclamo: crearReclamoData,
+  } = useAppData();
   // Paginación en el servidor: se pide solo la página visible con los filtros (estado, técnico y
   // fechas). Cada reclamo trae su cliente y su técnico. Las fechas del filtro son de la hora local:
   // se mandan en UTC para que el servidor las compare bien.
@@ -96,7 +128,8 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
   // los técnicos sirven para el filtro y los dos para los formularios.
   const opciones = useCargaDiferida(cargarOpcionesFormulario, true);
   const tecnicos = opciones?.tecnicos || [];
-  const clientes = opciones?.clientes || [];
+  const [clientesCreados, establecerClientesCreados] = useState([]);
+  const clientes = [...(opciones?.clientes || []), ...clientesCreados];
   const tecnicosDelFiltro = tecnicos;
 
   const nombreCliente = (reclamo) => reclamo.cliente?.nombre || 'Cliente no encontrado';
@@ -202,6 +235,42 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
     }
   };
 
+  const abrirAltaCliente = () => {
+    establecerFormularioCliente(formularioClienteInicial);
+    establecerErrorAltaCliente('');
+    establecerDialogoClienteAbierto(true);
+  };
+
+  const guardarClienteDesdeReclamo = async (event) => {
+    event.preventDefault();
+    const nombre = formularioCliente.nombre.trim();
+    const numeroCliente = formularioCliente.numeroCliente.trim().toUpperCase();
+    if (!nombre) {
+      establecerErrorAltaCliente('Indicá el nombre del cliente.');
+      return;
+    }
+    if (!/^[A-Z0-9]+(?:[./-][A-Z0-9]+)*$/.test(numeroCliente)) {
+      establecerErrorAltaCliente('Usá un formato como 20F536, 12.23 o 30F456.');
+      return;
+    }
+
+    establecerErrorAltaCliente('');
+    establecerGuardandoCliente(true);
+    try {
+      const nuevoCliente = await crearCliente({ nombre, numeroCliente });
+      establecerClientesCreados((actuales) => [...actuales, nuevoCliente]
+        .sort((primero, segundo) => primero.nombre.localeCompare(segundo.nombre, 'es')));
+      establecerFormularioNuevo((actual) => ({ ...actual, clienteId: nuevoCliente.id }));
+      establecerDialogoClienteAbierto(false);
+    } catch (causa) {
+      establecerErrorAltaCliente(
+        causa?.response?.data?.mensaje || 'No se pudo crear el cliente. Revisá los datos e intentá nuevamente.',
+      );
+    } finally {
+      establecerGuardandoCliente(false);
+    }
+  };
+
   return (
     <Stack spacing={3}>
       {mostrarFormulario && (
@@ -231,20 +300,32 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                     valor={formularioNuevo.clienteId}
                     alCambiar={(clienteId) => establecerFormularioNuevo((actual) => ({ ...actual, clienteId: clienteId ?? '' }))}
                     etiqueta={(cliente) => cliente.nombre}
-                    detalle={(cliente) => cliente.zona}
-                    placeholder="Buscar cliente por nombre o zona..."
+                    detalle={(cliente) => [cliente.numeroCliente, cliente.pelo, cliente.caja, cliente.zona].filter(Boolean).join(' · ')}
+                    placeholder="Buscar por nombre o número de cliente..."
                     textoSinOpciones="No hay clientes que coincidan"
                   />
+                  <Button
+                    variant="outlined"
+                    startIcon={<PersonAddIcon />}
+                    onClick={abrirAltaCliente}
+                    sx={{ minWidth: { md: 190 }, alignSelf: { xs: 'stretch', md: 'center' } }}
+                  >
+                    Nuevo cliente
+                  </Button>
                   {esModoOrden ? (
-                    <SelectorBuscable
-                      label="Tipo de orden"
-                      required
-                      sinBorrar
-                      opciones={['Instalación', 'Baja de servicio', 'Mantenimiento'].map((id) => ({ id }))}
-                      valor={formularioNuevo.tipo || 'Instalación'}
-                      alCambiar={(tipo) => establecerFormularioNuevo((actual) => ({ ...actual, tipo }))}
-                      etiqueta={(opcion) => opcion.id}
-                    />
+                    <FormControl fullWidth required>
+                      <InputLabel id="tipo-orden-label">Tipo de orden</InputLabel>
+                      <Select
+                        labelId="tipo-orden-label"
+                        value={formularioNuevo.tipo || 'Instalación'}
+                        onChange={(evento) => establecerFormularioNuevo((actual) => ({ ...actual, tipo: evento.target.value }))}
+                        label="Tipo de orden"
+                      >
+                        <MenuItem value="Instalación">Instalación</MenuItem>
+                        <MenuItem value="Baja de servicio">Baja de servicio</MenuItem>
+                        <MenuItem value="Mantenimiento">Mantenimiento</MenuItem>
+                      </Select>
+                    </FormControl>
                   ) : (
                     <TextField
                       fullWidth
@@ -255,15 +336,64 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                       onChange={(evento) => establecerFormularioNuevo((actual) => ({ ...actual, tipo: evento.target.value }))}
                     />
                   )}
-                  <SelectorBuscable
-                    label="Prioridad"
-                    required
-                    sinBorrar
-                    opciones={['Normal', 'Alta', 'Urgente'].map((id) => ({ id }))}
-                    valor={formularioNuevo.prioridad}
-                    alCambiar={(prioridad) => establecerFormularioNuevo((actual) => ({ ...actual, prioridad }))}
-                    etiqueta={(opcion) => opcion.id}
-                  />
+
+                  <Dialog
+                    open={dialogoClienteAbierto}
+                    onClose={() => {
+                      if (!guardandoCliente) establecerDialogoClienteAbierto(false);
+                    }}
+                    fullWidth
+                    maxWidth="xs"
+                  >
+                    <DialogTitle>Registrar cliente para el reclamo</DialogTitle>
+                    <Box component="form" onSubmit={guardarClienteDesdeReclamo}>
+                      <DialogContent sx={{ display: 'grid', gap: 2 }}>
+                        {errorAltaCliente && <Alert severity="error">{errorAltaCliente}</Alert>}
+                        <TextField
+                          required
+                          autoFocus
+                          label="Nombre y apellido"
+                          value={formularioCliente.nombre}
+                          onChange={(evento) => establecerFormularioCliente((actual) => ({
+                            ...actual,
+                            nombre: evento.target.value,
+                          }))}
+                        />
+                        <TextField
+                          required
+                          label="Número de cliente"
+                          placeholder="Ej: 20F536, 12.23 o 30F456"
+                          value={formularioCliente.numeroCliente}
+                          onChange={(evento) => establecerFormularioCliente((actual) => ({
+                            ...actual,
+                            numeroCliente: evento.target.value,
+                          }))}
+                          helperText="Se guardará en mayúsculas"
+                        />
+                      </DialogContent>
+                      <DialogActions>
+                        <Button onClick={() => establecerDialogoClienteAbierto(false)} disabled={guardandoCliente}>
+                          Cancelar
+                        </Button>
+                        <Button type="submit" variant="contained" disabled={guardandoCliente}>
+                          {guardandoCliente ? 'Guardando…' : 'Crear y seleccionar'}
+                        </Button>
+                      </DialogActions>
+                    </Box>
+                  </Dialog>
+                  <FormControl fullWidth required>
+                    <InputLabel id="prioridad-label">Prioridad</InputLabel>
+                    <Select
+                      labelId="prioridad-label"
+                      value={formularioNuevo.prioridad}
+                      onChange={(evento) => establecerFormularioNuevo((actual) => ({ ...actual, prioridad: evento.target.value }))}
+                      label="Prioridad"
+                    >
+                      {['Normal', 'Alta', 'Urgente'].map((prioridad) => (
+                        <MenuItem key={prioridad} value={prioridad}>{prioridad}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
                 </Stack>
                 <TextField
                   required
@@ -278,7 +408,7 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                     fullWidth
                     type="date"
                     label="Fecha programada"
-                    slotProps={{ inputLabel: { shrink: true } }}
+                    InputLabelProps={{ shrink: true }}
                     value={formularioNuevo.fechaProgramada}
                     onChange={(evento) => establecerFormularioNuevo((actual) => ({ ...actual, fechaProgramada: evento.target.value }))}
                   />
@@ -322,28 +452,40 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                 alignItems: 'end',
               }}
             >
-              <SelectorBuscable
-                label="Estado"
-                sinBorrar
-                opciones={['Todos', 'Abierto', 'Asignado', 'En progreso', 'Bloqueado', 'Finalizado'].map((id) => ({ id }))}
-                valor={filtros.estado}
-                alCambiar={(estado) => actualizarFiltro('estado', estado)}
-                etiqueta={(opcion) => opcion.id}
-              />
-              <SelectorBuscable
-                label="Técnico"
-                sinBorrar
-                opciones={[{ id: 'Todos', nombre: 'Todos' }, { id: 'Sin asignar', nombre: 'Sin asignar' }, ...tecnicosDelFiltro]}
-                valor={filtros.tecnicoId}
-                alCambiar={(tecnicoId) => actualizarFiltro('tecnicoId', tecnicoId)}
-                etiqueta={(opcion) => opcion.nombre}
-              />
+              <FormControl fullWidth>
+                <InputLabel id="filtro-estado-label">Estado</InputLabel>
+                <Select
+                  labelId="filtro-estado-label"
+                  value={filtros.estado}
+                  label="Estado"
+                  onChange={(evento) => actualizarFiltro('estado', evento.target.value)}
+                >
+                  {['Todos', 'Abierto', 'Asignado', 'En progreso', 'Bloqueado', 'Finalizado'].map((estado) => (
+                    <MenuItem key={estado} value={estado}>{estado}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl fullWidth>
+                <InputLabel id="filtro-tecnico-label">Técnico</InputLabel>
+                <Select
+                  labelId="filtro-tecnico-label"
+                  value={filtros.tecnicoId}
+                  label="Técnico"
+                  onChange={(evento) => actualizarFiltro('tecnicoId', evento.target.value)}
+                >
+                  <MenuItem value="Todos">Todos</MenuItem>
+                  <MenuItem value="Sin asignar">Sin asignar</MenuItem>
+                  {tecnicosDelFiltro.map((tecnico) => (
+                    <MenuItem key={tecnico.id} value={tecnico.id}>{tecnico.nombre}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
               <Stack spacing={0.75} sx={{ flex: 1, minWidth: 0 }}>
                 <TextField
                   fullWidth
                   type="datetime-local"
                   label="Desde fecha y hora"
-                  slotProps={{ inputLabel: { shrink: true } }}
+                  InputLabelProps={{ shrink: true }}
                   value={filtros.desde}
                   onChange={(evento) => actualizarFiltro('desde', evento.target.value)}
                 />
@@ -353,7 +495,7 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                   fullWidth
                   type="datetime-local"
                   label="Hasta fecha y hora"
-                  slotProps={{ inputLabel: { shrink: true } }}
+                  InputLabelProps={{ shrink: true }}
                   value={filtros.hasta}
                   onChange={(evento) => actualizarFiltro('hasta', evento.target.value)}
                 />
@@ -724,8 +866,12 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
             icono: <PersonOutlineIcon fontSize="small" />,
             campos: [
               ['Nombre', nombreCliente(reclamoAbierto)],
+              ['Número de cliente', clienteDelReclamoAbierto?.numeroCliente],
+              ['Pelo', clienteDelReclamoAbierto?.pelo],
+              ['Caja', clienteDelReclamoAbierto?.caja],
               ['Teléfono', clienteDelReclamoAbierto?.telefono],
               ['Domicilio', clienteDelReclamoAbierto?.direccion, { anchoCompleto: true }],
+              ['Ubicación', clienteDelReclamoAbierto?.ubicacion, { anchoCompleto: true }],
               ['Zona', reclamoAbierto.agrupacionGeografica || clienteDelReclamoAbierto?.zona],
             ],
           },

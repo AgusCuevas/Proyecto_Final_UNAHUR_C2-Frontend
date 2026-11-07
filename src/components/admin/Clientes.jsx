@@ -1,5 +1,27 @@
 import {
-  Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Tooltip, Typography,
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  InputAdornment,
+  MenuItem,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Tooltip,
+  Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import BlockOutlinedIcon from '@mui/icons-material/BlockOutlined';
@@ -17,14 +39,17 @@ import { usePagina, usePaginado, useValorDiferido } from '../../context/usePagin
 import { clientesApi } from '../../services/api.js';
 import PaginacionLista from '../comunes/PaginacionLista.jsx';
 import AvisoCarga from '../comunes/AvisoCarga.jsx';
-import SelectorBuscable from '../comunes/SelectorBuscable.jsx';
 
 const formularioVacio = {
   nombre: '',
+  numeroCliente: '',
+  pelo: '',
+  caja: '',
   documento: '',
   telefono: '',
   email: '',
   direccion: '',
+  ubicacion: '',
 };
 
 const estaActivo = (cliente) => cliente.activo !== false;
@@ -57,10 +82,14 @@ function Clientes() {
     establecerClienteEditando(cliente);
     establecerFormulario(cliente ? {
       nombre: cliente.nombre || '',
+      numeroCliente: cliente.numeroCliente || '',
+      pelo: cliente.pelo || '',
+      caja: cliente.caja || '',
       documento: cliente.documento || '',
       telefono: cliente.telefono || '',
       email: cliente.email || '',
       direccion: cliente.direccion || '',
+      ubicacion: cliente.ubicacion || '',
     } : formularioVacio);
     establecerError('');
     establecerDialogoFormularioAbierto(true);
@@ -85,8 +114,8 @@ function Clientes() {
         await crearCliente(cambios);
       }
       establecerDialogoFormularioAbierto(false);
-    } catch (causa) {
-      establecerError(causa?.response?.data?.mensaje || 'No se pudo guardar el cliente. Revisá los datos e intentá nuevamente.');
+    } catch {
+      establecerError('No se pudo guardar el cliente. Revisá los datos e intentá nuevamente.');
     } finally {
       establecerGuardando(false);
     }
@@ -112,6 +141,9 @@ function Clientes() {
       icono: <ContactPhoneOutlinedIcon fontSize="small" />,
       campos: [
         ['DNI / CUIT', clienteSeleccionado.documento],
+        ['Número de cliente', clienteSeleccionado.numeroCliente],
+        ['Pelo', clienteSeleccionado.pelo],
+        ['Caja', clienteSeleccionado.caja],
         ['Teléfono', clienteSeleccionado.telefono],
         ['Correo electrónico', clienteSeleccionado.email, { anchoCompleto: true }],
       ],
@@ -121,6 +153,7 @@ function Clientes() {
       icono: <PlaceOutlinedIcon fontSize="small" />,
       campos: [
         ['Domicilio', clienteSeleccionado.direccion, { anchoCompleto: true }],
+        ['Ubicación', clienteSeleccionado.ubicacion, { anchoCompleto: true }],
         ['Zona', clienteSeleccionado.zona],
         ['Coordenadas', clienteSeleccionado.coordenadas
           ? `${clienteSeleccionado.coordenadas.latitud}, ${clienteSeleccionado.coordenadas.longitud}`
@@ -166,18 +199,20 @@ function Clientes() {
               }}
             />
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-              <SelectorBuscable
+              <TextField
+                select
                 label="Estado"
-                sinBorrar
-                sx={{ minWidth: 170 }}
-                opciones={['Todos', 'Activos', 'Inactivos'].map((id) => ({ id }))}
-                valor={filtroEstado}
-                alCambiar={(id) => {
-                  establecerFiltroEstado(id);
+                value={filtroEstado}
+                onChange={(evento) => {
+                  establecerFiltroEstado(evento.target.value);
                   establecerPagina(1);
                 }}
-                etiqueta={(opcion) => opcion.id}
-              />
+                sx={{ minWidth: 150 }}
+              >
+                <MenuItem value="Todos">Todos</MenuItem>
+                <MenuItem value="Activos">Activos</MenuItem>
+                <MenuItem value="Inactivos">Inactivos</MenuItem>
+              </TextField>
               <Button
                 variant="contained"
                 startIcon={<AddIcon />}
@@ -201,10 +236,13 @@ function Clientes() {
           </Stack>
           <AvisoCarga cargando={cargando} error={errorCarga} />
           <TableContainer sx={{ overflowX: 'auto' }}>
-            <Table size="small" sx={{ minWidth: 760 }}>
+            <Table size="small" sx={{ minWidth: 980 }}>
               <TableHead>
                 <TableRow>
                   <TableCell>Cliente</TableCell>
+                  <TableCell>Número de cliente</TableCell>
+                  <TableCell>Pelo</TableCell>
+                  <TableCell>Caja</TableCell>
                   <TableCell>DNI / CUIT</TableCell>
                   <TableCell>Teléfono</TableCell>
                   <TableCell>Domicilio</TableCell>
@@ -218,6 +256,9 @@ function Clientes() {
                   return (
                     <TableRow key={cliente.id} hover>
                       <TableCell sx={{ fontWeight: 700 }}>{cliente.nombre}</TableCell>
+                      <TableCell>{cliente.numeroCliente || '—'}</TableCell>
+                      <TableCell>{cliente.pelo || '—'}</TableCell>
+                      <TableCell>{cliente.caja || '—'}</TableCell>
                       <TableCell>{cliente.documento || '—'}</TableCell>
                       <TableCell>{cliente.telefono || '—'}</TableCell>
                       <TableCell sx={{ maxWidth: 240 }}>{cliente.direccion || '—'}</TableCell>
@@ -304,9 +345,29 @@ function Clientes() {
             />
             <TextField
               required
+              label="Número de cliente"
+              placeholder="Ej: 20F536, 12.23 o 30F456"
+              value={formulario.numeroCliente}
+              onChange={(evento) => actualizarCampo('numeroCliente', evento.target.value)}
+              helperText="Letras, números, puntos, barras o guiones"
+            />
+            <TextField
+              required
               label="DNI / CUIT"
               value={formulario.documento}
               onChange={(evento) => actualizarCampo('documento', evento.target.value)}
+            />
+            <TextField
+              label="Pelo"
+              placeholder="Ej: P-12"
+              value={formulario.pelo}
+              onChange={(evento) => actualizarCampo('pelo', evento.target.value)}
+            />
+            <TextField
+              label="Caja"
+              placeholder="Ej: Caja 24"
+              value={formulario.caja}
+              onChange={(evento) => actualizarCampo('caja', evento.target.value)}
             />
             <TextField
               label="Teléfono"
@@ -323,6 +384,14 @@ function Clientes() {
               label="Domicilio"
               value={formulario.direccion}
               onChange={(evento) => actualizarCampo('direccion', evento.target.value)}
+              sx={{ gridColumn: { sm: '1 / -1' } }}
+            />
+            <TextField
+              label="Ubicación"
+              placeholder="Pegá un enlace de Google Maps o coordenadas"
+              value={formulario.ubicacion}
+              onChange={(evento) => actualizarCampo('ubicacion', evento.target.value)}
+              helperText="Opcional; permite ubicar al cliente aunque la dirección sea incompleta"
               sx={{ gridColumn: { sm: '1 / -1' } }}
             />
           </DialogContent>

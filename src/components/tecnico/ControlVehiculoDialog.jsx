@@ -1,17 +1,32 @@
 import { useState } from 'react';
 import {
-  Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography,
+  Alert,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  FormLabel,
+  InputLabel,
+  MenuItem,
+  Select,
+  Stack,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import SelectorImagenes from '../comunes/SelectorImagenes.jsx';
 import { subirImagenes } from '../../utils/subirImagenes.js';
-import SelectorBuscable from '../comunes/SelectorBuscable.jsx';
+import { NIVELES_COMBUSTIBLE } from '../../utils/combustible.js';
 
 const IMAGENES_REQUERIDAS = 4;
 
 function ControlVehiculoDialog({ abierto, titulo, kilometrajeMinimo = 0, cerrar, confirmar }) {
   const [kilometraje, establecerKilometraje] = useState('');
-  const [litros, establecerLitros] = useState('');
+  const [nivelCombustible, establecerNivelCombustible] = useState('');
   const [estado, establecerEstado] = useState('Activo');
   const [imagenes, establecerImagenes] = useState([]);
   const [guardando, establecerGuardando] = useState(false);
@@ -19,7 +34,7 @@ function ControlVehiculoDialog({ abierto, titulo, kilometrajeMinimo = 0, cerrar,
 
   const cerrarDialogo = () => {
     establecerKilometraje('');
-    establecerLitros('');
+    establecerNivelCombustible('');
     establecerEstado('Activo');
     establecerImagenes([]);
     establecerError('');
@@ -33,16 +48,13 @@ function ControlVehiculoDialog({ abierto, titulo, kilometrajeMinimo = 0, cerrar,
 
   const guardar = async (event) => {
     event.preventDefault();
-    // Acepta coma o punto decimal ("12,5") y rechaza lo que no es un número.
-    const aNumero = (texto) => (String(texto).trim() === '' ? NaN : Number(String(texto).trim().replace(',', '.')));
-    const km = aNumero(kilometraje);
-    const combustible = aNumero(litros);
-    if (!Number.isFinite(km) || km < kilometrajeMinimo) {
-      establecerError(`El kilometraje debe ser un número igual o mayor a ${kilometrajeMinimo} km.`);
+    const km = Number(kilometraje);
+    if (!kilometraje || km < kilometrajeMinimo) {
+      establecerError(`El kilometraje debe ser igual o mayor a ${kilometrajeMinimo} km.`);
       return;
     }
-    if (!Number.isFinite(combustible) || combustible < 0) {
-      establecerError('Completá los litros registrados con un número.');
+    if (!nivelCombustible) {
+      establecerError('Seleccioná el nivel de combustible.');
       return;
     }
     if (imagenes.length !== IMAGENES_REQUERIDAS) {
@@ -52,7 +64,7 @@ function ControlVehiculoDialog({ abierto, titulo, kilometrajeMinimo = 0, cerrar,
     establecerGuardando(true);
     try {
       const idsImagenes = await subirImagenes(imagenes);
-      await confirmar({ kilometraje: km, litros: combustible, estado, imagenes: idsImagenes });
+      await confirmar({ kilometraje: km, nivelCombustible, estado, imagenes: idsImagenes });
       cerrarDialogo();
     } catch (causa) {
       establecerError(causa?.response?.data?.mensaje || causa.message || 'No se pudieron guardar las imágenes. Intentá nuevamente.');
@@ -76,31 +88,43 @@ function ControlVehiculoDialog({ abierto, titulo, kilometrajeMinimo = 0, cerrar,
                 type="number"
                 value={kilometraje}
                 onChange={(event) => establecerKilometraje(event.target.value)}
-                // Sin "min" en el campo: el mínimo lo valida la app, con un mensaje en castellano.
-                slotProps={{ htmlInput: { step: 'any' } }}
+                inputProps={{ min: kilometrajeMinimo }}
                 helperText={`Mínimo: ${kilometrajeMinimo} km`}
                 required
                 fullWidth
               />
-              <TextField
-                label="Litros de nafta"
-                type="number"
-                value={litros}
-                onChange={(event) => establecerLitros(event.target.value)}
-                slotProps={{ htmlInput: { min: 0, step: 'any' } }}
-                helperText="Carga o lectura registrada"
-                required
-                fullWidth
-              />
+              <FormControl fullWidth required>
+                <FormLabel>Nivel de combustible</FormLabel>
+                <ToggleButtonGroup
+                  exclusive
+                  value={nivelCombustible}
+                  onChange={(_, valor) => valor && establecerNivelCombustible(valor)}
+                  aria-label="Nivel de combustible"
+                  fullWidth
+                >
+                  {NIVELES_COMBUSTIBLE.map((nivel) => (
+                    <ToggleButton key={nivel} value={nivel} aria-label={`${nivel} de combustible`}>
+                      {nivel}
+                    </ToggleButton>
+                  ))}
+                </ToggleButtonGroup>
+                <Typography variant="caption" color="text.secondary">
+                  Seleccioná la posición aproximada del indicador
+                </Typography>
+              </FormControl>
             </Stack>
-            <SelectorBuscable
-              label="Estado del vehículo"
-              sinBorrar
-              opciones={['Activo', 'Fuera de servicio'].map((id) => ({ id }))}
-              valor={estado}
-              alCambiar={establecerEstado}
-              etiqueta={(opcion) => opcion.id}
-            />
+            <FormControl fullWidth>
+              <InputLabel id="estado-control-vehiculo-label">Estado del vehículo</InputLabel>
+              <Select
+                labelId="estado-control-vehiculo-label"
+                value={estado}
+                label="Estado del vehículo"
+                onChange={(event) => establecerEstado(event.target.value)}
+              >
+                <MenuItem value="Activo">Activo</MenuItem>
+                <MenuItem value="Fuera de servicio">Fuera de servicio</MenuItem>
+              </Select>
+            </FormControl>
             <Typography variant="subtitle2">Imágenes del vehículo y del tablero</Typography>
             <SelectorImagenes
               archivos={imagenes}

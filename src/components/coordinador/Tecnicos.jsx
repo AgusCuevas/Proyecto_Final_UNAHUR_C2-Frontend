@@ -1,6 +1,19 @@
 import { useState } from 'react';
 import {
-  Avatar, Button, Card, CardContent, Chip, Divider, InputAdornment, Stack, TextField, Typography,
+  Avatar,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  Divider,
+  FormControl,
+  InputAdornment,
+  InputLabel,
+  MenuItem,
+  Select,
+  Stack,
+  TextField,
+  Typography,
 } from '@mui/material';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import DirectionsCarOutlinedIcon from '@mui/icons-material/DirectionsCarOutlined';
@@ -15,7 +28,6 @@ import MapaTecnicos from './MapaTecnicos.jsx';
 import FichaDetalle from '../comunes/FichaDetalle.jsx';
 import PaginacionLista from '../comunes/PaginacionLista.jsx';
 import AvisoCarga from '../comunes/AvisoCarga.jsx';
-import SelectorBuscable from '../comunes/SelectorBuscable.jsx';
 
 const colorEstado = { Activo: 'success', Asignado: 'warning', Libre: 'default' };
 
@@ -102,18 +114,22 @@ function Tecnicos() {
             },
           }}
         />
-        <SelectorBuscable
-          label="Estado"
-          sinBorrar
-          sx={{ minWidth: { sm: 190 }, width: { sm: 'auto' } }}
-          opciones={['Todos', 'Activo', 'Asignado', 'Libre'].map((id) => ({ id }))}
-          valor={filtroEstado}
-          alCambiar={(estado) => {
-            establecerFiltroEstado(estado);
-            establecerPagina(1);
-          }}
-          etiqueta={(opcion) => opcion.id}
-        />
+        <FormControl sx={{ minWidth: { sm: 190 } }}>
+          <InputLabel id="filtro-estado-tecnicos-label">Estado</InputLabel>
+          <Select
+            labelId="filtro-estado-tecnicos-label"
+            value={filtroEstado}
+            label="Estado"
+            onChange={(event) => {
+              establecerFiltroEstado(event.target.value);
+              establecerPagina(1);
+            }}
+          >
+            {['Todos', 'Activo', 'Asignado', 'Libre'].map((estado) => (
+              <MenuItem key={estado} value={estado}>{estado}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
       </Stack>
       <PaginacionLista
         pagina={pagina}

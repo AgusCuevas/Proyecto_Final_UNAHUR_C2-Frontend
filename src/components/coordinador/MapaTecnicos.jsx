@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box, Button, Chip, Paper, Stack } from '@mui/material';
+import { Alert, Box, Button, Chip, Paper, Stack, TextField } from '@mui/material';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
-import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet';
+import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useAppData } from '../../context/useAppData.js';
+import { recorridosApi } from '../../services/api.js';
 
 const centroMapa = [-34.655, -58.63];
 
@@ -27,6 +28,10 @@ function AjustarVistaMapa({ tecnico, pedido }) {
 // tecnicoId: técnico a destacar y centrar. pedidoDeEnfoque: cambiarlo vuelve a centrarlo.
 function MapaTecnicos({ tecnicos = [], tecnicoId = null, pedidoDeEnfoque = 0 }) {
   const [filtro, establecerFiltro] = useState('Todos');
+  const [desde, establecerDesde] = useState(() => new Date().toISOString().slice(0, 10));
+  const [hasta, establecerHasta] = useState(() => new Date().toISOString().slice(0, 10));
+  const [recorridos, establecerRecorridos] = useState([]);
+  const [errorRecorridos, establecerErrorRecorridos] = useState('');
   const { actualizarTecnicos } = useAppData();
 
   // Cada 5 minutos vuelve a pedir los técnicos para refrescar las ubicaciones.
@@ -34,6 +39,28 @@ function MapaTecnicos({ tecnicos = [], tecnicoId = null, pedidoDeEnfoque = 0 }) 
     const intervalo = setInterval(() => actualizarTecnicos().catch(() => undefined), 300000);
     return () => clearInterval(intervalo);
   }, [actualizarTecnicos]);
+
+  useEffect(() => {
+    if (!desde || !hasta || desde > hasta) return undefined;
+    let cancelado = false;
+    const cargarRecorridos = async () => {
+      try {
+        const fin = `${hasta}T23:59:59.999`;
+        const inicio = `${desde}T00:00:00`;
+        const resultados = await Promise.all(
+          tecnicos.map((tecnico) => recorridosApi.obtener(tecnico.id, inicio, fin)),
+        );
+        if (!cancelado) {
+          establecerRecorridos(resultados);
+          establecerErrorRecorridos('');
+        }
+      } catch {
+        if (!cancelado) establecerErrorRecorridos('No se pudieron cargar los recorridos del período.');
+      }
+    };
+    cargarRecorridos();
+    return () => { cancelado = true; };
+  }, [desde, hasta, tecnicos]);
 
   const tecnicosConUbicacion = tecnicos.filter((tecnico) => tecnico.activo && tecnico.ubicacion);
   const tecnicosVisibles = tecnicosConUbicacion.filter(
@@ -86,6 +113,25 @@ function MapaTecnicos({ tecnicos = [], tecnicoId = null, pedidoDeEnfoque = 0 }) 
             <Chip label={`${libres} libres`} color="default" sx={{ height: 32, fontSize: '0.9rem' }} />
           </Stack>
         </Stack>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+          <TextField
+            type="date"
+            label="Desde"
+            value={desde}
+            onChange={(event) => establecerDesde(event.target.value)}
+            InputLabelProps={{ shrink: true }}
+            size="small"
+          />
+          <TextField
+            type="date"
+            label="Hasta"
+            value={hasta}
+            onChange={(event) => establecerHasta(event.target.value)}
+            InputLabelProps={{ shrink: true }}
+            size="small"
+          />
+        </Stack>
+        {errorRecorridos && <Alert severity="error">{errorRecorridos}</Alert>}
       </Stack>
 
       {tecnicosConUbicacion.length === 0 && (
@@ -130,6 +176,15 @@ function MapaTecnicos({ tecnicos = [], tecnicoId = null, pedidoDeEnfoque = 0 }) 
                 ) : 'Disponible para asignar'}
               </Popup>
             </CircleMarker>
+          ))}
+          {recorridos.map((recorrido) => (
+            recorrido.puntos.length > 1 ? (
+            <Polyline
+              key={recorrido.tecnicoId}
+              positions={recorrido.puntos.map((punto) => [punto.latitud, punto.longitud])}
+              pathOptions={{ color: recorrido.tecnicoId === tecnicoId ? '#155e75' : '#f97316', weight: 4, opacity: 0.75 }}
+            />
+            ) : null
           ))}
         </MapContainer>
       </Box>

@@ -21,17 +21,6 @@ import { authApi } from '../services/api.js';
 import { guardarSesion } from '../services/apiClient.js';
 
 // aviso: mensaje informativo opcional (por ejemplo, "Tu sesión venció").
-// Traduce el error del login a un mensaje: credenciales incorrectas, demasiados intentos,
-// usuario sin permiso o servidor sin respuesta (para no culpar a la contraseña si no es eso).
-function mensajeDeError(causa) {
-  const estado = causa?.response?.status;
-  if (estado === 401) return 'Usuario o contraseña incorrectos.';
-  if (estado === 400) return 'Completá el usuario y la contraseña.';
-  if ((estado === 403 || estado === 429) && causa.response.data?.mensaje) return causa.response.data.mensaje;
-  if (!causa?.response) return 'No se pudo conectar con el servidor. Revisá tu conexión e intentá de nuevo.';
-  return 'No se pudo iniciar sesión. Intentá de nuevo en unos minutos.';
-}
-
 function Login({ alIniciarSesion, aviso = '' }) {
   // Estado para gestionar las credenciales del usuario y los errores de inicio de sesión.
   const [credenciales, setCredenciales] = useState({ usuario: '', contrasena: '' });
@@ -50,8 +39,8 @@ function Login({ alIniciarSesion, aviso = '' }) {
       guardarSesion(respuesta.token);
       setMensajeError('');
       alIniciarSesion(respuesta.usuario.usuario, respuesta.usuario, respuesta);
-    } catch (causa) {
-      setMensajeError(mensajeDeError(causa));
+    } catch {
+      setMensajeError('Usuario o contraseña incorrectos.');
     }
   };
 

@@ -155,9 +155,15 @@ export function DataProvider({ children }) {
     return nuevoReclamo;
   };
 
-  // La fecha de finalización y la jornada las pone el backend.
   const actualizarEstado = async (reclamoId, cambios) => {
-    const reclamoActualizado = await reclamosApi.actualizarEstado(reclamoId, cambios);
+    const cambiosConJornada = cambios.estado === 'Finalizado'
+      ? {
+        ...cambios,
+        finalizadoEn: cambios.finalizadoEn || new Date().toISOString(),
+        jornadaId: datosSesion.jornadaActiva?.id || null,
+      }
+      : cambios;
+    const reclamoActualizado = await reclamosApi.actualizarEstado(reclamoId, cambiosConJornada);
     reemplazar('reclamos', reclamoId, reclamoActualizado);
     return reclamoActualizado;
   };
@@ -179,6 +185,13 @@ export function DataProvider({ children }) {
     const nuevoVehiculo = await vehiculosApi.crear(vehiculo);
     reemplazarVehiculoAsignado(nuevoVehiculo);
     return nuevoVehiculo;
+  };
+
+  const registrarControlVehiculo = async (vehiculoId, control) => {
+    const vehiculoActualizado = await vehiculosApi.registrarControl(vehiculoId, control);
+    reemplazar('vehiculos', vehiculoId, vehiculoActualizado);
+    actualizarVehiculoDeSesion(vehiculoActualizado);
+    return vehiculoActualizado;
   };
 
   // Admin y coordinador: seguro, último service, detalle y si está en servicio.
@@ -222,18 +235,14 @@ export function DataProvider({ children }) {
     return vehiculoActualizado;
   };
 
-  // controlInicial: { kilometraje, litros, estado, imagenes } — obligatorio si el técnico tiene
-  // vehículo (el backend también lo registra en el vehículo). Sin vehículo, no se manda.
-  const iniciarJornada = async (tecnicoId, controlInicial) => {
-    // El backend genera el id y la hora de inicio.
-    const jornada = { tecnicoId, ...(controlInicial ? { controlInicial } : {}) };
+  const iniciarJornada = async (tecnicoId) => {
+    const { vehiculo } = datosSesion;
+    // El backend genera el id y la hora de inicio; solo necesita el técnico y el kilometraje inicial.
+    const jornada = {
+      tecnicoId,
+      ...(vehiculo ? { kilometrajeInicial: vehiculo.kilometraje?.actual || 0 } : {}),
+    };
     const jornadaCreada = await jornadasApi.crear(jornada);
-    if (controlInicial) {
-      establecerDatosSesion((actual) => (actual.vehiculo ? {
-        ...actual,
-        vehiculo: { ...actual.vehiculo, kilometraje: { ...actual.vehiculo.kilometraje, actual: controlInicial.kilometraje } },
-      } : actual));
-    }
     setData((actual) => (actual.jornadas ? {
       ...actual,
       jornadas: [
@@ -245,16 +254,8 @@ export function DataProvider({ children }) {
     return jornadaCreada;
   };
 
-  // Con vehículo, el control final también queda registrado en el vehículo (lo hace el backend
-  // en el mismo pedido): acá solo se actualiza el kilometraje que muestra la sesión.
   const finalizarJornada = async (jornadaId, controlFinal) => {
     const jornadaFinalizada = await jornadasApi.finalizar(jornadaId, controlFinal);
-    if (controlFinal?.kilometraje !== undefined) {
-      establecerDatosSesion((actual) => (actual.vehiculo ? {
-        ...actual,
-        vehiculo: { ...actual.vehiculo, kilometraje: { ...actual.vehiculo.kilometraje, actual: controlFinal.kilometraje } },
-      } : actual));
-    }
     setData((actual) => (actual.jornadas ? {
       ...actual,
       jornadas: actual.jornadas.map((item) => (
@@ -290,6 +291,7 @@ export function DataProvider({ children }) {
       actualizarAsignacionVehiculo: conAviso(actualizarAsignacionVehiculo),
       crearVehiculo: conAviso(crearVehiculo),
       actualizarControlVehiculo: conAviso(actualizarControlVehiculo),
+      registrarControlVehiculo: conAviso(registrarControlVehiculo),
       actualizarEstadoVehiculo: conAviso(actualizarEstadoVehiculo),
       actualizarVehiculo: conAviso(actualizarVehiculo),
       actualizarKilometraje: conAviso(actualizarKilometraje),

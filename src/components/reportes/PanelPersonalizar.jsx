@@ -1,5 +1,6 @@
 import {
-  Box, Button, Checkbox, Divider, Drawer, FormControlLabel, IconButton, Stack, Switch, Typography,
+  Box, Button, Checkbox, Divider, Drawer, FormControlLabel, IconButton, ListItemText, MenuItem,
+  Stack, Switch, TextField, Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
@@ -7,7 +8,6 @@ import EditorFiltro from './EditorFiltro.jsx';
 import {
   CALCULOS, esAgrupable, esFecha, filtroInicial, sentidos,
 } from './formatoReportes.js';
-import SelectorBuscable from '../comunes/SelectorBuscable.jsx';
 
 function Seccion({ titulo, ayuda, children }) {
   return (
@@ -65,16 +65,13 @@ export default function PanelPersonalizar({
         <Divider />
         <Stack spacing={3} sx={{ p: 2.5, overflowY: 'auto', flex: 1 }}>
           <Seccion titulo="Qué datos">
-            <SelectorBuscable
-              label="Datos"
-              size="small"
-              sinBorrar
-              opciones={fuentes.map((item) => ({ id: item.clave, nombre: item.etiqueta, descripcion: item.descripcion }))}
-              valor={fuente.clave}
-              alCambiar={alCambiarFuente}
-              etiqueta={(opcion) => opcion.nombre}
-              detalle={(opcion) => opcion.descripcion}
-            />
+            <TextField select size="small" value={fuente.clave} onChange={(evento) => alCambiarFuente(evento.target.value)}>
+              {fuentes.map((item) => (
+                <MenuItem key={item.clave} value={item.clave}>
+                  <ListItemText primary={item.etiqueta} secondary={item.descripcion} />
+                </MenuItem>
+              ))}
+            </TextField>
           </Seccion>
 
           <Seccion titulo="Filtrar" ayuda="Solo se muestran los registros que cumplen todas las condiciones.">
@@ -100,36 +97,20 @@ export default function PanelPersonalizar({
             />
             {definicion.agrupacion && (
               <Stack spacing={1.5}>
-                <SelectorBuscable
-                  label="Agrupar por"
-                  size="small"
-                  sinBorrar
-                  opciones={agrupables.map((columna) => ({ id: columna.campo, nombre: `${columna.etiqueta}${esFecha(columna.tipo) ? ' (por mes)' : ''}` }))}
-                  valor={definicion.agrupacion.por}
-                  alCambiar={(por) => cambiar({ agrupacion: { ...definicion.agrupacion, por } })}
-                  etiqueta={(opcion) => opcion.nombre}
-                />
-                <SelectorBuscable
-                  label="Calcular"
-                  size="small"
-                  sinBorrar
-                  opciones={Object.entries(CALCULOS)
+                <TextField select size="small" label="Agrupar por" value={definicion.agrupacion.por} onChange={(evento) => cambiar({ agrupacion: { ...definicion.agrupacion, por: evento.target.value } })}>
+                  {agrupables.map((columna) => (
+                    <MenuItem key={columna.campo} value={columna.campo}>{columna.etiqueta}{esFecha(columna.tipo) ? ' (por mes)' : ''}</MenuItem>
+                  ))}
+                </TextField>
+                <TextField select size="small" label="Calcular" value={definicion.agrupacion.calculo} onChange={(evento) => cambiarCalculo(evento.target.value)}>
+                  {Object.entries(CALCULOS)
                     .filter(([calculo]) => calculo === 'cantidad' || numericas.length)
-                    .map(([calculo, etiqueta]) => ({ id: calculo, nombre: etiqueta }))}
-                  valor={definicion.agrupacion.calculo}
-                  alCambiar={cambiarCalculo}
-                  etiqueta={(opcion) => opcion.nombre}
-                />
+                    .map(([calculo, etiqueta]) => <MenuItem key={calculo} value={calculo}>{etiqueta}</MenuItem>)}
+                </TextField>
                 {definicion.agrupacion.calculo !== 'cantidad' && (
-                  <SelectorBuscable
-                    label="De la columna"
-                    size="small"
-                    sinBorrar
-                    opciones={numericas.map((columna) => ({ id: columna.campo, nombre: columna.etiqueta }))}
-                    valor={definicion.agrupacion.campo || ''}
-                    alCambiar={(campo) => cambiar({ agrupacion: { ...definicion.agrupacion, campo } })}
-                    etiqueta={(opcion) => opcion.nombre}
-                  />
+                  <TextField select size="small" label="De la columna" value={definicion.agrupacion.campo || ''} onChange={(evento) => cambiar({ agrupacion: { ...definicion.agrupacion, campo: evento.target.value } })}>
+                    {numericas.map((columna) => <MenuItem key={columna.campo} value={columna.campo}>{columna.etiqueta}</MenuItem>)}
+                  </TextField>
                 )}
               </Stack>
             )}
@@ -137,30 +118,25 @@ export default function PanelPersonalizar({
 
           <Seccion titulo="Ordenar" ayuda={definicion.agrupacion ? 'En el resumen, los grupos se ordenan de mayor a menor (o por mes).' : undefined}>
             <Stack direction="row" spacing={1}>
-              <SelectorBuscable
-                label="Ordenar por"
+              <TextField
+                select
                 size="small"
-                sinBorrar
+                fullWidth
+                label="Ordenar por"
                 disabled={Boolean(definicion.agrupacion)}
-                opciones={[{ id: '', nombre: 'Sin orden' }, ...columnas.map((columna) => ({ id: columna.campo, nombre: columna.etiqueta }))]}
-                valor={definicion.orden?.campo || ''}
-                alCambiar={(campo) => {
-                  const columna = columnas.find((item) => item.campo === campo);
+                value={definicion.orden?.campo || ''}
+                onChange={(evento) => {
+                  const columna = columnas.find((item) => item.campo === evento.target.value);
                   cambiar({ orden: columna ? { campo: columna.campo, sentido: esFecha(columna.tipo) || columna.tipo === 'numero' ? 'desc' : 'asc' } : null });
                 }}
-                etiqueta={(opcion) => opcion.nombre}
-              />
+              >
+                <MenuItem value="">Sin orden</MenuItem>
+                {columnas.map((columna) => <MenuItem key={columna.campo} value={columna.campo}>{columna.etiqueta}</MenuItem>)}
+              </TextField>
               {columnaOrden && (
-                <SelectorBuscable
-                  label="Sentido"
-                  size="small"
-                  sinBorrar
-                  disabled={Boolean(definicion.agrupacion)}
-                  opciones={Object.entries(sentidos(columnaOrden.tipo)).map(([sentido, etiqueta]) => ({ id: sentido, nombre: etiqueta }))}
-                  valor={definicion.orden.sentido}
-                  alCambiar={(sentido) => cambiar({ orden: { ...definicion.orden, sentido } })}
-                  etiqueta={(opcion) => opcion.nombre}
-                />
+                <TextField select size="small" fullWidth label="Sentido" disabled={Boolean(definicion.agrupacion)} value={definicion.orden.sentido} onChange={(evento) => cambiar({ orden: { ...definicion.orden, sentido: evento.target.value } })}>
+                  {Object.entries(sentidos(columnaOrden.tipo)).map(([sentido, etiqueta]) => <MenuItem key={sentido} value={sentido}>{etiqueta}</MenuItem>)}
+                </TextField>
               )}
             </Stack>
           </Seccion>

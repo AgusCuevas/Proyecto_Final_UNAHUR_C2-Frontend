@@ -1,5 +1,23 @@
 import {
-  Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  MenuItem,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
@@ -18,7 +36,6 @@ import Vehiculos from '../coordinador/Vehiculos.jsx';
 import Reportes from '../reportes/Reportes.jsx';
 import { useAppData } from '../../context/useAppData.js';
 import { useRecursos } from '../../context/useRecursos.js';
-import SelectorBuscable from '../comunes/SelectorBuscable.jsx';
 
 const secciones = ['Panel de administración', 'Usuarios', 'Clientes', 'Reclamos', 'Vehículos', 'Reportes'];
 
@@ -257,16 +274,12 @@ function ReportesAdmin() {
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>Historial de servicios</Typography>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-            <SelectorBuscable
-              label="Técnico"
-              sinBorrar
-              opciones={[{ id: 'Todos', nombre: 'Todos los técnicos' }, ...tecnicos]}
-              valor={filtrosReporte.tecnicoId}
-              alCambiar={(id) => actualizarFiltroReporte('tecnicoId', id)}
-              etiqueta={(opcion) => opcion.nombre}
-            />
-            <TextField fullWidth type="date" label="Desde" slotProps={{ inputLabel: { shrink: true } }} value={filtrosReporte.desde} onChange={(evento) => actualizarFiltroReporte('desde', evento.target.value)} />
-            <TextField fullWidth type="date" label="Hasta" slotProps={{ inputLabel: { shrink: true } }} value={filtrosReporte.hasta} onChange={(evento) => actualizarFiltroReporte('hasta', evento.target.value)} />
+            <TextField select fullWidth label="Técnico" value={filtrosReporte.tecnicoId} onChange={(evento) => actualizarFiltroReporte('tecnicoId', evento.target.value)}>
+              <MenuItem value="Todos">Todos los técnicos</MenuItem>
+              {tecnicos.map((tecnico) => <MenuItem key={tecnico.id} value={tecnico.id}>{tecnico.nombre}</MenuItem>)}
+            </TextField>
+            <TextField fullWidth type="date" label="Desde" InputLabelProps={{ shrink: true }} value={filtrosReporte.desde} onChange={(evento) => actualizarFiltroReporte('desde', evento.target.value)} />
+            <TextField fullWidth type="date" label="Hasta" InputLabelProps={{ shrink: true }} value={filtrosReporte.hasta} onChange={(evento) => actualizarFiltroReporte('hasta', evento.target.value)} />
           </Stack>
         </CardContent>
       </Card>
@@ -428,7 +441,7 @@ function GraficoBarras({ titulo, subtitulo, datos, color }) {
 function GestionVehiculos({ vehiculoNuevo, establecerVehiculoNuevo, agregarVehiculo }) {
   const [dialogoAbierto, establecerDialogoAbierto] = useState(false);
   const actualizar = (campo, valor) => establecerVehiculoNuevo({ ...vehiculoNuevo, [campo]: valor });
-  return <><Button variant="contained" startIcon={<AddIcon />} onClick={() => establecerDialogoAbierto(true)} sx={{ whiteSpace: 'nowrap' }}>Nuevo vehículo</Button><Dialog open={dialogoAbierto} onClose={() => establecerDialogoAbierto(false)} fullWidth maxWidth="md"><DialogTitle>Alta completa de vehículo</DialogTitle><Box component="form" onSubmit={(evento) => { agregarVehiculo(evento); establecerDialogoAbierto(false); }}><DialogContent sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}><TextField required label="Patente" value={vehiculoNuevo.patente} onChange={(evento) => actualizar('patente', evento.target.value)} /><TextField required label="Marca" value={vehiculoNuevo.marca} onChange={(evento) => actualizar('marca', evento.target.value)} /><TextField required label="Modelo" value={vehiculoNuevo.modelo} onChange={(evento) => actualizar('modelo', evento.target.value)} /><TextField required type="number" label="Kilometraje inicial" value={vehiculoNuevo.kilometrajeInicial} onChange={(evento) => actualizar('kilometrajeInicial', evento.target.value)} /><TextField required type="number" label="Kilometraje actual" value={vehiculoNuevo.kilometrajeActual} onChange={(evento) => actualizar('kilometrajeActual', evento.target.value)} /><TextField required label="Compañía de seguro" value={vehiculoNuevo.companiaSeguro} onChange={(evento) => actualizar('companiaSeguro', evento.target.value)} /><TextField required label="Número de póliza" value={vehiculoNuevo.poliza} onChange={(evento) => actualizar('poliza', evento.target.value)} /><TextField required type="date" label="Vencimiento del seguro" slotProps={{ inputLabel: { shrink: true } }} value={vehiculoNuevo.venceSeguro} onChange={(evento) => actualizar('venceSeguro', evento.target.value)} /><TextField required type="date" label="Último service" slotProps={{ inputLabel: { shrink: true } }} value={vehiculoNuevo.ultimoService} onChange={(evento) => actualizar('ultimoService', evento.target.value)} /><TextField multiline minRows={2} label="Detalle" value={vehiculoNuevo.detalle} onChange={(evento) => actualizar('detalle', evento.target.value)} /></DialogContent><DialogActions><Button onClick={() => establecerDialogoAbierto(false)}>Cancelar</Button><Button type="submit" variant="contained">Guardar vehículo</Button></DialogActions></Box></Dialog></>;
+  return <><Button variant="contained" startIcon={<AddIcon />} onClick={() => establecerDialogoAbierto(true)} sx={{ whiteSpace: 'nowrap' }}>Nuevo vehículo</Button><Dialog open={dialogoAbierto} onClose={() => establecerDialogoAbierto(false)} fullWidth maxWidth="md"><DialogTitle>Alta completa de vehículo</DialogTitle><Box component="form" onSubmit={(evento) => { agregarVehiculo(evento); establecerDialogoAbierto(false); }}><DialogContent sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}><TextField required label="Patente" value={vehiculoNuevo.patente} onChange={(evento) => actualizar('patente', evento.target.value)} /><TextField required label="Marca" value={vehiculoNuevo.marca} onChange={(evento) => actualizar('marca', evento.target.value)} /><TextField required label="Modelo" value={vehiculoNuevo.modelo} onChange={(evento) => actualizar('modelo', evento.target.value)} /><TextField required type="number" label="Kilometraje inicial" value={vehiculoNuevo.kilometrajeInicial} onChange={(evento) => actualizar('kilometrajeInicial', evento.target.value)} /><TextField required type="number" label="Kilometraje actual" value={vehiculoNuevo.kilometrajeActual} onChange={(evento) => actualizar('kilometrajeActual', evento.target.value)} /><TextField required label="Compañía de seguro" value={vehiculoNuevo.companiaSeguro} onChange={(evento) => actualizar('companiaSeguro', evento.target.value)} /><TextField required label="Número de póliza" value={vehiculoNuevo.poliza} onChange={(evento) => actualizar('poliza', evento.target.value)} /><TextField required type="date" label="Vencimiento del seguro" InputLabelProps={{ shrink: true }} value={vehiculoNuevo.venceSeguro} onChange={(evento) => actualizar('venceSeguro', evento.target.value)} /><TextField required type="date" label="Último service" InputLabelProps={{ shrink: true }} value={vehiculoNuevo.ultimoService} onChange={(evento) => actualizar('ultimoService', evento.target.value)} /><TextField multiline minRows={2} label="Detalle" value={vehiculoNuevo.detalle} onChange={(evento) => actualizar('detalle', evento.target.value)} /></DialogContent><DialogActions><Button onClick={() => establecerDialogoAbierto(false)}>Cancelar</Button><Button type="submit" variant="contained">Guardar vehículo</Button></DialogActions></Box></Dialog></>;
 }
 
 export default AdminHome;

@@ -78,8 +78,7 @@ export const authApi = {
   // Sesión actual (con el token guardado en la pestaña) y un token renovado.
   sesion: async () => (await apiClient.get('/auth/sesion')).data,
   // Cierra la sesión en el backend: el token deja de servir en todos lados.
-  // Sin cuerpo: un "null" como JSON lo rechaza el backend y la sesión no se cerraría.
-  cerrarSesion: async () => (await apiClient.post('/auth/logout', undefined, { timeout: 3000 })).data,
+  cerrarSesion: async () => (await apiClient.post('/auth/logout', null, { timeout: 3000 })).data,
 };
 
 export const usuariosApi = {
@@ -153,6 +152,9 @@ export const vehiculosApi = {
   actualizarKilometraje: async (vehiculoId, kilometraje) => (
     await apiClient.patch(`/vehiculos/${vehiculoId}/kilometraje`, { kilometraje })
   ).data,
+  registrarControl: async (vehiculoId, control) => (
+    await apiClient.patch(`/vehiculos/${vehiculoId}/control`, control)
+  ).data,
 };
 
 export const jornadasApi = {
@@ -175,6 +177,14 @@ export const ubicacionesApi = {
   ).data,
 };
 
+export const recorridosApi = {
+  obtener: async (tecnicoId, desde, hasta) => (
+    await apiClient.get('/ubicaciones-tecnicos/recorrido', {
+      params: { tecnicoId, desde, hasta },
+    })
+  ).data,
+};
+
 // Cada reclamo trae su cliente y su técnico.
 export const reclamosApi = {
   listar: async () => listarTodasLasPaginas('/reclamos'),
@@ -183,7 +193,7 @@ export const reclamosApi = {
   pagina: (filtros) => pedirPagina('/reclamos', filtros),
   // Totales para el panel: { pendientes, serviciosGestionados }.
   resumen: async () => (await apiClient.get('/reclamos/resumen')).data,
-  // Listas de los formularios: { clientes: [{ id, nombre, zona }], tecnicos: [{ id, nombre, email }] }.
+  // Listas de los formularios: { clientes: [{ id, nombre, numeroCliente, zona }], tecnicos: [{ id, nombre, email }] }.
   opciones: async () => (await apiClient.get('/reclamos/opciones')).data,
   crear: async (reclamo) => (await apiClient.post('/reclamos', reclamo)).data,
   eliminar: async (reclamoId) => (await apiClient.delete(`/reclamos/${reclamoId}`)).data,
