@@ -10,6 +10,15 @@ import Reportes from '../reportes/Reportes.jsx';
 import { useRecursos } from '../../context/useRecursos.js';
 
 // Panel: el mapa con un solo pedido (GET /tecnicos).
+// Un subtítulo propio para cada sección del coordinador.
+const SUBTITULOS = {
+  'Panel del coordinador': 'Seguimiento del equipo en la zona de trabajo.',
+  Reclamos: 'Organizá los reclamos y coordiná las tareas del equipo.',
+  Técnicos: 'Consultá el estado, la carga y la ubicación de cada técnico.',
+  Vehículos: 'Asigná vehículos y seguí sus controles.',
+  Reportes: 'Construí y consultá reportes operativos de tu equipo.',
+};
+
 function PanelCoordinador() {
   const data = useRecursos('tecnicos');
   return <MapaTecnicos tecnicos={data.tecnicos} />;
@@ -36,11 +45,7 @@ function CoordinadorHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo 
   return (
     <AppLayout
       titulo={seccion}
-      subtitulo={seccion === 'Panel del coordinador'
-        ? 'Seguimiento del equipo en la zona de trabajo.'
-          : seccion === 'Reportes'
-            ? 'Construí y consultá reportes operativos de tu equipo.'
-            : 'Organizá los reclamos y coordiná las tareas del equipo.'}
+      subtitulo={SUBTITULOS[seccion]}
       rol="Coordinador"
       usuario={usuario}
       nombre={nombre}

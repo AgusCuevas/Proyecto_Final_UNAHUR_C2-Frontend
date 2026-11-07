@@ -1,5 +1,5 @@
 import {
-  Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Tooltip, Typography,
+  Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Tooltip, Typography, useMediaQuery,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import BlockOutlinedIcon from '@mui/icons-material/BlockOutlined';
@@ -82,6 +82,8 @@ const estaActivo = (usuario) => usuario.activo !== false;
 function UsuariosAdmin() {
   const { crearUsuario, actualizarUsuario } = useAppData();
   const [busqueda, establecerBusqueda] = useState('');
+  // En celular y tablet la tabla no entra: se muestra una tarjeta por usuario.
+  const esPantallaChica = useMediaQuery((tema) => tema.breakpoints.down('md'));
   const [filtroRol, establecerFiltroRol] = useState('Todos');
   const [filtroEstado, establecerFiltroEstado] = useState('Todos');
   const [dialogoFormularioAbierto, establecerDialogoFormularioAbierto] = useState(false);
@@ -220,6 +222,37 @@ function UsuariosAdmin() {
     }] : []),
   ] : [];
 
+  // Botones de cada usuario: se usan en la tabla y en las tarjetas.
+  const accionesDe = (usuario, activo) => (
+    <>
+      <Tooltip title="Ver información">
+        <IconButton
+          aria-label={`Ver información de ${usuario.nombre}`}
+          onClick={() => {
+            establecerUsuarioSeleccionado(usuario);
+            establecerDialogoDetalleAbierto(true);
+          }}
+        >
+          <VisibilityOutlinedIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Modificar usuario">
+        <IconButton aria-label={`Modificar ${usuario.nombre}`} onClick={() => abrirFormulario(usuario)}>
+          <EditOutlinedIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title={activo ? 'Deshabilitar usuario' : 'Reactivar usuario'}>
+        <IconButton
+          aria-label={activo ? `Deshabilitar ${usuario.nombre}` : `Reactivar ${usuario.nombre}`}
+          color={activo ? 'default' : 'success'}
+          onClick={() => establecerUsuarioPendienteEstado(usuario)}
+        >
+          {activo ? <BlockOutlinedIcon fontSize="small" /> : <CheckCircleOutlineIcon fontSize="small" />}
+        </IconButton>
+      </Tooltip>
+    </>
+  );
+
   return (
     <Stack spacing={2.5}>
       {error && !dialogoFormularioAbierto && (
@@ -247,7 +280,7 @@ function UsuariosAdmin() {
                 variant="contained"
                 startIcon={<AddIcon />}
                 onClick={() => abrirFormulario()}
-                sx={{ whiteSpace: 'nowrap', alignSelf: { xs: 'stretch', sm: 'auto' } }}
+                sx={{ whiteSpace: 'nowrap', flexShrink: 0, alignSelf: { xs: 'stretch', sm: 'auto' } }}
               >
                 Nuevo usuario
               </Button>
@@ -265,10 +298,14 @@ function UsuariosAdmin() {
                 </Typography>
                 <Stack
                   direction="row"
-                  spacing={0.5}
+                  useFlexGap
                   aria-label="Filtrar usuarios por rol"
                   sx={{
                     width: { xs: '100%', sm: 'fit-content' },
+                    // En celular los cuatro botones no entran en una fila: van de a dos.
+                    display: { xs: 'grid', sm: 'flex' },
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: 0.5,
                     flexWrap: 'wrap',
                     p: 0.5,
                     border: 1,
@@ -357,14 +394,45 @@ function UsuariosAdmin() {
             </Typography>
           </Stack>
           <AvisoCarga cargando={cargando} error={errorCarga} />
+          {esPantallaChica ? (
+            <Stack spacing={1.25}>
+              {usuariosVisibles.map((usuario) => {
+                const activo = estaActivo(usuario);
+                return (
+                  <Box key={usuario.id} sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1.5 }}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography sx={{ fontWeight: 700 }}>{usuario.nombre}</Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
+                          {usuario.usuario} · {usuario.rol}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
+                          {usuario.perfil?.email || usuario.perfil?.telefono || 'Sin contacto'}
+                        </Typography>
+                      </Box>
+                      <Chip size="small" label={activo ? 'Activo' : 'Inactivo'} color={activo ? 'success' : 'default'} />
+                    </Stack>
+                    <Stack direction="row" sx={{ justifyContent: 'flex-end', mt: 0.5 }}>
+                      {accionesDe(usuario, activo)}
+                    </Stack>
+                  </Box>
+                );
+              })}
+              {!cargando && usuariosVisibles.length === 0 && (
+                <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+                  No hay usuarios que coincidan con los filtros.
+                </Typography>
+              )}
+            </Stack>
+          ) : (
           <TableContainer sx={{ overflowX: 'auto' }}>
-            <Table size="small" sx={{ minWidth: 790 }}>
+            <Table size="small" sx={{ minWidth: { md: 520, lg: 790 } }}>
               <TableHead>
                 <TableRow>
                   <TableCell>Nombre</TableCell>
-                  <TableCell>Usuario</TableCell>
+                  <TableCell sx={{ display: { md: 'none', lg: 'table-cell' } }}>Usuario</TableCell>
                   <TableCell>Rol</TableCell>
-                  <TableCell>Contacto</TableCell>
+                  <TableCell sx={{ display: { md: 'none', lg: 'table-cell' } }}>Contacto</TableCell>
                   <TableCell>Estado</TableCell>
                   <TableCell align="right">Acciones</TableCell>
                 </TableRow>
@@ -375,38 +443,14 @@ function UsuariosAdmin() {
                   return (
                     <TableRow key={usuario.id} hover>
                       <TableCell sx={{ fontWeight: 700 }}>{usuario.nombre}</TableCell>
-                      <TableCell>{usuario.usuario}</TableCell>
+                      <TableCell sx={{ display: { md: 'none', lg: 'table-cell' } }}>{usuario.usuario}</TableCell>
                       <TableCell>{usuario.rol}</TableCell>
-                      <TableCell>{usuario.perfil?.email || usuario.perfil?.telefono || '—'}</TableCell>
+                      <TableCell sx={{ display: { md: 'none', lg: 'table-cell' } }}>{usuario.perfil?.email || usuario.perfil?.telefono || '—'}</TableCell>
                       <TableCell>
                         <Chip size="small" label={activo ? 'Activo' : 'Inactivo'} color={activo ? 'success' : 'default'} />
                       </TableCell>
                       <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-                        <Tooltip title="Ver información">
-                          <IconButton
-                            aria-label={`Ver información de ${usuario.nombre}`}
-                            onClick={() => {
-                              establecerUsuarioSeleccionado(usuario);
-                              establecerDialogoDetalleAbierto(true);
-                            }}
-                          >
-                            <VisibilityOutlinedIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Modificar usuario">
-                          <IconButton aria-label={`Modificar ${usuario.nombre}`} onClick={() => abrirFormulario(usuario)}>
-                            <EditOutlinedIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title={activo ? 'Deshabilitar usuario' : 'Reactivar usuario'}>
-                          <IconButton
-                            aria-label={activo ? `Deshabilitar ${usuario.nombre}` : `Reactivar ${usuario.nombre}`}
-                            color={activo ? 'default' : 'success'}
-                            onClick={() => establecerUsuarioPendienteEstado(usuario)}
-                          >
-                            {activo ? <BlockOutlinedIcon fontSize="small" /> : <CheckCircleOutlineIcon fontSize="small" />}
-                          </IconButton>
-                        </Tooltip>
+                        {accionesDe(usuario, activo)}
                       </TableCell>
                     </TableRow>
                   );
@@ -421,6 +465,7 @@ function UsuariosAdmin() {
               </TableBody>
             </Table>
           </TableContainer>
+          )}
           <PaginacionLista
             pagina={pagina}
             total={totalUsuarios}

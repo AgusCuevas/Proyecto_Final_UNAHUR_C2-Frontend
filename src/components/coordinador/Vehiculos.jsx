@@ -1,5 +1,5 @@
 import {
-  Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Tooltip, Typography,
+  Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Tooltip, Typography, useMediaQuery,
 } from '@mui/material';
 import AssignmentIndOutlinedIcon from '@mui/icons-material/AssignmentIndOutlined';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
@@ -191,6 +191,42 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
   ] : [];
   const historialImagenes = vehiculoDetalle ? controlesUltimos30Dias(vehiculoDetalle) : [];
 
+  // En celular y tablet la tabla no entra: se muestra una tarjeta por vehículo.
+  const esPantallaChica = useMediaQuery((tema) => tema.breakpoints.down('md'));
+  // Botones de cada vehículo: se usan en la tabla y en las tarjetas.
+  const accionesDe = (vehiculo) => (
+    <>
+      <Tooltip title="Ver información">
+        <IconButton
+          aria-label={`Ver información del vehículo ${vehiculo.patente}`}
+          onClick={() => establecerVehiculoSeleccionado(vehiculo)}
+        >
+          <VisibilityOutlinedIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+      {gestionable && (
+        <Tooltip title="Modificar datos">
+          <IconButton
+            aria-label={`Modificar vehículo ${vehiculo.patente}`}
+            onClick={() => abrirEdicion(vehiculo)}
+          >
+            <EditOutlinedIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )}
+      {gestionable && (
+        <Tooltip title="Asignar técnico">
+          <IconButton
+            aria-label={`Asignar técnico al vehículo ${vehiculo.patente}`}
+            onClick={() => abrirAsignacion(vehiculo)}
+          >
+            <AssignmentIndOutlinedIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )}
+    </>
+  );
+
   return (
     <Stack spacing={2.5}>
       {error && !asignacionPendiente && (
@@ -247,15 +283,50 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
             </Typography>
           </Stack>
           <AvisoCarga cargando={cargando} error={errorCarga} />
+          {esPantallaChica ? (
+            <Stack spacing={1.25}>
+              {vehiculosVisibles.map((vehiculo) => {
+                const estado = estadoVehiculo(vehiculo);
+                const descripcion = [vehiculo.marca, vehiculo.modelo].filter(Boolean).join(' ');
+                return (
+                  <Box key={vehiculo.id} sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1.5 }}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography sx={{ fontWeight: 700 }}>{descripcion || 'Vehículo'} · {vehiculo.patente}</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {vehiculo.tecnico?.nombre || 'Sin técnico asignado'}
+                          {vehiculo.kilometraje?.actual != null && ` · ${formatearKm(vehiculo.kilometraje.actual)}`}
+                        </Typography>
+                        {vehiculo.seguro?.vence && (
+                          <Typography variant="body2" color={seguroVencido(vehiculo) ? 'error' : 'text.secondary'}>
+                            Seguro vence el {formatearFecha(vehiculo.seguro.vence)}
+                          </Typography>
+                        )}
+                      </Box>
+                      <Chip size="small" label={estado.label} color={estado.color} />
+                    </Stack>
+                    <Stack direction="row" sx={{ justifyContent: 'flex-end', mt: 0.5 }}>
+                      {accionesDe(vehiculo)}
+                    </Stack>
+                  </Box>
+                );
+              })}
+              {!cargando && vehiculosVisibles.length === 0 && (
+                <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+                  No hay vehículos que coincidan con la búsqueda.
+                </Typography>
+              )}
+            </Stack>
+          ) : (
           <TableContainer sx={{ overflowX: 'auto' }}>
-            <Table size="small" sx={{ minWidth: 820 }}>
+            <Table size="small" sx={{ minWidth: { md: 600, lg: 820 } }}>
               <TableHead>
                 <TableRow>
                   <TableCell>Vehículo</TableCell>
                   <TableCell>Patente</TableCell>
                   <TableCell>Técnico asignado</TableCell>
-                  <TableCell align="right">Kilometraje</TableCell>
-                  <TableCell>Vence seguro</TableCell>
+                  <TableCell align="right" sx={{ display: { md: 'none', lg: 'table-cell' } }}>Kilometraje</TableCell>
+                  <TableCell sx={{ display: { md: 'none', lg: 'table-cell' } }}>Vence seguro</TableCell>
                   <TableCell>Estado</TableCell>
                   <TableCell align="right">Acciones</TableCell>
                 </TableRow>
@@ -273,10 +344,10 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
                           <Typography variant="body2" color="text.disabled">Sin asignar</Typography>
                         )}
                       </TableCell>
-                      <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                      <TableCell align="right" sx={{ whiteSpace: 'nowrap', display: { md: 'none', lg: 'table-cell' } }}>
                         {formatearKm(vehiculo.kilometraje?.actual) || '—'}
                       </TableCell>
-                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      <TableCell sx={{ whiteSpace: 'nowrap', display: { md: 'none', lg: 'table-cell' } }}>
                         <Typography variant="body2" color={seguroVencido(vehiculo) ? 'error' : 'text.primary'}>
                           {formatearFecha(vehiculo.seguro?.vence) || '—'}
                         </Typography>
@@ -285,34 +356,7 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
                         <Chip size="small" label={estado.label} color={estado.color} />
                       </TableCell>
                       <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-                        <Tooltip title="Ver información">
-                          <IconButton
-                            aria-label={`Ver información del vehículo ${vehiculo.patente}`}
-                            onClick={() => establecerVehiculoSeleccionado(vehiculo)}
-                          >
-                            <VisibilityOutlinedIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        {gestionable && (
-                          <Tooltip title="Modificar datos">
-                            <IconButton
-                              aria-label={`Modificar vehículo ${vehiculo.patente}`}
-                              onClick={() => abrirEdicion(vehiculo)}
-                            >
-                              <EditOutlinedIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-                        {gestionable && (
-                          <Tooltip title="Asignar técnico">
-                            <IconButton
-                              aria-label={`Asignar técnico al vehículo ${vehiculo.patente}`}
-                              onClick={() => abrirAsignacion(vehiculo)}
-                            >
-                              <AssignmentIndOutlinedIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        )}
+                        {accionesDe(vehiculo)}
                       </TableCell>
                     </TableRow>
                   );
@@ -327,6 +371,7 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
               </TableBody>
             </Table>
           </TableContainer>
+          )}
           <PaginacionLista
             pagina={pagina}
             total={totalVehiculos}

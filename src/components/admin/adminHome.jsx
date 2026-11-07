@@ -103,7 +103,7 @@ function AdminHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
   return (
     <AppLayout
       titulo={seccion}
-      subtitulo="Supervisá la operación general y mantené ordenado el equipo de trabajo."
+      subtitulo={SUBTITULOS[seccion]}
       rol="Administrador"
       usuario={usuario}
       nombre={nombre}
@@ -394,6 +394,16 @@ function GraficosRendimiento({ rendimiento, tecnicoId }) {
     </Stack>
   );
 }
+
+// Un subtítulo propio para cada sección del administrador.
+const SUBTITULOS = {
+  'Panel de administración': 'Supervisá la operación general y mantené ordenado el equipo de trabajo.',
+  Usuarios: 'Dá de alta, editá y habilitá a las personas que usan el sistema.',
+  Clientes: 'Consultá y mantené actualizados los datos de los clientes.',
+  Reclamos: 'Registrá reclamos y órdenes, y asignalos a los técnicos.',
+  Vehículos: 'Controlá la flota, sus asignaciones y su estado.',
+  Reportes: 'Construí y consultá reportes de toda la operación.',
+};
 
 function GraficoBarras({ titulo, subtitulo, datos, color }) {
   const maximo = Math.max(1, ...datos.map((dato) => dato.valor));

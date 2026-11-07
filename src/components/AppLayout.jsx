@@ -290,7 +290,17 @@ function AppLayout({ titulo, subtitulo, rol, usuario, nombre, opciones = [], alC
         </Box>
       )}
 
-      <Box component="main" sx={{ flexGrow: 1, minWidth: 0, p: { xs: 2, sm: 3, md: 5 }, pt: { xs: 10, md: 13 } }}>
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          minWidth: 0,
+          p: { xs: 2, sm: 3, md: 5 },
+          pt: { xs: 10, md: 13 },
+          // Espacio para que el indicador flotante del técnico no tape el final de la pantalla.
+          ...(rol === 'Técnico' && { pb: { xs: 10, md: 5 } }),
+        }}
+      >
         <Box sx={{ maxWidth: 1320, mx: 'auto', width: '100%' }}>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: { xs: 'stretch', sm: 'center' }, justifyContent: 'space-between' }}>
             <Typography variant="h4" color="text.primary" sx={{ fontWeight: 800, fontSize: { xs: '1.8rem', sm: '2.125rem' } }}>

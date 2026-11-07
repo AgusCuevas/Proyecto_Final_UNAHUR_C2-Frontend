@@ -11,6 +11,13 @@ import { useAppData } from '../../context/useAppData.js';
 
 const semanaEnMilisegundos = 7 * 24 * 60 * 60 * 1000;
 
+// Un subtítulo propio para cada sección del técnico.
+const SUBTITULOS = {
+  'Mis asignaciones': 'Los reclamos que tenés asignados, en orden de atención.',
+  'Vehículo': 'Los datos y el último control del vehículo que tenés asignado.',
+  'Resumen de servicios': 'Tu jornada de trabajo y tu desempeño.',
+};
+
 function TecnicoHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
   // Si se llega desde "Servicio en curso", abre la sección que se eligió en el menú.
   const ubicacion = useLocation();
@@ -56,7 +63,7 @@ function TecnicoHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
     <>
       <AppLayout
         titulo={seccion}
-        subtitulo="Consultá tus resoluciones generadas."
+        subtitulo={SUBTITULOS[seccion]}
         rol="Técnico"
         usuario={usuario}
         nombre={nombre}

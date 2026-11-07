@@ -34,6 +34,15 @@ function formatearFecha(fecha) {
 }
 
 // Sin jornada activa no se piden los reclamos: se muestra solo el resumen para iniciarla.
+// Agranda la zona que se puede tocar con el dedo (unos 40 px de alto) sin cambiar cómo se ve el link.
+const estiloLinkTocable = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 0.5,
+  position: 'relative',
+  '&::after': { content: '""', position: 'absolute', inset: '-10px -6px' },
+};
+
 function MisAsignaciones({ soloEnCurso = false }) {
   const { sesion } = useAppData();
   if (!sesion.jornadaActiva) return <JornadaInactiva />;
@@ -69,19 +78,17 @@ function ListaAsignaciones({ soloEnCurso }) {
 
   return (
     <Stack spacing={3}>
+      {/* En "Servicio en curso" el título de la pantalla ya alcanza: no se repite en una tarjeta. */}
+      {!soloEnCurso && (
       <Paper sx={{ p: { xs: 2, md: 3 } }}>
         <Stack spacing={2.5}>
           <Box>
-            <Typography variant="h6" sx={{ fontWeight: 800 }}>
-              {soloEnCurso ? 'Servicio en curso' : 'Tus reclamos'}
-            </Typography>
+            <Typography variant="h6" sx={{ fontWeight: 800 }}>Tus reclamos</Typography>
             <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-              {soloEnCurso
-                ? (totalFiltradas ? 'El reclamo que estás realizando.' : 'No tenés un reclamo en curso.')
-                : `${totalAsignaciones} reclamos asociados a tu usuario: primero el que está en curso, después los asignados y al final los finalizados.`}
+              {`${totalAsignaciones} reclamos asociados a tu usuario: primero el que está en curso, después los asignados y al final los finalizados.`}
             </Typography>
           </Box>
-          {!soloEnCurso && esMovil ? (
+          {esMovil ? (
             <SelectorBuscable
               label="Filtrar servicios"
               sinBorrar
@@ -95,7 +102,7 @@ function ListaAsignaciones({ soloEnCurso }) {
               alCambiar={cambiarFiltro}
               etiqueta={(opcion) => opcion.nombre}
             />
-          ) : !soloEnCurso && (
+          ) : (
             <Tabs
               value={filtro}
               onChange={(_, nuevoFiltro) => cambiarFiltro(nuevoFiltro)}
@@ -108,19 +115,20 @@ function ListaAsignaciones({ soloEnCurso }) {
               <Tab label={`Finalizados (${totalesPorEstado.Finalizado || 0})`} value="Finalizado" />
             </Tabs>
           )}
-          {!soloEnCurso && (
-            <Typography variant="body2" color="text.secondary">
-              {totalFiltradas} de {totalAsignaciones} asignaciones visibles
-            </Typography>
-          )}
+          <Typography variant="body2" color="text.secondary">
+            {totalFiltradas} de {totalAsignaciones} asignaciones visibles
+          </Typography>
         </Stack>
       </Paper>
+      )}
 
       <AvisoCarga cargando={cargando} error={errorCarga} />
       {asignacionesVisibles.length === 0 ? (
         !cargando && (
           <Paper sx={{ p: 4, textAlign: 'center' }}>
-            <Typography color="text.secondary">No hay asignaciones con este estado.</Typography>
+            <Typography color="text.secondary">
+              {soloEnCurso ? 'No tenés un reclamo en curso.' : 'No hay asignaciones con este estado.'}
+            </Typography>
           </Paper>
         )
       ) : asignacionesVisibles.map(({ reclamo, cliente }) => (
@@ -365,7 +373,7 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
                 icono={<PersonOutlineIcon fontSize="small" />}
                 etiqueta="Cliente"
                 accion={cliente.telefono && (
-                  <Link href={`tel:${cliente.telefono}`} underline="hover" variant="body2" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                  <Link href={`tel:${cliente.telefono}`} underline="hover" variant="body2" sx={estiloLinkTocable}>
                     <PhoneOutlinedIcon fontSize="inherit" /> {cliente.telefono}
                   </Link>
                 )}
@@ -380,7 +388,7 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
                 icono={<PlaceOutlinedIcon fontSize="small" />}
                 etiqueta="Dirección"
                 accion={(cliente.ubicacion || cliente.direccion) && (
-                  <Link href={urlMaps} target="_blank" rel="noreferrer" underline="hover" variant="body2" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                  <Link href={urlMaps} target="_blank" rel="noreferrer" underline="hover" variant="body2" sx={estiloLinkTocable}>
                     <MapOutlinedIcon fontSize="inherit" /> Ver en Maps
                   </Link>
                 )}

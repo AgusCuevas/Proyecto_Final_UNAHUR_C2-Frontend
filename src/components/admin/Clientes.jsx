@@ -1,5 +1,5 @@
 import {
-  Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Tooltip, Typography,
+  Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Tooltip, Typography, useMediaQuery,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import BlockOutlinedIcon from '@mui/icons-material/BlockOutlined';
@@ -151,6 +151,44 @@ function Clientes() {
     },
   ] : [];
 
+  // En celular y tablet la tabla no entra: se muestra una tarjeta por cliente.
+  const esPantallaChica = useMediaQuery((tema) => tema.breakpoints.down('md'));
+  // Botones de cada cliente: se usan en la tabla y en las tarjetas.
+  const accionesDe = (cliente, activo) => (
+    <>
+      <Tooltip title="Ver información">
+        <IconButton
+          aria-label={`Ver información de ${cliente.nombre}`}
+          onClick={() => {
+            establecerClienteSeleccionado(cliente);
+            establecerDialogoDetalleAbierto(true);
+          }}
+        >
+          <VisibilityOutlinedIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Modificar cliente">
+        <IconButton
+          aria-label={`Modificar ${cliente.nombre}`}
+          onClick={() => abrirFormulario(cliente)}
+        >
+          <EditOutlinedIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title={activo ? 'Deshabilitar cliente' : 'Reactivar cliente'}>
+        <IconButton
+          aria-label={activo ? `Deshabilitar ${cliente.nombre}` : `Reactivar ${cliente.nombre}`}
+          color={activo ? 'default' : 'success'}
+          onClick={() => establecerClientePendienteEstado(cliente)}
+        >
+          {activo
+            ? <BlockOutlinedIcon fontSize="small" />
+            : <CheckCircleOutlineIcon fontSize="small" />}
+        </IconButton>
+      </Tooltip>
+    </>
+  );
+
   return (
     <Stack spacing={2.5}>
       {error && <Alert severity="error" onClose={() => establecerError('')}>{error}</Alert>}
@@ -194,7 +232,7 @@ function Clientes() {
                 variant="contained"
                 startIcon={<AddIcon />}
                 onClick={() => abrirFormulario()}
-                sx={{ whiteSpace: 'nowrap' }}
+                sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
               >
                 Nuevo cliente
               </Button>
@@ -212,17 +250,54 @@ function Clientes() {
             </Typography>
           </Stack>
           <AvisoCarga cargando={cargando} error={errorCarga} />
+          {esPantallaChica ? (
+            <Stack spacing={1.25}>
+              {clientesVisibles.map((cliente) => {
+                const activo = estaActivo(cliente);
+                return (
+                  <Box key={cliente.id} sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1.5 }}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography sx={{ fontWeight: 700 }}>{cliente.nombre}</Typography>
+                        {(cliente.numeroCliente || cliente.telefono) && (
+                          <Typography variant="body2" color="text.secondary">
+                            {[cliente.numeroCliente && `N.º ${cliente.numeroCliente}`, cliente.telefono]
+                              .filter(Boolean)
+                              .map((dato, indice) => (
+                                <Box key={dato} component="span" sx={{ whiteSpace: 'nowrap' }}>{indice > 0 && ' · '}{dato}</Box>
+                              ))}
+                          </Typography>
+                        )}
+                        <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
+                          {cliente.direccion || 'Sin domicilio'}
+                        </Typography>
+                      </Box>
+                      <Chip size="small" label={activo ? 'Activo' : 'Inactivo'} color={activo ? 'success' : 'default'} />
+                    </Stack>
+                    <Stack direction="row" sx={{ justifyContent: 'flex-end', mt: 0.5 }}>
+                      {accionesDe(cliente, activo)}
+                    </Stack>
+                  </Box>
+                );
+              })}
+              {!cargando && clientesVisibles.length === 0 && (
+                <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+                  {hayFiltros ? 'No hay clientes que coincidan con la búsqueda.' : 'Todavía no hay clientes registrados.'}
+                </Typography>
+              )}
+            </Stack>
+          ) : (
           <TableContainer sx={{ overflowX: 'auto' }}>
-            <Table size="small" sx={{ minWidth: 980 }}>
+            <Table size="small" sx={{ minWidth: { md: 600, lg: 900, xl: 980 } }}>
               <TableHead>
                 <TableRow>
                   <TableCell>Cliente</TableCell>
                   <TableCell>Número de cliente</TableCell>
-                  <TableCell>Pelo</TableCell>
-                  <TableCell>Caja</TableCell>
-                  <TableCell>DNI / CUIT</TableCell>
+                  <TableCell sx={{ display: { md: 'none', xl: 'table-cell' } }}>Pelo</TableCell>
+                  <TableCell sx={{ display: { md: 'none', xl: 'table-cell' } }}>Caja</TableCell>
+                  <TableCell sx={{ display: { md: 'none', lg: 'table-cell' } }}>DNI / CUIT</TableCell>
                   <TableCell>Teléfono</TableCell>
-                  <TableCell>Domicilio</TableCell>
+                  <TableCell sx={{ display: { md: 'none', lg: 'table-cell' } }}>Domicilio</TableCell>
                   <TableCell>Estado</TableCell>
                   <TableCell align="right">Acciones</TableCell>
                 </TableRow>
@@ -234,11 +309,11 @@ function Clientes() {
                     <TableRow key={cliente.id} hover>
                       <TableCell sx={{ fontWeight: 700 }}>{cliente.nombre}</TableCell>
                       <TableCell>{cliente.numeroCliente || '—'}</TableCell>
-                      <TableCell>{cliente.pelo || '—'}</TableCell>
-                      <TableCell>{cliente.caja || '—'}</TableCell>
-                      <TableCell>{cliente.documento || '—'}</TableCell>
-                      <TableCell>{cliente.telefono || '—'}</TableCell>
-                      <TableCell sx={{ maxWidth: 240 }}>{cliente.direccion || '—'}</TableCell>
+                      <TableCell sx={{ display: { md: 'none', xl: 'table-cell' } }}>{cliente.pelo || '—'}</TableCell>
+                      <TableCell sx={{ display: { md: 'none', xl: 'table-cell' } }}>{cliente.caja || '—'}</TableCell>
+                      <TableCell sx={{ display: { md: 'none', lg: 'table-cell' } }}>{cliente.documento || '—'}</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>{cliente.telefono || '—'}</TableCell>
+                      <TableCell sx={{ maxWidth: 240, display: { md: 'none', lg: 'table-cell' } }}>{cliente.direccion || '—'}</TableCell>
                       <TableCell>
                         <Chip
                           size="small"
@@ -247,43 +322,14 @@ function Clientes() {
                         />
                       </TableCell>
                       <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-                        <Tooltip title="Ver información">
-                          <IconButton
-                            aria-label={`Ver información de ${cliente.nombre}`}
-                            onClick={() => {
-                              establecerClienteSeleccionado(cliente);
-                              establecerDialogoDetalleAbierto(true);
-                            }}
-                          >
-                            <VisibilityOutlinedIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Modificar cliente">
-                          <IconButton
-                            aria-label={`Modificar ${cliente.nombre}`}
-                            onClick={() => abrirFormulario(cliente)}
-                          >
-                            <EditOutlinedIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title={activo ? 'Deshabilitar cliente' : 'Reactivar cliente'}>
-                          <IconButton
-                            aria-label={activo ? `Deshabilitar ${cliente.nombre}` : `Reactivar ${cliente.nombre}`}
-                            color={activo ? 'default' : 'success'}
-                            onClick={() => establecerClientePendienteEstado(cliente)}
-                          >
-                            {activo
-                              ? <BlockOutlinedIcon fontSize="small" />
-                              : <CheckCircleOutlineIcon fontSize="small" />}
-                          </IconButton>
-                        </Tooltip>
+                        {accionesDe(cliente, activo)}
                       </TableCell>
                     </TableRow>
                   );
                 })}
                 {!cargando && clientesVisibles.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} sx={{ py: 4, textAlign: 'center' }}>
+                    <TableCell colSpan={9} sx={{ py: 4, textAlign: 'center' }}>
                       <Typography color="text.secondary">
                         {hayFiltros ? 'No hay clientes que coincidan con la búsqueda.' : 'Todavía no hay clientes registrados.'}
                       </Typography>
@@ -293,6 +339,7 @@ function Clientes() {
               </TableBody>
             </Table>
           </TableContainer>
+          )}
           <PaginacionLista
             pagina={pagina}
             total={totalClientes}

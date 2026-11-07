@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
-  Avatar, Button, Card, CardContent, Chip, Divider, InputAdornment, Stack, TextField, Typography,
+  Avatar, Button, Card, CardContent, Chip, Divider, InputAdornment, Stack, TextField, Typography, useMediaQuery,
 } from '@mui/material';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import DirectionsCarOutlinedIcon from '@mui/icons-material/DirectionsCarOutlined';
@@ -32,6 +32,9 @@ function Tecnicos() {
   const [busqueda, establecerBusqueda] = useState('');
   const [filtroEstado, establecerFiltroEstado] = useState('Todos');
   const [resultadosPorPagina, establecerResultadosPorPagina] = useState(10);
+  // En celular y tablet la ficha queda debajo de la lista: al elegir un técnico se baja hasta ella.
+  const esPantallaChica = useMediaQuery((tema) => tema.breakpoints.down('md'));
+  const refDetalle = useRef(null);
   // Paginación en el servidor: solo técnicos habilitados, con la búsqueda y el estado
   // (Activo, Asignado o Libre). Cada técnico trae estado, reclamos, vehículo y ubicación.
   const buscar = useValorDiferido(busqueda.trim());
@@ -115,13 +118,6 @@ function Tecnicos() {
           etiqueta={(opcion) => opcion.id}
         />
       </Stack>
-      <PaginacionLista
-        pagina={pagina}
-        total={totalTecnicos}
-        resultadosPorPagina={resultadosPorPagina}
-        establecerPagina={establecerPagina}
-        establecerResultadosPorPagina={establecerResultadosPorPagina}
-      />
       <Typography variant="body2" color="text.secondary">
         Mostrando {tecnicosVisibles.length} de {totalTecnicos} técnicos encontrados.
       </Typography>
@@ -139,6 +135,7 @@ function Tecnicos() {
                 onClick={() => {
                   establecerTecnicoSeleccionado(item.id);
                   establecerFichaAbierta(false);
+                  if (esPantallaChica) refDetalle.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }}
                 sx={{
                   cursor: 'pointer',
@@ -161,10 +158,19 @@ function Tecnicos() {
                 </CardContent>
               </Card>
             ))}
+            {/* La paginación va debajo de la lista de técnicos. */}
+            <PaginacionLista
+              compacta
+              pagina={pagina}
+              total={totalTecnicos}
+              resultadosPorPagina={resultadosPorPagina}
+              establecerPagina={establecerPagina}
+              establecerResultadosPorPagina={establecerResultadosPorPagina}
+            />
           </Stack>
 
           <Stack spacing={2} sx={{ flex: 1, minWidth: 0 }}>
-          <Card sx={{ width: '100%', alignSelf: 'flex-start' }}>
+          <Card ref={refDetalle} sx={{ width: '100%', alignSelf: 'flex-start', scrollMarginTop: 80 }}>
           <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
             <Stack direction={{ xs: 'column', sm: 'row' }} gap={2} sx={{ justifyContent: 'space-between' }}>
               <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
