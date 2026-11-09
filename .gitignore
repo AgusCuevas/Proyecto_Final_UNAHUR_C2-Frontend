@@ -25,3 +25,6 @@ certs/*.pem
 *.njsproj
 *.sln
 *.sw?
+
+# Variables de entorno locales (copiar .env.example)
+.env
