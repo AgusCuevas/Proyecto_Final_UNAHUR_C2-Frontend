@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import {
   Avatar, Button, Card, CardContent, Chip, Divider, InputAdornment, Stack, TextField, Typography, useMediaQuery,
 } from '@mui/material';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import DirectionsCarOutlinedIcon from '@mui/icons-material/DirectionsCarOutlined';
 import EngineeringOutlinedIcon from '@mui/icons-material/EngineeringOutlined';
@@ -13,6 +14,7 @@ import { usePagina, usePaginado, useValorDiferido } from '../../context/usePagin
 import { tecnicosApi } from '../../services/api.js';
 import MapaTecnicos from './MapaTecnicos.jsx';
 import FichaDetalle from '../comunes/FichaDetalle.jsx';
+import JornadasTecnico from '../comunes/JornadasTecnico.jsx';
 import PaginacionLista from '../comunes/PaginacionLista.jsx';
 import AvisoCarga from '../comunes/AvisoCarga.jsx';
 import SelectorBuscable from '../comunes/SelectorBuscable.jsx';
@@ -83,6 +85,13 @@ function Tecnicos() {
           : ''],
         ['Vencimiento del seguro', formatearFecha(vehiculo.seguro?.vence)],
       ] : [['Vehículo', 'Sin vehículo asignado', { anchoCompleto: true }]],
+    },
+    {
+      // Listado de jornadas; al elegir una se abre su detalle con los controles y las fotos.
+      titulo: 'Jornadas',
+      icono: <AccessTimeIcon fontSize="small" />,
+      campos: [],
+      contenido: <JornadasTecnico key={tecnico.id} tecnicoId={tecnico.id} nombre={tecnico.nombre} />,
     },
   ] : [];
 

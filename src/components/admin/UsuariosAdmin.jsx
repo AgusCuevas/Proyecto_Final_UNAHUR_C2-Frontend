@@ -7,17 +7,20 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import SearchIcon from '@mui/icons-material/Search';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import DirectionsCarOutlinedIcon from '@mui/icons-material/DirectionsCarOutlined';
 import { useState } from 'react';
 import FichaDetalle from '../comunes/FichaDetalle.jsx';
+import JornadasTecnico from '../comunes/JornadasTecnico.jsx';
 import { useAppData } from '../../context/useAppData.js';
 import { usePagina, usePaginado, useValorDiferido } from '../../context/usePaginado.js';
 import { usuariosApi } from '../../services/api.js';
 import AvisoCarga from '../comunes/AvisoCarga.jsx';
 import PaginacionLista from '../comunes/PaginacionLista.jsx';
 import SelectorBuscable from '../comunes/SelectorBuscable.jsx';
+import DialogoMaximizable from '../comunes/DialogoMaximizable.jsx';
 
 const perfilesVacios = {
   Administrador: { departamento: '', nivelAcceso: '' },
@@ -219,6 +222,18 @@ function UsuariosAdmin() {
           : ''],
         ['Vencimiento del seguro', formatearFecha(vehiculoSeleccionado.seguro?.vence)],
       ] : [['Vehículo', 'Sin vehículo asignado', { anchoCompleto: true }]],
+    }, {
+      // Listado de jornadas; al elegir una se abre su detalle con los controles y las fotos.
+      titulo: 'Jornadas',
+      icono: <AccessTimeIcon fontSize="small" />,
+      campos: [],
+      contenido: (
+        <JornadasTecnico
+          key={usuarioSeleccionado.id}
+          tecnicoId={usuarioSeleccionado.id}
+          nombre={usuarioSeleccionado.nombre}
+        />
+      ),
     }] : []),
   ] : [];
 
@@ -476,7 +491,7 @@ function UsuariosAdmin() {
         </CardContent>
       </Card>
 
-      <Dialog open={dialogoFormularioAbierto} onClose={() => establecerDialogoFormularioAbierto(false)} fullWidth maxWidth="md">
+      <DialogoMaximizable open={dialogoFormularioAbierto} onClose={() => establecerDialogoFormularioAbierto(false)} fullWidth maxWidth="md">
         <DialogTitle>{usuarioEditando ? 'Modificar usuario' : 'Alta completa de usuario'}</DialogTitle>
         <Box component="form" onSubmit={guardarUsuario}>
           <DialogContent sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
@@ -531,7 +546,7 @@ function UsuariosAdmin() {
             </Button>
           </DialogActions>
         </Box>
-      </Dialog>
+      </DialogoMaximizable>
 
       <FichaDetalle
         abierto={dialogoDetalleAbierto && Boolean(usuarioSeleccionado)}

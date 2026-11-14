@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   Alert,
   Button,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -19,6 +18,7 @@ import SelectorImagenes from '../comunes/SelectorImagenes.jsx';
 import { subirImagenes } from '../../utils/subirImagenes.js';
 import { NIVELES_COMBUSTIBLE } from '../../utils/combustible.js';
 import SelectorBuscable from '../comunes/SelectorBuscable.jsx';
+import DialogoMaximizable from '../comunes/DialogoMaximizable.jsx';
 
 const IMAGENES_REQUERIDAS = 4;
 
@@ -74,7 +74,7 @@ function ControlVehiculoDialog({ abierto, titulo, kilometrajeMinimo = 0, cerrar,
   };
 
   return (
-    <Dialog open={abierto} onClose={cerrarDialogo} fullWidth maxWidth="sm">
+    <DialogoMaximizable open={abierto} onClose={cerrarDialogo} fullWidth maxWidth="sm">
       <Stack component="form" onSubmit={guardar}>
         <DialogTitle sx={{ fontWeight: 800 }}>{titulo}</DialogTitle>
         <DialogContent>
@@ -140,7 +140,7 @@ function ControlVehiculoDialog({ abierto, titulo, kilometrajeMinimo = 0, cerrar,
           </Button>
         </DialogActions>
       </Stack>
-    </Dialog>
+    </DialogoMaximizable>
   );
 }
 

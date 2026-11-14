@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogTitle, IconButton, Stack, Typography } from '@mui/material';
+import { DialogContent, DialogTitle, IconButton, Stack, Typography } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { useLocation, useNavigate } from 'react-router-dom';
 import AppLayout from '../AppLayout.jsx';
@@ -8,6 +8,7 @@ import Vehiculo from './Vehiculo.jsx';
 import Jornada from './Jornada.jsx';
 import RegistroKilometraje from './RegistroKilometraje.jsx';
 import { useAppData } from '../../context/useAppData.js';
+import DialogoMaximizable from '../comunes/DialogoMaximizable.jsx';
 
 const semanaEnMilisegundos = 7 * 24 * 60 * 60 * 1000;
 
@@ -75,8 +76,8 @@ function TecnicoHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
       >
         {contenidoPorSeccion[seccion]}
       </AppLayout>
-      <Dialog open={avisoKilometrajeAbierto} onClose={cerrarAvisoKilometraje} fullWidth maxWidth="sm">
-        <DialogTitle sx={{ pr: 6 }}>
+      <DialogoMaximizable botonSx={{ right: 48 }} open={avisoKilometrajeAbierto} onClose={cerrarAvisoKilometraje} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ pr: { xs: 6, sm: 11 } }}>
           Registrar kilometraje semanal
           <IconButton onClick={cerrarAvisoKilometraje} aria-label="Cerrar aviso" sx={{ position: 'absolute', right: 8, top: 8 }}>
             <CloseIcon />
@@ -95,7 +96,7 @@ function TecnicoHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {
             )}
           </Stack>
         </DialogContent>
-      </Dialog>
+      </DialogoMaximizable>
     </>
   );
 }

@@ -1,15 +1,15 @@
 import { useState } from 'react';
-import { Button } from '@mui/material';
+import { Button, Stack } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import AppLayout from '../AppLayout.jsx';
-import MapaTecnicos from './MapaTecnicos.jsx';
 import Reclamos from './Reclamos.jsx';
+import RendimientoEquipo from './RendimientoEquipo.jsx';
 import Tecnicos from './Tecnicos.jsx';
 import Vehiculos from './Vehiculos.jsx';
 import Reportes from '../reportes/Reportes.jsx';
 import { useRecursos } from '../../context/useRecursos.js';
 
-// Panel: el mapa con un solo pedido (GET /tecnicos).
+// Panel: el mapa y el rendimiento del equipo con un solo pedido (GET /tecnicos).
 // Un subtítulo propio para cada sección del coordinador.
 const SUBTITULOS = {
   'Panel del coordinador': 'Seguimiento del equipo en la zona de trabajo.',
@@ -21,7 +21,11 @@ const SUBTITULOS = {
 
 function PanelCoordinador() {
   const data = useRecursos('tecnicos');
-  return <MapaTecnicos tecnicos={data.tecnicos} />;
+  return (
+    <Stack spacing={3}>
+      <RendimientoEquipo tecnicos={data.tecnicos} />
+    </Stack>
+  );
 }
 
 function CoordinadorHome({ usuario, nombre, alCerrarSesion, alCambiarTema, modo }) {

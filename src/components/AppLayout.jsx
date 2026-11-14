@@ -238,7 +238,7 @@ function AppLayout({ titulo, subtitulo, rol, usuario, nombre, opciones = [], alC
         onClose={() => establecerMenuAbierto(false)}
         ModalProps={{ keepMounted: true }}
         sx={{ display: { xs: 'block', md: 'none' } }}
-        slotProps={{ paper: { sx: { width: anchoMenu, pt: 3, display: 'flex', flexDirection: 'column' } } }}
+        slotProps={{ paper: { sx: { width: anchoMenu, pt: 10, display: 'flex', flexDirection: 'column' } } }}
       >
         {contenidoMenu}
       </Drawer>

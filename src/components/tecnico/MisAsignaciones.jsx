@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Alert, Box, Button, Chip, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Link, Paper, Stack, Tab, Tabs, Typography,
+  Alert, Box, Button, Chip, Collapse, DialogActions, DialogContent, DialogTitle, Divider, Link, Paper, Stack, Tab, Tabs, Typography,
 } from '@mui/material';
 import DoneIcon from '@mui/icons-material/Done';
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
@@ -24,6 +24,7 @@ import SelectorImagenes from '../comunes/SelectorImagenes.jsx';
 import PaginacionLista from '../comunes/PaginacionLista.jsx';
 import { subirImagenes } from '../../utils/subirImagenes.js';
 import SelectorBuscable from '../comunes/SelectorBuscable.jsx';
+import DialogoMaximizable from '../comunes/DialogoMaximizable.jsx';
 
 const MAXIMO_IMAGENES = 5;
 
@@ -502,7 +503,7 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
         />
       )}
 
-      <Dialog
+      <DialogoMaximizable
         open={inconvenienteAbierto}
         onClose={() => establecerInconvenienteAbierto(false)}
         fullWidth
@@ -536,7 +537,7 @@ function Asignacion({ reclamo, cliente, puedeComenzar, noDesplegable = false, ac
             </Button>
           </DialogActions>
         </Box>
-      </Dialog>
+      </DialogoMaximizable>
     </>
   );
 }
@@ -555,7 +556,7 @@ function ResumenItem({ icono, children }) {
 // y finalizar reclamos en progreso.
 function FormularioFinalizar({ abierto, cerrar, formularioId, comentario, setComentario, imagenes, setImagenes, onSubmit, finalizando, error }) {
   return (
-    <Dialog open={abierto} onClose={finalizando ? undefined : cerrar} fullWidth maxWidth="sm">
+    <DialogoMaximizable open={abierto} onClose={finalizando ? undefined : cerrar} fullWidth maxWidth="sm">
       <Box component="form" id={formularioId} onSubmit={onSubmit} noValidate>
         <DialogTitle sx={{ fontWeight: 800 }}>Finalizar reclamo</DialogTitle>
         <DialogContent>
@@ -606,7 +607,7 @@ function FormularioFinalizar({ abierto, cerrar, formularioId, comentario, setCom
           </Button>
         </DialogActions>
       </Box>
-    </Dialog>
+    </DialogoMaximizable>
   );
 }
 

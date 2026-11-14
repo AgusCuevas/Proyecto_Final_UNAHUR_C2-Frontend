@@ -36,6 +36,7 @@ const rutaPorRol = {
 function AppContent({ modo, cambiarModo }) {
   const [usuarioActual, establecerUsuarioActual] = useState('');
   const [nombreUsuarioActual, establecerNombreUsuarioActual] = useState('');
+  const [rolActual, establecerRolActual] = useState('');
   // Al abrir la página primero se busca una sesión abierta (en esta pestaña o en otra).
   const [recuperandoSesion, establecerRecuperandoSesion] = useState(true);
   const [avisoLogin, establecerAvisoLogin] = useState('');
@@ -47,6 +48,7 @@ function AppContent({ modo, cambiarModo }) {
     iniciarSesion(respuestaLogin);
     establecerUsuarioActual(usuario);
     establecerNombreUsuarioActual(datosUsuario.nombre);
+    establecerRolActual(datosUsuario.rol);
     establecerAvisoLogin('');
     navegar(rutaPorRol[datosUsuario.rol] || '/');
   };
@@ -72,6 +74,7 @@ function AppContent({ modo, cambiarModo }) {
       iniciarSesion(respuesta);
       establecerUsuarioActual(respuesta.usuario.usuario);
       establecerNombreUsuarioActual(respuesta.usuario.nombre);
+      establecerRolActual(respuesta.usuario.rol);
       establecerAvisoLogin('');
       if (window.location.pathname === '/') navegar(rutaPorRol[respuesta.usuario.rol] || '/');
     } catch (error) {
@@ -113,6 +116,7 @@ function AppContent({ modo, cambiarModo }) {
       limpiarDatos();
       establecerUsuarioActual('');
       establecerNombreUsuarioActual('');
+      establecerRolActual('');
       establecerAvisoLogin(evento.detail?.aviso || '');
       navegar('/');
     };
@@ -132,6 +136,14 @@ function AppContent({ modo, cambiarModo }) {
     );
   }
 
+  // Cada panel es de un solo rol. Sin sesión se vuelve al login; con sesión de otro rol, al panel
+  // propio (un técnico que escribe /adminHome termina en /tecnicoHome).
+  const panel = (rol, Pantalla) => {
+    if (!usuarioActual) return <Navigate to="/" replace />;
+    if (rolActual !== rol) return <Navigate to={rutaPorRol[rolActual] || '/'} replace />;
+    return <Pantalla usuario={usuarioActual} nombre={nombreUsuarioActual} alCerrarSesion={volverAlLogin} alCambiarTema={cambiarModo} modo={modo} />;
+  };
+
   return (
       <Routes>
         <Route path="/" element={<Login alIniciarSesion={ingresar} aviso={avisoLogin} />} />
@@ -140,30 +152,10 @@ function AppContent({ modo, cambiarModo }) {
         <Route path="/error/404" element={<NotFound404 />} />
         <Route path="/error/500" element={<ServerError500 />} />
         <Route path="/error/503" element={<ServiceUnavailable503 />} />
-        <Route
-          path="/adminHome"
-          element={usuarioActual 
-            ? <AdminHome usuario={usuarioActual} nombre={nombreUsuarioActual} alCerrarSesion={volverAlLogin} alCambiarTema={cambiarModo} modo={modo} /> 
-            : <Navigate to="/" replace />}
-        />
-        <Route
-          path="/coordinadorHome"
-          element={usuarioActual 
-            ? <CoordinadorHome usuario={usuarioActual} nombre={nombreUsuarioActual} alCerrarSesion={volverAlLogin} alCambiarTema={cambiarModo} modo={modo} /> 
-            : <Navigate to="/" replace />}
-        />
-        <Route
-          path="/tecnicoHome"
-          element={usuarioActual 
-            ? <TecnicoHome usuario={usuarioActual} nombre={nombreUsuarioActual} alCerrarSesion={volverAlLogin} alCambiarTema={cambiarModo} modo={modo} /> 
-            : <Navigate to="/" replace />}
-        />
-        <Route
-          path="/tecnicoHome/servicio-en-curso"
-          element={usuarioActual
-            ? <ServicioEnCurso usuario={usuarioActual} nombre={nombreUsuarioActual} alCerrarSesion={volverAlLogin} alCambiarTema={cambiarModo} modo={modo} />
-            : <Navigate to="/" replace />}
-        />
+        <Route path="/adminHome" element={panel('Administrador', AdminHome)} />
+        <Route path="/coordinadorHome" element={panel('Coordinador', CoordinadorHome)} />
+        <Route path="/tecnicoHome" element={panel('Tecnico', TecnicoHome)} />
+        <Route path="/tecnicoHome/servicio-en-curso" element={panel('Tecnico', ServicioEnCurso)} />
         <Route path="*" element={<NotFound404 />} />
       </Routes>
   );

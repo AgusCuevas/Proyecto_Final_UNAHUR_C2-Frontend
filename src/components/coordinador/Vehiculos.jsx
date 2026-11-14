@@ -1,5 +1,5 @@
 import {
-  Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Tooltip, Typography, useMediaQuery,
+  Alert, Box, Button, Card, CardContent, Chip, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Tooltip, Typography, useMediaQuery,
 } from '@mui/material';
 import AssignmentIndOutlinedIcon from '@mui/icons-material/AssignmentIndOutlined';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
@@ -24,6 +24,7 @@ import FichaDetalle from '../comunes/FichaDetalle.jsx';
 import GaleriaImagenes from '../comunes/GaleriaImagenes.jsx';
 import PaginacionLista from '../comunes/PaginacionLista.jsx';
 import AvisoCarga from '../comunes/AvisoCarga.jsx';
+import DialogoMaximizable from '../comunes/DialogoMaximizable.jsx';
 
 // Las fechas llegan como 'AAAA-MM-DD' o como ISO completo desde MongoDB.
 const formatearFecha = (fecha) => {
@@ -455,7 +456,7 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
         )}
       />
 
-      <Dialog
+      <DialogoMaximizable
         open={Boolean(vehiculoEditando)}
         onClose={() => !guardando && establecerVehiculoEditando(null)}
         fullWidth
@@ -516,9 +517,9 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
             </Button>
           </DialogActions>
         </Box>
-      </Dialog>
+      </DialogoMaximizable>
 
-      <Dialog
+      <DialogoMaximizable
         open={Boolean(asignacionPendiente)}
         onClose={() => !guardando && establecerAsignacionPendiente(null)}
         fullWidth
@@ -562,7 +563,7 @@ function Vehiculos({ gestionable = false, accionNuevo }) {
             {guardando ? 'Guardando...' : 'Confirmar'}
           </Button>
         </DialogActions>
-      </Dialog>
+      </DialogoMaximizable>
     </Stack>
   );
 }

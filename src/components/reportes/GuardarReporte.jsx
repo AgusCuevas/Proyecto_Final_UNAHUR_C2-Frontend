@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import {
-  Alert, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Stack, TextField,
+  Alert, Button, Checkbox, DialogActions, DialogContent, DialogTitle, FormControlLabel, Stack, TextField,
 } from '@mui/material';
+import DialogoMaximizable from '../comunes/DialogoMaximizable.jsx';
 
 // Guardar el reporte en "Mis reportes". Si ya estaba guardado y el usuario puede editarlo, se
 // puede guardar encima o como uno nuevo.
@@ -32,7 +33,7 @@ export default function GuardarReporte({
   };
 
   return (
-    <Dialog open={abierto} onClose={cerrar} fullWidth maxWidth="sm">
+    <DialogoMaximizable open={abierto} onClose={cerrar} fullWidth maxWidth="sm">
       <DialogTitle>Guardar reporte</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
@@ -52,6 +53,6 @@ export default function GuardarReporte({
           {puedeSobrescribir ? 'Guardar cambios' : 'Guardar'}
         </Button>
       </DialogActions>
-    </Dialog>
+    </DialogoMaximizable>
   );
 }

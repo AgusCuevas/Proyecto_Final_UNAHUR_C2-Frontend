@@ -18,6 +18,7 @@ import { clientesApi } from '../../services/api.js';
 import PaginacionLista from '../comunes/PaginacionLista.jsx';
 import AvisoCarga from '../comunes/AvisoCarga.jsx';
 import SelectorBuscable from '../comunes/SelectorBuscable.jsx';
+import DialogoMaximizable from '../comunes/DialogoMaximizable.jsx';
 
 const formularioVacio = {
   nombre: '',
@@ -350,7 +351,7 @@ function Clientes() {
         </CardContent>
       </Card>
 
-      <Dialog
+      <DialogoMaximizable
         open={dialogoFormularioAbierto}
         onClose={() => establecerDialogoFormularioAbierto(false)}
         fullWidth
@@ -426,7 +427,7 @@ function Clientes() {
             </Button>
           </DialogActions>
         </Box>
-      </Dialog>
+      </DialogoMaximizable>
 
       <FichaDetalle
         abierto={dialogoDetalleAbierto && Boolean(clienteSeleccionado)}

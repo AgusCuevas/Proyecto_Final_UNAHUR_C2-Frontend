@@ -23,10 +23,10 @@ src/
     AppLayout.jsx          estructura común: barra superior, menú lateral y contenido
     Login.jsx
     admin/                 panel del administrador: usuarios y clientes
-    coordinador/           reclamos, técnicos, vehículos y mapa de técnicos
+    coordinador/           reclamos, técnicos, vehículos, mapa de técnicos y rendimiento del equipo
     tecnico/               asignaciones, servicio en curso, jornada y vehículo
     reportes/              generador de reportes (fuente, columnas, filtros, resumen y CSV)
-    comunes/               piezas reutilizables: paginación, selectores, galería de imágenes, etc.
+    comunes/               piezas reutilizables: paginación, selectores, galería de imágenes, ficha de detalle, jornadas de un técnico, etc.
     errors/                páginas de error (400, 403, 404, 500 y 503)
   context/                 estado compartido (DataContext) y hooks de datos: paginado, carga diferida
   services/
@@ -47,13 +47,16 @@ src/
 | `/tecnicoHome` y `/tecnicoHome/servicio-en-curso` | Técnico |
 | `/error/400`, `/403`, `/404`, `/500` y `/503` | Páginas de error |
 
-Cada panel tiene sus secciones dentro de la misma ruta. Sin sesión, cualquier ruta de panel redirige al login. Al ingresar, cada usuario va al panel de su rol, y los permisos por rol los hace cumplir la API.
+Cada panel tiene sus secciones dentro de la misma ruta. Sin sesión, cualquier ruta de panel redirige al login. Al ingresar, cada usuario va al panel de su rol; si escribe la ruta del panel de otro rol, la web lo devuelve al suyo. Además, los permisos por rol los hace cumplir la API.
 
 ## Aspectos técnicos
 
 - **Sesión:** el JWT se guarda en `sessionStorage`. Las pestañas abiertas comparten una única sesión a través de un `BroadcastChannel`. Cuando la API responde `401` (token vencido o sesión reemplazada desde otro dispositivo), se cierra la sesión en todas las pestañas y se vuelve al login con un aviso.
 - **Datos:** los listados se paginan en el servidor (`usePaginado`) y las secciones cargan sus datos recién al abrirse (`useCargaDiferida`).
 - **Imágenes:** se comprimen en el navegador antes de subirlas (hasta unos 550 KB) y se envían a la API como data URL.
+- **Jornadas de un técnico:** en la ficha del técnico (sección Técnicos del coordinador y "Ver información" en Usuarios del administrador) se listan sus jornadas, de la más nueva a la más vieja y con filtro por fecha. Al elegir una se abre su detalle: horario, vehículo, control inicial y final con sus fotos, y los reclamos finalizados.
+- **Popups en pantalla completa:** las fichas de detalle, las fotos ampliadas y los formularios tienen un botón para agrandarlos a toda la pantalla (`DialogoMaximizable`). Las confirmaciones cortas no lo tienen, y en celular no hace falta.
+- **Rendimiento del equipo:** el panel del administrador y el del coordinador muestran el mapa y, debajo, los técnicos con la jornada activa con sus trabajos y horas. Al tocar uno se lo ubica en el mapa.
 - **Mapa:** muestra la última ubicación de cada técnico y se actualiza cada 5 minutos. Al seleccionar un técnico, dibuja su recorrido del día elegido.
 - **Ubicación del técnico:** con la jornada activa, la web envía la posición del técnico cada 5 minutos usando la geolocalización del navegador.
 - **Responsive:** las tablas pasan a tarjetas en pantallas de menos de 900 px y ocultan columnas secundarias en tamaños intermedios.

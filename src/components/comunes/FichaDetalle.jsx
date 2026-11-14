@@ -2,7 +2,6 @@ import {
   Avatar,
   Box,
   Chip,
-  Dialog,
   DialogActions,
   DialogContent,
   IconButton,
@@ -12,6 +11,7 @@ import {
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
+import DialogoMaximizable from './DialogoMaximizable.jsx';
 
 const iniciales = (nombre = '') => nombre
   .split(' ')
@@ -21,13 +21,15 @@ const iniciales = (nombre = '') => nombre
   .join('');
 
 // Popup de detalle con encabezado (avatar, nombre, chips) y secciones de campos agrupados.
-// secciones: [{ titulo, icono, campos: [[etiqueta, valor, { anchoCompleto }]] }]
-// aviso se muestra antes de las secciones y children después (por ejemplo, una galería).
+// secciones: [{ titulo, icono, campos: [[etiqueta, valor, { anchoCompleto }]], contenido }]
+// "contenido" es opcional: se muestra debajo de los campos de la sección (por ejemplo, sus fotos
+// o un listado). aviso se muestra antes de las secciones y children después.
+// Se puede agrandar a pantalla completa: ahí los campos pasan a 4 columnas.
 function FichaDetalle({ abierto, alCerrar, titulo, subtitulo, icono, chips = [], secciones = [], acciones, aviso, children }) {
   const esMovil = useMediaQuery((theme) => theme.breakpoints.down('sm'));
 
   return (
-    <Dialog open={abierto} onClose={alCerrar} fullWidth maxWidth="sm" fullScreen={esMovil}>
+    <DialogoMaximizable open={abierto} onClose={alCerrar} fullWidth maxWidth="sm" fullScreen={esMovil} estirar botonSx={{ right: 48 }}>
       <Box
         sx={(theme) => ({
           position: 'relative',
@@ -42,7 +44,7 @@ function FichaDetalle({ abierto, alCerrar, titulo, subtitulo, icono, chips = [],
         <IconButton onClick={alCerrar} aria-label="Cerrar" sx={{ position: 'absolute', right: 8, top: 8 }}>
           <CloseIcon />
         </IconButton>
-        <Stack direction="row" spacing={2} sx={{ alignItems: 'center', pr: 4 }}>
+        <Stack direction="row" spacing={2} sx={{ alignItems: 'center', pr: { xs: 4, sm: 9 } }}>
           <Avatar sx={{ bgcolor: 'primary.main', width: 60, height: 60, fontSize: 22, fontWeight: 800, boxShadow: 2 }}>
             {icono || iniciales(titulo)}
           </Avatar>
@@ -69,7 +71,7 @@ function FichaDetalle({ abierto, alCerrar, titulo, subtitulo, icono, chips = [],
       <DialogContent sx={{ px: { xs: 2.5, sm: 3 }, py: 2.5 }}>
         <Stack spacing={2.5}>
           {aviso}
-          {secciones.filter((seccion) => seccion.campos.length > 0).map((seccion) => (
+          {secciones.filter((seccion) => seccion.campos.length > 0 || seccion.contenido).map((seccion) => (
             <Box key={seccion.titulo}>
               <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1, color: 'text.secondary' }}>
                 {seccion.icono}
@@ -77,6 +79,7 @@ function FichaDetalle({ abierto, alCerrar, titulo, subtitulo, icono, chips = [],
                   {seccion.titulo}
                 </Typography>
               </Stack>
+              {seccion.campos.length > 0 && (
               <Box
                 sx={{
                   display: 'grid',
@@ -87,6 +90,7 @@ function FichaDetalle({ abierto, alCerrar, titulo, subtitulo, icono, chips = [],
                   border: 1,
                   borderColor: 'divider',
                   backgroundColor: 'action.hover',
+                  '.maximizado &': { gridTemplateColumns: { sm: '1fr 1fr', md: 'repeat(4, 1fr)' } },
                 }}
               >
                 {seccion.campos.map(([etiqueta, valor, opciones]) => {
@@ -106,6 +110,8 @@ function FichaDetalle({ abierto, alCerrar, titulo, subtitulo, icono, chips = [],
                   );
                 })}
               </Box>
+              )}
+              {seccion.contenido && <Box sx={{ mt: seccion.campos.length > 0 ? 1.5 : 0 }}>{seccion.contenido}</Box>}
             </Box>
           ))}
           {children}
@@ -117,7 +123,7 @@ function FichaDetalle({ abierto, alCerrar, titulo, subtitulo, icono, chips = [],
           {acciones}
         </DialogActions>
       )}
-    </Dialog>
+    </DialogoMaximizable>
   );
 }
 

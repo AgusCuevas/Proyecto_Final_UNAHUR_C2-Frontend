@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Alert, Avatar, Box, Button, Card, CardContent, Chip, Divider, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Tooltip, Typography,
+  Alert, Avatar, Box, Button, Card, CardContent, Chip, Divider, DialogActions, DialogContent, DialogTitle, Stack, TextField, Tooltip, Typography,
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import CloseIcon from '@mui/icons-material/Close';
@@ -29,6 +29,7 @@ import FichaDetalle from '../comunes/FichaDetalle.jsx';
 import GaleriaImagenes from '../comunes/GaleriaImagenes.jsx';
 import PaginacionLista from '../comunes/PaginacionLista.jsx';
 import AvisoCarga from '../comunes/AvisoCarga.jsx';
+import DialogoMaximizable from '../comunes/DialogoMaximizable.jsx';
 
 const esOrdenDeServicio = (reclamo) => Boolean(reclamo)
   && (reclamo.esOrden || reclamo.tipo === 'Instalación' || reclamo.tipo === 'Baja de servicio');
@@ -314,7 +315,7 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                     />
                   )}
 
-                  <Dialog
+                  <DialogoMaximizable
                     open={dialogoClienteAbierto}
                     onClose={() => {
                       if (!guardandoCliente) establecerDialogoClienteAbierto(false);
@@ -357,7 +358,7 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
                         </Button>
                       </DialogActions>
                     </Box>
-                  </Dialog>
+                  </DialogoMaximizable>
                   <SelectorBuscable
                     label="Prioridad"
                     required
@@ -722,7 +723,7 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
       </Stack>
 
       {/* Diálogo para asignar o reasignar técnico */}
-      <Dialog
+      <DialogoMaximizable
         open={Boolean(reclamoParaAsignar)}
         onClose={() => establecerReclamoParaAsignar(null)}
         fullWidth
@@ -798,7 +799,7 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
             Guardar asignación
           </Button>
         </DialogActions>
-      </Dialog>
+      </DialogoMaximizable>
 
       <FichaDetalle
         abierto={Boolean(reclamoAbierto)}
@@ -908,7 +909,7 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
         )}
       </FichaDetalle>
 
-      <Dialog
+      <DialogoMaximizable
         open={Boolean(reclamoEnNotas)}
         onClose={() => establecerReclamoEnNotas(null)}
         fullWidth
@@ -941,7 +942,7 @@ function Reclamos({ formularioAbierto, establecerFormularioAbierto }) {
             <Button type="submit" variant="contained" startIcon={<SaveIcon />}>Guardar notas</Button>
           </DialogActions>
         </Box>
-      </Dialog>
+      </DialogoMaximizable>
 
     </Stack>
   );

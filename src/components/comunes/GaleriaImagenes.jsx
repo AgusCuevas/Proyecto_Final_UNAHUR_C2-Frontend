@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import {
   Alert,
   Box,
-  Dialog,
   DialogContent,
   IconButton,
   Skeleton,
@@ -13,6 +12,7 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import CloseIcon from '@mui/icons-material/Close';
 import { imagenesApi } from '../../services/api.js';
+import DialogoMaximizable from './DialogoMaximizable.jsx';
 
 function GaleriaImagenes({ ids = [], descripcion = 'Imagen' }) {
   const [estado, establecerEstado] = useState({ imagenes: [], cargando: ids.length > 0, error: '' });
@@ -39,7 +39,15 @@ function GaleriaImagenes({ ids = [], descripcion = 'Imagen' }) {
 
   return (
     <>
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: 1 }}>
+      {/* Dentro de un popup en pantalla completa, las miniaturas se ven más grandes. */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))',
+          gap: 1,
+          '.maximizado &': { gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' },
+        }}
+      >
         {estado.cargando
           ? ids.map((id) => (
             <Skeleton key={id} variant="rectangular" sx={{ width: '100%', height: 'auto', aspectRatio: '1', borderRadius: 1.5 }} />
@@ -72,18 +80,20 @@ function GaleriaImagenes({ ids = [], descripcion = 'Imagen' }) {
           ))}
       </Box>
 
-      <Dialog
+      <DialogoMaximizable
         open={indiceAbierto !== null}
         onClose={() => establecerIndiceAbierto(null)}
         fullWidth
         maxWidth="lg"
+        estirar
+        botonSx={{ right: 56, top: 12 }}
         onKeyDown={(evento) => {
           if (evento.key === 'ArrowLeft') mover(-1);
           if (evento.key === 'ArrowRight') mover(1);
         }}
       >
         <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', px: 2, pt: 1.5 }}>
-          <Typography sx={{ fontWeight: 700 }}>
+          <Typography sx={{ fontWeight: 700, pr: { sm: 6 } }}>
             {descripcion} · {indiceAbierto !== null ? indiceAbierto + 1 : ''} de {total}
           </Typography>
           <IconButton onClick={() => establecerIndiceAbierto(null)} aria-label="Cerrar">
@@ -100,7 +110,14 @@ function GaleriaImagenes({ ids = [], descripcion = 'Imagen' }) {
                 component="img"
                 src={imagenes[indiceAbierto].url}
                 alt={`${descripcion} ${indiceAbierto + 1} de ${total}`}
-                sx={{ display: 'block', maxWidth: 'calc(100% - 96px)', maxHeight: '75vh', objectFit: 'contain' }}
+                sx={{
+                  display: 'block',
+                  maxWidth: 'calc(100% - 96px)',
+                  maxHeight: '75vh',
+                  objectFit: 'contain',
+                  // En pantalla completa la foto ocupa todo el alto disponible.
+                  '.maximizado &': { height: 'calc(100vh - 110px)', maxHeight: 'none' },
+                }}
               />
               <IconButton onClick={() => mover(1)} disabled={indiceAbierto === total - 1} aria-label="Imagen siguiente">
                 <ChevronRightIcon />
@@ -108,7 +125,7 @@ function GaleriaImagenes({ ids = [], descripcion = 'Imagen' }) {
             </Stack>
           )}
         </DialogContent>
-      </Dialog>
+      </DialogoMaximizable>
     </>
   );
 }
