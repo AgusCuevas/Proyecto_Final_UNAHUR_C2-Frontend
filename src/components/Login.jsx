@@ -16,9 +16,12 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import PasswordIcon from '@mui/icons-material/Password';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import AndroidIcon from '@mui/icons-material/Android';
 import { appTheme } from '../theme/theme.js';
 import { authApi } from '../services/api.js';
 import { guardarSesion } from '../services/apiClient.js';
+
+const URL_APK_ANDROID = import.meta.env.VITE_ANDROID_APP_URL?.trim();
 
 // aviso: mensaje informativo opcional (por ejemplo, "Tu sesión venció").
 // Traduce el error del login a un mensaje: credenciales incorrectas, demasiados intentos,
@@ -129,6 +132,21 @@ function Login({ alIniciarSesion, aviso = '' }) {
 
           <Button type="submit" variant="contained" size="large" fullWidth sx={{ py: 1.5, fontWeight: 700 }}>
             Ingresar
+          </Button>
+          <Button
+            component={URL_APK_ANDROID ? 'a' : 'button'}
+            type={URL_APK_ANDROID ? undefined : 'button'}
+            variant="outlined"
+            size="large"
+            fullWidth
+            startIcon={<AndroidIcon />}
+            href={URL_APK_ANDROID || undefined}
+            target={URL_APK_ANDROID ? '_blank' : undefined}
+            rel={URL_APK_ANDROID ? 'noopener noreferrer' : undefined}
+            onClick={!URL_APK_ANDROID ? () => setMensajeError('La descarga de la aplicación Android todavía no está configurada.') : undefined}
+            sx={{ py: 1.25, fontWeight: 700 }}
+          >
+            Descargar aplicación para Android
           </Button>
         </Stack>
       </Paper>
