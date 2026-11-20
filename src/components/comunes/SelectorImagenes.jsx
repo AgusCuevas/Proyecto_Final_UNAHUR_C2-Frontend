@@ -24,16 +24,16 @@ function SelectorImagenes({ archivos, alCambiar, maximo, requeridas, deshabilita
     <Stack spacing={1.25}>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
         {}
-        <Button component="label" variant="outlined" startIcon={<PhotoCameraOutlinedIcon />} disabled={deshabilitado || completo}>
+        <Button component="label" variant="outlined" startIcon={<PhotoCameraOutlinedIcon />} disabled={deshabilitado || completo} data-testid="boton-camara">
           Usar la cámara
           <input hidden type="file" accept={TIPOS_ACEPTADOS} capture="environment" onChange={agregar} />
         </Button>
-        <Button component="label" variant="outlined" startIcon={<AddPhotoAlternateOutlinedIcon />} disabled={deshabilitado || completo}>
+        <Button component="label" variant="outlined" startIcon={<AddPhotoAlternateOutlinedIcon />} disabled={deshabilitado || completo} data-testid="boton-galeria">
           Elegir de la galería
-          <input hidden type="file" accept={TIPOS_ACEPTADOS} multiple onChange={agregar} />
+          <input hidden type="file" accept={TIPOS_ACEPTADOS} multiple onChange={agregar} data-testid="input-galeria" />
         </Button>
       </Stack>
-      <Typography variant="body2" color={cantidadCorrecta ? 'success.main' : 'text.secondary'}>
+      <Typography variant="body2" color={cantidadCorrecta ? 'success.main' : 'text.secondary'} data-testid="contador-imagenes">
         {requeridas
           ? `${archivos.length} de ${requeridas} imágenes requeridas`
           : `${archivos.length} de ${maximo} imágenes`}
@@ -54,6 +54,7 @@ function SelectorImagenes({ archivos, alCambiar, maximo, requeridas, deshabilita
                 onClick={() => quitar(indice)}
                 disabled={deshabilitado}
                 aria-label={`Quitar imagen ${indice + 1}`}
+                data-testid={`quitar-imagen-${indice + 1}`}
                 sx={{ position: 'absolute', top: 4, right: 4, bgcolor: 'background.paper', '&:hover': { bgcolor: 'background.paper' } }}
               >
                 <CloseIcon fontSize="small" />

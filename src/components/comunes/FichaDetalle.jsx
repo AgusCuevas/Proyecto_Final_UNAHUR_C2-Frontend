@@ -41,7 +41,7 @@ function FichaDetalle({ abierto, alCerrar, titulo, subtitulo, icono, chips = [],
           borderColor: 'divider',
         })}
       >
-        <IconButton onClick={alCerrar} aria-label="Cerrar" sx={{ position: 'absolute', right: 8, top: 8 }}>
+        <IconButton onClick={alCerrar} aria-label="Cerrar" data-testid="ficha-cerrar" sx={{ position: 'absolute', right: 8, top: 8 }}>
           <CloseIcon />
         </IconButton>
         <Stack direction="row" spacing={2} sx={{ alignItems: 'center', pr: { xs: 4, sm: 9 } }}>
@@ -49,18 +49,18 @@ function FichaDetalle({ abierto, alCerrar, titulo, subtitulo, icono, chips = [],
             {icono || iniciales(titulo)}
           </Avatar>
           <Box sx={{ minWidth: 0 }}>
-            <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.2, overflowWrap: 'anywhere' }}>
+            <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.2, overflowWrap: 'anywhere' }} data-testid="ficha-titulo">
               {titulo}
             </Typography>
             {subtitulo && (
-              <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
+              <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }} data-testid="ficha-subtitulo">
                 {subtitulo}
               </Typography>
             )}
             {chips.length > 0 && (
               <Stack direction="row" spacing={0.75} sx={{ mt: 1, flexWrap: 'wrap', rowGap: 0.75 }}>
                 {chips.map((chip) => (
-                  <Chip key={chip.label} size="small" label={chip.label} color={chip.color || 'default'} variant={chip.variant || 'filled'} />
+                  <Chip key={chip.label} data-testid={`ficha-chip-${chip.label}`} size="small" label={chip.label} color={chip.color || 'default'} variant={chip.variant || 'filled'} />
                 ))}
               </Stack>
             )}
@@ -75,7 +75,7 @@ function FichaDetalle({ abierto, alCerrar, titulo, subtitulo, icono, chips = [],
             <Box key={seccion.titulo}>
               <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1, color: 'text.secondary' }}>
                 {seccion.icono}
-                <Typography variant="overline" sx={{ fontWeight: 800, letterSpacing: '0.08em', lineHeight: 1.5 }}>
+                <Typography variant="overline" sx={{ fontWeight: 800, letterSpacing: '0.08em', lineHeight: 1.5 }} data-testid={`ficha-seccion-${seccion.titulo}`}>
                   {seccion.titulo}
                 </Typography>
               </Stack>
@@ -103,6 +103,7 @@ function FichaDetalle({ abierto, alCerrar, titulo, subtitulo, icono, chips = [],
                       <Typography
                         sx={{ fontWeight: vacio ? 400 : 600, overflowWrap: 'anywhere' }}
                         color={vacio ? 'text.disabled' : 'text.primary'}
+                        data-testid={`ficha-campo-${etiqueta}`}
                       >
                         {vacio ? 'No informado' : valor}
                       </Typography>

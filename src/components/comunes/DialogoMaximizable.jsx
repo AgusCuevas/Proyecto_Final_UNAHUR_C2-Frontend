@@ -25,6 +25,7 @@ function DialogoMaximizable({ children, fullScreen = false, maxWidth = 'sm', est
         transition: { onExited: () => establecerMaximizado(false) },
         paper: {
           className: agrandado ? 'maximizado' : undefined,
+          'data-testid': 'dialogo',
           sx: agrandado && !estirar
             ? (tema) => ({
               '& > :not(.boton-maximizar)': { width: '100%', maxWidth: tema.breakpoints.values[maxWidth], alignSelf: 'center' },
@@ -37,6 +38,7 @@ function DialogoMaximizable({ children, fullScreen = false, maxWidth = 'sm', est
         <Tooltip title={agrandado ? 'Volver al tamaño normal' : 'Pantalla completa'}>
           <IconButton
             className="boton-maximizar"
+            data-testid="boton-maximizar"
             onClick={() => establecerMaximizado((actual) => !actual)}
             aria-label={agrandado ? 'Volver al tamaño normal' : 'Ver en pantalla completa'}
             sx={{ position: 'absolute', right: 8, top: 8, zIndex: 1, ...botonSx }}

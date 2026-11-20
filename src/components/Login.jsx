@@ -101,7 +101,10 @@ function Login({ alIniciarSesion, aviso = '' }) {
               onChange={(event) => setCredenciales({ ...credenciales, usuario: event.target.value })}
               required
               fullWidth
-              slotProps={{ input: { startAdornment: <InputAdornment position="start"><AccountCircleIcon color="action" /></InputAdornment> } }}
+              slotProps={{
+                htmlInput: { 'data-testid': 'usuario' },
+                input: { startAdornment: <InputAdornment position="start"><AccountCircleIcon color="action" /></InputAdornment> },
+              }}
             />
             <TextField
               label="Contraseña"
@@ -111,6 +114,7 @@ function Login({ alIniciarSesion, aviso = '' }) {
               required
               fullWidth
               slotProps={{
+                htmlInput: { 'data-testid': 'contrasena' },
                 input: {
                   startAdornment: <InputAdornment position="start"><PasswordIcon color="action" /></InputAdornment>,
                   endAdornment: (
@@ -130,7 +134,7 @@ function Login({ alIniciarSesion, aviso = '' }) {
             />
           </Stack>
 
-          <Button type="submit" variant="contained" size="large" fullWidth sx={{ py: 1.5, fontWeight: 700 }}>
+          <Button type="submit" variant="contained" size="large" fullWidth sx={{ py: 1.5, fontWeight: 700 }} data-testid="ingresar">
             Ingresar
           </Button>
           <Button

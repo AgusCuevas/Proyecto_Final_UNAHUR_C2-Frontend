@@ -1,0 +1,123 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Box, Stack, Typography } from '@mui/material';
+import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import { recorridosApi } from '../../services/api.js';
+import AvisoCarga from './AvisoCarga.jsx';
+
+const COLOR_RECORRIDO = '#f97316';
+const COLOR_INICIO = '#16a34a';
+const COLOR_FIN = '#dc2626';
+const formatearHora = (fecha) => new Date(fecha).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+
+// Leaflet calcula el tamaño del mapa al crearlo. Dentro de un popup el mapa nace mientras el
+// popup se abre (y cambia de tamaño al agrandarlo), así que se le avisa cada vez que su
+// contenedor cambia de tamaño. Además encuadra el recorrido completo.
+function AjustarMapa({ puntos }) {
+  const mapa = useMap();
+
+  useEffect(() => {
+    const encuadrar = () => {
+      mapa.invalidateSize();
+      if (puntos.length > 1) mapa.fitBounds(puntos, { padding: [24, 24], maxZoom: 16 });
+      else mapa.setView(puntos[0], 16);
+    };
+    encuadrar();
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const observador = new ResizeObserver(encuadrar);
+    observador.observe(mapa.getContainer());
+    return () => observador.disconnect();
+  }, [mapa, puntos]);
+
+  return null;
+}
+
+// Recorrido de un técnico entre dos momentos (por ejemplo, el inicio y el fin de una jornada).
+// - fin vacío: la jornada sigue en curso y se muestra el recorrido hasta ahora.
+// Se marca el punto de inicio (verde) y el último registrado (rojo). Al agrandar el popup que lo
+// contiene (clase "maximizado"), el mapa crece.
+function MapaRecorrido({ tecnicoId, inicio, fin = null }) {
+  // Un único estado con el resultado y a qué pedido corresponde (clave): así, si cambia la
+  // jornada, no se muestra el recorrido de la anterior mientras llega el nuevo.
+  const [estado, establecerEstado] = useState({ clave: null, puntos: [], error: '' });
+  const clave = `${tecnicoId}|${inicio}|${fin}`;
+
+  useEffect(() => {
+    let cancelado = false;
+    const clavePedido = `${tecnicoId}|${inicio}|${fin}`;
+    const hasta = fin || new Date().toISOString();
+    recorridosApi.obtener(tecnicoId, inicio, hasta)
+      .then(({ puntos }) => {
+        if (!cancelado) establecerEstado({ clave: clavePedido, puntos: puntos || [], error: '' });
+      })
+      .catch(() => {
+        if (!cancelado) establecerEstado({ clave: clavePedido, puntos: [], error: 'No se pudo cargar el recorrido.' });
+      });
+    return () => { cancelado = true; };
+  }, [tecnicoId, inicio, fin]);
+
+  // Mismo arreglo mientras no cambie el recorrido: así el mapa no se vuelve a encuadrar en cada
+  // dibujo (por ejemplo, si el usuario lo movió).
+  const puntos = useMemo(() => estado.puntos.map((punto) => [punto.latitud, punto.longitud]), [estado.puntos]);
+  const listo = estado.clave === clave;
+  if (!listo || estado.error) return <AvisoCarga cargando={!listo} error={listo ? estado.error : ''} />;
+
+  if (puntos.length === 0) {
+    return (
+      <Typography variant="body2" color="text.secondary" data-testid="recorrido-vacio">
+        No hay recorrido registrado en esta jornada. El técnico no compartió su ubicación.
+      </Typography>
+    );
+  }
+
+  const primero = estado.puntos[0];
+  const ultimo = estado.puntos[estado.puntos.length - 1];
+  return (
+    <Stack spacing={1}>
+      <Box
+        data-testid="mapa-recorrido"
+        sx={{
+          height: { xs: 240, sm: 300 },
+          borderRadius: 2,
+          overflow: 'hidden',
+          border: 1,
+          borderColor: 'divider',
+          '.maximizado &': { height: '55vh' },
+        }}
+      >
+        <MapContainer center={puntos[0]} zoom={15} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
+          <AjustarMapa puntos={puntos} />
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+            // OpenStreetMap bloquea (403) los mosaicos pedidos sin cabecera Referer.
+            referrerPolicy="strict-origin-when-cross-origin"
+          />
+          {puntos.length > 1 && <Polyline positions={puntos} pathOptions={{ color: COLOR_RECORRIDO, weight: 4, opacity: 0.85 }} />}
+          <CircleMarker center={puntos[0]} radius={8} pathOptions={{ color: '#ffffff', weight: 2, fillColor: COLOR_INICIO, fillOpacity: 1 }}>
+            <Popup>Inicio · {formatearHora(primero.registradoEn)}</Popup>
+          </CircleMarker>
+          {puntos.length > 1 && (
+            <CircleMarker center={puntos[puntos.length - 1]} radius={8} pathOptions={{ color: '#ffffff', weight: 2, fillColor: COLOR_FIN, fillOpacity: 1 }}>
+              <Popup>{fin ? 'Fin' : 'Última posición'} · {formatearHora(ultimo.registradoEn)}</Popup>
+            </CircleMarker>
+          )}
+        </MapContainer>
+      </Box>
+      <Typography variant="caption" color="text.secondary" data-testid="recorrido-resumen">
+        {puntos.length} {puntos.length === 1 ? 'posición registrada' : 'posiciones registradas'}
+        {` · de ${formatearHora(primero.registradoEn)} a ${formatearHora(ultimo.registradoEn)}`}
+        {' · '}
+        <Box component="span" sx={{ color: COLOR_INICIO, fontWeight: 700, whiteSpace: 'nowrap' }}>● inicio</Box>
+        {puntos.length > 1 && (
+          <>
+            {'  '}
+            <Box component="span" sx={{ color: COLOR_FIN, fontWeight: 700, whiteSpace: 'nowrap' }}>● {fin ? 'fin' : 'última posición'}</Box>
+          </>
+        )}
+      </Typography>
+    </Stack>
+  );
+}
+
+export default MapaRecorrido;

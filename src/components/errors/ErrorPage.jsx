@@ -65,11 +65,12 @@ export default function ErrorPage({
             letterSpacing: '-.06em',
             mb: 2,
           }}
+          data-testid="error-codigo"
         >
           {code}
         </Typography>
 
-        <Typography component="h1" variant="h4" color="text.primary" sx={{ mb: 1.5 }}>
+        <Typography component="h1" variant="h4" color="text.primary" sx={{ mb: 1.5 }} data-testid="error-titulo">
           {title}
         </Typography>
         <Typography color="text.secondary" sx={{ maxWidth: 520, mx: 'auto', lineHeight: 1.7 }}>
@@ -87,6 +88,7 @@ export default function ErrorPage({
             variant="contained"
             startIcon={<HomeRoundedIcon />}
             onClick={() => navigate('/')}
+            data-testid="volver-inicio"
           >
             Volver al Inicio
           </Button>

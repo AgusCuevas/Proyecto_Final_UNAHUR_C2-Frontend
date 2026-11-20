@@ -6,12 +6,14 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import DirectionsCarOutlinedIcon from '@mui/icons-material/DirectionsCarOutlined';
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
+import RouteOutlinedIcon from '@mui/icons-material/RouteOutlined';
 import TaskAltOutlinedIcon from '@mui/icons-material/TaskAltOutlined';
 import { usePagina, usePaginado } from '../../context/usePaginado.js';
 import { jornadasApi } from '../../services/api.js';
 import AvisoCarga from './AvisoCarga.jsx';
 import FichaDetalle from './FichaDetalle.jsx';
 import GaleriaImagenes from './GaleriaImagenes.jsx';
+import MapaRecorrido from './MapaRecorrido.jsx';
 
 const JORNADAS_POR_PAGINA = 5;
 
@@ -73,7 +75,7 @@ function seccionControl(titulo, control, kilometraje, descripcionFotos) {
   };
 }
 
-function seccionesDe(jornada) {
+function seccionesDe(jornada, tecnicoId) {
   const { vehiculo } = jornada;
   const sinVehiculo = !vehiculo && kmInicial(jornada) == null && kmFinal(jornada) == null;
   const servicios = jornada.servicios || [];
@@ -98,6 +100,13 @@ function seccionesDe(jornada) {
           ['Kilómetros recorridos', formatearKm(kmRecorridos(jornada))],
         ].filter(([, valor]) => valor),
     },
+    {
+      // El recorrido de esta jornada: desde que la inició hasta que la cerró (o hasta ahora).
+      titulo: 'Recorrido',
+      icono: <RouteOutlinedIcon fontSize="small" />,
+      campos: [],
+      contenido: <MapaRecorrido key={jornada.id} tecnicoId={tecnicoId} inicio={jornada.inicio} fin={jornada.fin} />,
+    },
     seccionControl('Control inicial', jornada.controlInicial, kmInicial(jornada), 'Foto del control inicial'),
     seccionControl('Control final', jornada.controlFinal, kmFinal(jornada), 'Foto del control final'),
     {
@@ -113,7 +122,8 @@ function seccionesDe(jornada) {
 }
 
 // Jornadas de un técnico para admin y coordinador: listado paginado (las más nuevas primero) y,
-// al elegir una, su detalle con los controles del vehículo y sus fotos.
+// al elegir una, su detalle: horario, vehículo, recorrido en el mapa, controles con sus fotos y
+// servicios.
 function JornadasTecnico({ tecnicoId, nombre }) {
   const [desde, establecerDesde] = useState('');
   const [hasta, establecerHasta] = useState('');
@@ -189,7 +199,7 @@ function JornadasTecnico({ tecnicoId, nombre }) {
           jornadaAbierta.activa ? { label: 'En curso', color: 'success' } : { label: 'Finalizada' },
           ...(jornadaAbierta.cerradaAutomaticamente ? [{ label: 'Cerrada automáticamente', color: 'warning', variant: 'outlined' }] : []),
         ] : []}
-        secciones={jornadaAbierta ? seccionesDe(jornadaAbierta) : []}
+        secciones={jornadaAbierta ? seccionesDe(jornadaAbierta, tecnicoId) : []}
         acciones={<Button onClick={() => establecerJornadaAbierta(null)}>Cerrar</Button>}
       />
     </Box>

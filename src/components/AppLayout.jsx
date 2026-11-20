@@ -71,10 +71,10 @@ function AppLayout({ titulo, subtitulo, rol, usuario, nombre, opciones = [], alC
             {(nombre || usuario).charAt(0).toUpperCase()}
           </Avatar>
           <Box sx={{ minWidth: 0 }}>
-            <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.2 }} data-testid="menu-rol">
               {rol}
             </Typography>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2, mt: 0.35, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2, mt: 0.35, overflow: 'hidden', textOverflow: 'ellipsis' }} data-testid="menu-nombre">
               {nombre || usuario}
             </Typography>
           </Box>
@@ -87,6 +87,7 @@ function AppLayout({ titulo, subtitulo, rol, usuario, nombre, opciones = [], alC
             <ListItemButton
               selected={opcion === titulo}
               onClick={() => seleccionarOpcion(opcion)}
+              data-testid={`menu-${opcion}`}
               sx={{
                 borderRadius: 1,
                 mb: 0.75,
@@ -203,7 +204,7 @@ function AppLayout({ titulo, subtitulo, rol, usuario, nombre, opciones = [], alC
           <IconButton color="inherit" onClick={alCambiarTema} aria-label="Cambiar modo de color" sx={{ mr: 1 }}>
             {modo === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
           </IconButton>
-          <Button color="inherit" size="small" startIcon={<LogoutIcon />} onClick={alCerrarSesion} sx={{ minWidth: { xs: 0, sm: 'auto' }, px: { xs: 1, sm: 1.5 } }}>
+          <Button color="inherit" size="small" startIcon={<LogoutIcon />} onClick={alCerrarSesion} data-testid="cerrar-sesion" sx={{ minWidth: { xs: 0, sm: 'auto' }, px: { xs: 1, sm: 1.5 } }}>
             <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
               Salir
             </Box>

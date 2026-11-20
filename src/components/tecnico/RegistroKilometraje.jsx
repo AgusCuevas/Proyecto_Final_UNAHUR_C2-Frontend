@@ -38,14 +38,14 @@ function RegistroKilometraje({ vehiculo, alGuardar, compacto = false }) {
         type="number"
         value={kilometraje}
         onChange={(event) => establecerKilometraje(event.target.value)}
-        slotProps={{ htmlInput: { min: vehiculo.kilometraje.actual, step: 'any' } }}
+        slotProps={{ htmlInput: { min: vehiculo.kilometraje.actual, step: 'any', 'data-testid': 'kilometraje-input' } }}
         helperText={`Último registro: ${vehiculo.kilometraje.actual.toLocaleString('es-AR')} km`}
         size="small"
         required
         fullWidth
       />
-      {error && <Alert severity="error">{error}</Alert>}
-      <Button type="submit" variant="contained" startIcon={<SaveIcon />} disabled={guardando}>
+      {error && <Alert severity="error" data-testid="kilometraje-error">{error}</Alert>}
+      <Button type="submit" variant="contained" startIcon={<SaveIcon />} disabled={guardando} data-testid="kilometraje-guardar">
         {guardando ? 'Guardando...' : 'Guardar kilometraje'}
       </Button>
     </Stack>

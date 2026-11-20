@@ -26,6 +26,7 @@ export function TablaRendimiento({ rendimiento, conJornada = false, seleccionado
           return (
             <TableRow
               key={tecnico.id}
+              data-testid={`fila-tecnico-${tecnico.id}`}
               hover={ubicable}
               selected={tecnico.id === seleccionadoId}
               onClick={ubicable ? () => alSeleccionar(tecnico) : undefined}
@@ -42,13 +43,13 @@ export function TablaRendimiento({ rendimiento, conJornada = false, seleccionado
                   <span>{tecnico.nombre}</span>
                 </Stack>
               </TableCell>
-              <TableCell>{tecnico.trabajos}</TableCell>
-              <TableCell>{tecnico.horas} h</TableCell>
+              <TableCell data-testid={`trabajos-${tecnico.id}`}>{tecnico.trabajos}</TableCell>
+              <TableCell data-testid={`horas-${tecnico.id}`}>{tecnico.horas} h</TableCell>
               <TableCell>
                 {conJornada ? (
                   <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
                     <Chip size="small" color="success" label={`Desde las ${horaDe(tecnico.jornadaActiva.inicio)}`} />
-                    {!tecnico.ubicacion && <Chip size="small" variant="outlined" label="Sin ubicación" />}
+                    {!tecnico.ubicacion && <Chip size="small" variant="outlined" label="Sin ubicación" data-testid={`sin-ubicacion-${tecnico.id}`} />}
                   </Stack>
                 ) : (
                   <Chip size="small" label={tecnico.activo ? 'Activo' : 'Inactivo'} color={tecnico.activo ? 'success' : 'default'} />
@@ -59,7 +60,7 @@ export function TablaRendimiento({ rendimiento, conJornada = false, seleccionado
         })}
         {rendimiento.length === 0 && textoSinDatos && (
           <TableRow>
-            <TableCell colSpan={4} sx={{ py: 3, textAlign: 'center', color: 'text.secondary' }}>{textoSinDatos}</TableCell>
+            <TableCell colSpan={4} sx={{ py: 3, textAlign: 'center', color: 'text.secondary' }} data-testid="sin-datos">{textoSinDatos}</TableCell>
           </TableRow>
         )}
       </TableBody>

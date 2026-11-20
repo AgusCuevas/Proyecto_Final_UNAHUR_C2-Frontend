@@ -17,6 +17,7 @@ const ALTO_OPCION = { chica: 36, normal: 44, conDetalle: 56 };
 // - sinBorrar: sin la cruz para vaciar el campo (filtros que siempre tienen un valor, como "Todos").
 // - opcionDeshabilitada(opcion): true para mostrar una opción que no se puede elegir.
 // - cargando: true mientras la lista todavía no llegó del backend.
+// - testId: identificador para los tests (el campo y cada opción: "<testId>-opcion-<id>").
 function SelectorBuscable({
   label,
   opciones,
@@ -37,6 +38,7 @@ function SelectorBuscable({
   size,
   sx,
   ariaLabel,
+  testId,
 }) {
   // createFilterOptions ya ignora mayúsculas y acentos.
   const filtrar = createFilterOptions({
@@ -84,7 +86,7 @@ function SelectorBuscable({
       slotProps={{ listbox: { sx: { maxHeight: OPCIONES_A_LA_VISTA * altoOpcion, py: 0 } } }}
       renderOption={({ key, ...props }, opcion, { selected }) => (
         // El alto va como estilo directo: el de MUI para las opciones tiene más prioridad que sx.
-        <Box component="li" key={key} {...props} style={{ ...props.style, minHeight: altoOpcion, height: altoOpcion }} sx={{ py: 0 }}>
+        <Box component="li" key={key} {...props} data-testid={testId ? `${testId}-opcion-${opcion.id}` : undefined} style={{ ...props.style, minHeight: altoOpcion, height: altoOpcion }} sx={{ py: 0 }}>
           {multiple && <Checkbox size="small" checked={selected} sx={{ ml: -1, mr: 0.5, p: 0.5 }} />}
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="body2" noWrap sx={{ fontWeight: tieneDetalle ? 700 : 400 }}>{etiqueta(opcion)}</Typography>
@@ -104,7 +106,7 @@ function SelectorBuscable({
           autoFocus={autoFocus}
           slotProps={{
             ...params.slotProps,
-            htmlInput: { ...params.slotProps.htmlInput, ...(ariaLabel ? { 'aria-label': ariaLabel } : {}) },
+            htmlInput: { ...params.slotProps.htmlInput, ...(ariaLabel ? { 'aria-label': ariaLabel } : {}), 'data-testid': testId },
             inputLabel: { ...params.slotProps.inputLabel, shrink: true },
           }}
         />

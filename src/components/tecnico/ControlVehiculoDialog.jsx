@@ -89,7 +89,7 @@ function ControlVehiculoDialog({ abierto, titulo, kilometrajeMinimo = 0, cerrar,
                 value={kilometraje}
                 onChange={(event) => establecerKilometraje(event.target.value)}
                 // Sin "min" en el campo: el mínimo lo valida la app, con un mensaje en castellano.
-                slotProps={{ htmlInput: { step: 'any' } }}
+                slotProps={{ htmlInput: { step: 'any', 'data-testid': 'control-kilometraje' } }}
                 helperText={`Mínimo: ${kilometrajeMinimo} km`}
                 required
                 fullWidth
@@ -104,7 +104,7 @@ function ControlVehiculoDialog({ abierto, titulo, kilometrajeMinimo = 0, cerrar,
                   fullWidth
                 >
                   {NIVELES_COMBUSTIBLE.map((nivel) => (
-                    <ToggleButton key={nivel} value={nivel} aria-label={`${nivel} de combustible`}>
+                    <ToggleButton key={nivel} value={nivel} aria-label={`${nivel} de combustible`} data-testid={`combustible-${nivel}`}>
                       {nivel}
                     </ToggleButton>
                   ))}
@@ -130,12 +130,12 @@ function ControlVehiculoDialog({ abierto, titulo, kilometrajeMinimo = 0, cerrar,
               requeridas={IMAGENES_REQUERIDAS}
               deshabilitado={guardando}
             />
-            {error && <Alert severity="error">{error}</Alert>}
+            {error && <Alert severity="error" data-testid="control-error">{error}</Alert>}
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: { xs: 2, sm: 3 }, pb: 2 }}>
-          <Button onClick={cerrarDialogo} disabled={guardando}>Cancelar</Button>
-          <Button type="submit" variant="contained" startIcon={<SaveIcon />} disabled={guardando}>
+          <Button onClick={cerrarDialogo} disabled={guardando} data-testid="control-cancelar">Cancelar</Button>
+          <Button type="submit" variant="contained" startIcon={<SaveIcon />} disabled={guardando} data-testid="control-guardar">
             {guardando ? 'Guardando…' : 'Guardar control'}
           </Button>
         </DialogActions>
