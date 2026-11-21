@@ -51,7 +51,11 @@ Cada panel tiene sus secciones dentro de la misma ruta. Sin sesión, cualquier r
 
 ## Aspectos técnicos
 
-- **Sesión:** el JWT se guarda en `sessionStorage`. Las pestañas abiertas comparten una única sesión a través de un `BroadcastChannel`. Cuando la API responde `401` (token vencido o sesión reemplazada desde otro dispositivo), se cierra la sesión en todas las pestañas y se vuelve al login con un aviso.
+- **Sesión:**
+  - El JWT se guarda en `localStorage`, junto con el usuario, el nombre y el rol. Todas las pestañas lo ven al instante y sigue guardado aunque se cierre el navegador. El token vence a la hora sin uso y se renueva solo mientras se usa la web.
+  - Al abrir otra pestaña, el admin y el coordinador ven su panel enseguida y la sesión se valida por detrás con `GET /auth/sesion`. El técnico espera esa validación, porque sus pantallas dependen de la jornada activa. Si el token guardado ya venció, se va directo al login.
+  - Las pestañas se enteran de los cambios con el evento `storage` del navegador: si una ingresa, las demás entran con esa sesión; si una sale, todas vuelven al login.
+  - Cuando la API responde `401` (token vencido o sesión reemplazada desde otro dispositivo), se cierra la sesión en todas las pestañas y se vuelve al login con un aviso.
 - **Datos:** los listados se paginan en el servidor (`usePaginado`) y las secciones cargan sus datos recién al abrirse (`useCargaDiferida`).
 - **Imágenes:** se comprimen en el navegador antes de subirlas (hasta unos 550 KB) y se envían a la API como data URL.
 - **Jornadas de un técnico:** en la ficha del técnico (sección Técnicos del coordinador y "Ver información" en Usuarios del administrador) se listan sus jornadas, de la más nueva a la más vieja y con filtro por fecha. Al elegir una se abre su detalle: horario, vehículo, control inicial y final con sus fotos, y los reclamos finalizados.

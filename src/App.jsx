@@ -4,13 +4,16 @@ import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { authApi } from './services/api.js';
 import {
   actualizarToken,
+  AVISO_VENCIDA,
   cerrarSesionEnTodas,
+  descartarSesionVencida,
   EVENTO_SESION_CERRADA,
   EVENTO_SESION_COMPARTIDA,
+  guardarUsuario,
   olvidarToken,
-  pedirSesionAOtrasPestanas,
+  sesionGuardada,
+  sesionVencida,
   tokenGuardado,
-  usarToken,
 } from './services/apiClient.js';
 import Login from './components/Login.jsx';
 import AdminHome from './components/admin/adminHome.jsx';
@@ -34,18 +37,27 @@ const rutaPorRol = {
 
 // Componente principal de la aplicación.
 function AppContent({ modo, cambiarModo }) {
-  const [usuarioActual, establecerUsuarioActual] = useState('');
-  const [nombreUsuarioActual, establecerNombreUsuarioActual] = useState('');
-  const [rolActual, establecerRolActual] = useState('');
-  // Al abrir la página primero se busca una sesión abierta (en esta pestaña o en otra).
-  const [recuperandoSesion, establecerRecuperandoSesion] = useState(true);
-  const [avisoLogin, establecerAvisoLogin] = useState('');
+  // Admin y coordinador con una sesión guardada ven su panel enseguida, y la sesión se valida por
+  // detrás (si ya no vale, se vuelve al login). El técnico espera la validación: sus pantallas
+  // dependen de la jornada activa, que pudo cambiar desde otro dispositivo.
+  const [sesionInicial] = useState(() => {
+    const guardada = sesionGuardada();
+    return guardada && rutaPorRol[guardada.rol] && guardada.rol !== 'Tecnico' ? guardada : null;
+  });
+  const [usuarioActual, establecerUsuarioActual] = useState(sesionInicial?.usuario || '');
+  const [nombreUsuarioActual, establecerNombreUsuarioActual] = useState(sesionInicial?.nombre || '');
+  const [rolActual, establecerRolActual] = useState(sesionInicial?.rol || '');
+  // Con un token guardado (y vigente) se muestra la carga mientras se valida, salvo con la sesión inicial.
+  const [recuperandoSesion, establecerRecuperandoSesion] = useState(() => !sesionInicial && Boolean(tokenGuardado()) && !sesionVencida());
+  // Si el token guardado ya venció, se va directo al login con el aviso, sin preguntarle al backend.
+  const [avisoLogin, establecerAvisoLogin] = useState(() => (sesionVencida() ? AVISO_VENCIDA : ''));
   const navegar = useNavigate();
   const { limpiarDatos, iniciarSesion } = useAppData();
 
   // Función para manejar el inicio de sesión exitoso.
   const ingresar = (usuario, datosUsuario, respuestaLogin) => {
     iniciarSesion(respuestaLogin);
+    guardarUsuario({ usuario, nombre: datosUsuario.nombre, rol: datosUsuario.rol });
     establecerUsuarioActual(usuario);
     establecerNombreUsuarioActual(datosUsuario.nombre);
     establecerRolActual(datosUsuario.rol);
@@ -65,12 +77,15 @@ function AppContent({ modo, cambiarModo }) {
   };
 
   // Recupera la sesión con el token guardado (GET /auth/sesion devuelve los datos y un token
-  // renovado). Se usa al recargar (F5), al abrir una pestaña nueva y cuando otra pestaña ingresa.
-  const recuperarSesion = useCallback(async () => {
-    establecerRecuperandoSesion(true);
+  // renovado). Se usa al abrir la página (también con F5 u otra pestaña) y cuando otra pestaña ingresa.
+  // enSegundoPlano: el panel ya se está viendo; no se muestra la carga y, si el backend no
+  // responde, la sesión sigue (los pedidos del panel lo van a reintentar).
+  const recuperarSesion = useCallback(async ({ enSegundoPlano = false } = {}) => {
+    if (!enSegundoPlano) establecerRecuperandoSesion(true);
     try {
       const respuesta = await authApi.sesion();
       actualizarToken(respuesta.token);
+      guardarUsuario(respuesta.usuario);
       iniciarSesion(respuesta);
       establecerUsuarioActual(respuesta.usuario.usuario);
       establecerNombreUsuarioActual(respuesta.usuario.nombre);
@@ -79,29 +94,25 @@ function AppContent({ modo, cambiarModo }) {
       if (window.location.pathname === '/') navegar(rutaPorRol[respuesta.usuario.rol] || '/');
     } catch (error) {
       // Con 401 el interceptor ya cerró la sesión en todas las pestañas y avisó el motivo.
-      if (error.response?.status !== 401) olvidarToken();
+      if (error.response?.status !== 401 && !enSegundoPlano) olvidarToken();
     } finally {
       establecerRecuperandoSesion(false);
     }
   }, [iniciarSesion, navegar]);
 
-  // Al abrir la página: usa el token de esta pestaña (F5) o se lo pide a otra pestaña abierta.
+  // Al abrir la página: si hay un token guardado, se valida la sesión; si no, se muestra el login.
   const inicioHecho = useRef(false);
   useEffect(() => {
-    if (inicioHecho.current) return;
+    if (inicioHecho.current || !tokenGuardado()) return;
     inicioHecho.current = true;
+    if (sesionVencida()) {
+      descartarSesionVencida();
+      return;
+    }
     (async () => {
-      if (!tokenGuardado()) {
-        const token = await pedirSesionAOtrasPestanas();
-        if (!token) {
-          establecerRecuperandoSesion(false);
-          return;
-        }
-        usarToken(token);
-      }
-      await recuperarSesion();
+      await recuperarSesion({ enSegundoPlano: Boolean(sesionInicial) });
     })();
-  }, [recuperarSesion]);
+  }, [recuperarSesion, sesionInicial]);
 
   // Sesión compartida entre pestañas:
   // - Si otra pestaña ingresa, esta entra con la misma sesión.
@@ -128,13 +139,12 @@ function AppContent({ modo, cambiarModo }) {
     };
   }, [limpiarDatos, navegar, recuperarSesion]);
 
-  if (recuperandoSesion) {
-    return (
-      <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
-        <CircularProgress aria-label="Recuperando la sesión" />
-      </Box>
-    );
-  }
+  const cargandoSesion = (
+    <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
+      <CircularProgress aria-label="Recuperando la sesión" />
+    </Box>
+  );
+  if (recuperandoSesion) return cargandoSesion;
 
   // Cada panel es de un solo rol. Sin sesión se vuelve al login; con sesión de otro rol, al panel
   // propio (un técnico que escribe /adminHome termina en /tecnicoHome).
@@ -146,7 +156,14 @@ function AppContent({ modo, cambiarModo }) {
 
   return (
       <Routes>
-        <Route path="/" element={<Login alIniciarSesion={ingresar} aviso={avisoLogin} />} />
+        {/* Con la sesión iniciada, "/" lleva al panel. Mientras el cambio de pantalla se completa
+            se sigue viendo la carga (si no, al abrir otra pestaña aparecía el login un instante). */}
+        <Route
+          path="/"
+          element={usuarioActual && rutaPorRol[rolActual]
+            ? <><Navigate to={rutaPorRol[rolActual]} replace />{cargandoSesion}</>
+            : <Login alIniciarSesion={ingresar} aviso={avisoLogin} />}
+        />
         <Route path="/error/400" element={<BadRequest400 />} />
         <Route path="/error/403" element={<Forbidden403 />} />
         <Route path="/error/404" element={<NotFound404 />} />

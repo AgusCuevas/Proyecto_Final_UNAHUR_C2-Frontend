@@ -3,75 +3,100 @@ import axios from 'axios';
 const URL_API = import.meta.env.VITE_API_URL || '/api';
 
 // ---------- Sesión compartida entre pestañas
-// Cada pestaña guarda el token en sessionStorage, y las pestañas del mismo navegador se hablan
-// por un BroadcastChannel para compartir una única sesión:
-// - Una pestaña nueva le pide el token a las que ya están abiertas.
-// - Si una pestaña ingresa, renueva el token o cierra la sesión, avisa a las demás.
-// Al cerrar la última pestaña no queda ningún token guardado y hay que volver a ingresar.
+// El token se guarda en localStorage: todas las pestañas del navegador lo ven al instante y
+// sigue ahí aunque se cierre el navegador (vence solo, a la hora sin uso). Junto al token se
+// guardan el usuario, el nombre y el rol, para mostrar el panel enseguida al abrir otra pestaña
+// mientras se valida la sesión con el backend.
+// Las demás pestañas se enteran de los cambios con el evento "storage" del navegador:
+// - otra pestaña ingresó (o ingresó otro usuario): esta entra con esa sesión;
+// - otra pestaña salió o la sesión se cerró: esta vuelve al login con el motivo.
 const CLAVE_TOKEN = 'galacticappToken';
+const CLAVE_USUARIO = 'galacticappUsuario';
+// Motivo del último cierre, para mostrarlo en el login de todas las pestañas.
+const CLAVE_AVISO = 'galacticappAvisoCierre';
 // Eventos que escucha App.jsx.
 export const EVENTO_SESION_CERRADA = 'galacticapp:sesion-cerrada'; // detail: { aviso }
 export const EVENTO_SESION_COMPARTIDA = 'galacticapp:sesion-compartida'; // otra pestaña ingresó
-const AVISO_VENCIDA = 'Tu sesión venció. Ingresá de nuevo.';
+export const AVISO_VENCIDA = 'Tu sesión venció. Ingresá de nuevo.';
 
-const canal = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('galacticapp-sesion');
 const avisarEnEstaPestana = (evento, detalle) => window.dispatchEvent(new CustomEvent(evento, { detail: detalle }));
 
-export const tokenGuardado = () => sessionStorage.getItem(CLAVE_TOKEN);
+// Contenido del token (vencimiento "exp" y sesión "sid"), sin validarlo: lo valida el backend.
+function contenidoDe(token) {
+  try {
+    return JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+  } catch {
+    return {};
+  }
+}
+// Momento en que vence el token (milisegundos).
+const vencimientoDe = (token) => (contenidoDe(token).exp || 0) * 1000;
 
-// Login en esta pestaña: guarda el token y las demás pestañas entran con la misma sesión.
+export const tokenGuardado = () => localStorage.getItem(CLAVE_TOKEN);
+
+// Datos del usuario guardados con la sesión ({ usuario, nombre, rol }), o null si no hay sesión
+// o el token ya venció.
+export function sesionGuardada() {
+  const token = tokenGuardado();
+  if (!token || vencimientoDe(token) <= Date.now()) return null;
+  try {
+    return JSON.parse(localStorage.getItem(CLAVE_USUARIO)) || null;
+  } catch {
+    return null;
+  }
+}
+
+// true si hay un token guardado que ya venció (no hace falta preguntarle al backend).
+export function sesionVencida() {
+  const token = tokenGuardado();
+  return Boolean(token) && vencimientoDe(token) <= Date.now();
+}
+
+// Login en esta pestaña: guarda el token (las demás pestañas entran con la misma sesión).
 export function guardarSesion(token) {
-  sessionStorage.setItem(CLAVE_TOKEN, token);
-  canal?.postMessage({ tipo: 'ingreso', token });
+  localStorage.removeItem(CLAVE_AVISO);
+  localStorage.setItem(CLAVE_TOKEN, token);
 }
 
-// Token renovado (misma sesión): se comparte para que todas usen el más nuevo.
-export function actualizarToken(token) {
-  sessionStorage.setItem(CLAVE_TOKEN, token);
-  canal?.postMessage({ tipo: 'renovado', token });
+// Guarda el usuario, el nombre y el rol de la sesión (después del login o de validarla).
+export function guardarUsuario({ usuario, nombre, rol }) {
+  localStorage.setItem(CLAVE_USUARIO, JSON.stringify({ usuario, nombre, rol }));
 }
 
-// Toma el token que recibió de otra pestaña, sin volver a avisar.
-export const usarToken = (token) => sessionStorage.setItem(CLAVE_TOKEN, token);
-// Borra el token solo de esta pestaña (por ejemplo, si no se pudo recuperar la sesión).
-export const olvidarToken = () => sessionStorage.removeItem(CLAVE_TOKEN);
+// Token renovado (misma sesión). Las demás pestañas lo leen en su próximo pedido.
+export const actualizarToken = (token) => localStorage.setItem(CLAVE_TOKEN, token);
+
+// Borra la sesión guardada (por ejemplo, si no se pudo recuperar).
+export function olvidarToken() {
+  localStorage.removeItem(CLAVE_TOKEN);
+  localStorage.removeItem(CLAVE_USUARIO);
+}
+
+// Borra una sesión vencida, avisando el motivo a las demás pestañas (esta lo muestra por su cuenta).
+export function descartarSesionVencida() {
+  localStorage.setItem(CLAVE_AVISO, AVISO_VENCIDA);
+  olvidarToken();
+}
 
 // Cierra la sesión en esta pestaña y en todas las demás. aviso: mensaje para el login (opcional).
 export function cerrarSesionEnTodas(aviso = '') {
-  sessionStorage.removeItem(CLAVE_TOKEN);
-  canal?.postMessage({ tipo: 'cierre', aviso });
+  // El motivo se guarda antes de borrar el token: las otras pestañas lo leen al enterarse.
+  localStorage.setItem(CLAVE_AVISO, aviso);
+  olvidarToken();
   avisarEnEstaPestana(EVENTO_SESION_CERRADA, { aviso });
 }
 
-// Pestaña nueva: pregunta si otra pestaña tiene la sesión abierta. Devuelve el token o null.
-export function pedirSesionAOtrasPestanas(espera = 250) {
-  if (!canal) return Promise.resolve(null);
-  return new Promise((resolver) => {
-    const terminar = (token) => {
-      canal.removeEventListener('message', escuchar);
-      clearTimeout(limite);
-      resolver(token);
-    };
-    const escuchar = ({ data }) => {
-      if (data?.tipo === 'respuesta' && data.token) terminar(data.token);
-    };
-    const limite = setTimeout(() => terminar(null), espera);
-    canal.addEventListener('message', escuchar);
-    canal.postMessage({ tipo: 'pedido' });
-  });
-}
-
-canal?.addEventListener('message', ({ data }) => {
-  const token = tokenGuardado();
-  if (data?.tipo === 'pedido' && token) canal.postMessage({ tipo: 'respuesta', token });
-  if (data?.tipo === 'renovado' && token) sessionStorage.setItem(CLAVE_TOKEN, data.token);
-  if (data?.tipo === 'ingreso') {
-    sessionStorage.setItem(CLAVE_TOKEN, data.token);
-    avisarEnEstaPestana(EVENTO_SESION_COMPARTIDA, {});
+// Cambios hechos por otra pestaña (el navegador no avisa a la pestaña que hizo el cambio).
+window.addEventListener('storage', ({ key, oldValue, newValue }) => {
+  if (key !== CLAVE_TOKEN && key !== null) return;
+  if (!newValue) {
+    avisarEnEstaPestana(EVENTO_SESION_CERRADA, { aviso: localStorage.getItem(CLAVE_AVISO) || '' });
+    return;
   }
-  if (data?.tipo === 'cierre') {
-    sessionStorage.removeItem(CLAVE_TOKEN);
-    avisarEnEstaPestana(EVENTO_SESION_CERRADA, { aviso: data.aviso || '' });
+  // Un token de otra sesión (otra pestaña ingresó, quizás con otro usuario). Si es la misma
+  // sesión, es una renovación y no hay que hacer nada.
+  if (!oldValue || contenidoDe(oldValue).sid !== contenidoDe(newValue).sid) {
+    avisarEnEstaPestana(EVENTO_SESION_COMPARTIDA, {});
   }
 });
 
@@ -84,16 +109,6 @@ export const apiClient = axios.create({
 // Si al token le quedan menos de 15 minutos, se renueva con el próximo pedido.
 // Así la sesión no se corta mientras el usuario trabaja, y vence tras 1 hora sin actividad.
 const RENOVAR_ANTES_DE_MS = 15 * 60 * 1000;
-
-// Momento en que vence el token (milisegundos), leído de su contenido.
-function vencimientoDe(token) {
-  try {
-    const contenido = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    return JSON.parse(atob(contenido)).exp * 1000;
-  } catch {
-    return 0;
-  }
-}
 
 // Si hay varios pedidos a la vez, se renueva una sola vez.
 let renovacionEnCurso = null;

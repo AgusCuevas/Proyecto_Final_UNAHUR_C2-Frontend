@@ -1,18 +1,23 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box, Button, Chip, Paper, Stack, TextField } from '@mui/material';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
-import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
+import { Alert, Box, Button, Paper, Stack, Typography } from '@mui/material';
+import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useAppData } from '../../context/useAppData.js';
-import { recorridosApi } from '../../services/api.js';
 
 const centroMapa = [-34.655, -58.63];
 
-// Fecha de hoy en hora local (toISOString usaría UTC y después de las 21 h daría mañana).
-const hoyLocal = () => {
-  const ahora = new Date();
-  return `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
+// Colores de cada estado: los mismos en los puntos del mapa y en la leyenda.
+const COLORES_ESTADO = {
+  Activo: { relleno: '#2eaf5d', borde: '#16803c' },
+  Asignado: { relleno: '#f2b233', borde: '#a66b00' },
+  Libre: { relleno: '#a5afbc', borde: '#687586' },
 };
+const coloresDe = (estado) => COLORES_ESTADO[estado] || COLORES_ESTADO.Libre;
+const LEYENDA = [
+  { estado: 'Activo', singular: 'activo', plural: 'activos' },
+  { estado: 'Asignado', singular: 'asignado', plural: 'asignados' },
+  { estado: 'Libre', singular: 'libre', plural: 'libres' },
+];
 
 // Centra el mapa en el técnico destacado. "pedido" cambia cada vez que se pide ubicarlo,
 // así vuelve a centrar aunque se toque el mismo técnico dos veces.
@@ -28,35 +33,61 @@ function AjustarVistaMapa({ tecnico, pedido }) {
   return null;
 }
 
-// Cuando llega un recorrido, acomoda el mapa para que se vea completo.
-function AjustarVistaRecorrido({ recorrido }) {
-  const mapa = useMap();
-
-  useEffect(() => {
-    if (recorrido?.puntos.length > 1) {
-      mapa.fitBounds(recorrido.puntos.map((punto) => [punto.latitud, punto.longitud]), { padding: [30, 30], maxZoom: 16 });
-    }
-  }, [mapa, recorrido]);
-
-  return null;
+// Leyenda del mapa: cuántos técnicos hay en cada estado, con el color de su punto.
+function Leyenda({ cantidades }) {
+  return (
+    <Stack
+      direction="row"
+      aria-label="Técnicos en el mapa por estado"
+      divider={<Box sx={{ width: '1px', alignSelf: 'stretch', backgroundColor: 'divider' }} />}
+      sx={{
+        alignSelf: { xs: 'stretch', sm: 'center' },
+        border: 1,
+        borderColor: 'divider',
+        borderRadius: 1.5,
+        backgroundColor: 'action.hover',
+        overflow: 'hidden',
+      }}
+    >
+      {LEYENDA.map(({ estado, singular, plural }) => (
+        <Stack
+          key={estado}
+          direction="row"
+          spacing={{ xs: 0.6, sm: 1 }}
+          data-testid={`leyenda-${estado}`}
+          sx={{ flex: { xs: 1, sm: 'initial' }, minWidth: 0, alignItems: 'center', justifyContent: 'center', px: { xs: 0.5, sm: 1.75 }, py: 0.9 }}
+        >
+          <Box
+            sx={{
+              width: 12,
+              height: 12,
+              flexShrink: 0,
+              borderRadius: '50%',
+              backgroundColor: COLORES_ESTADO[estado].relleno,
+              border: 2,
+              borderColor: COLORES_ESTADO[estado].borde,
+            }}
+          />
+          <Typography sx={{ fontWeight: 800, lineHeight: 1 }}>{cantidades[estado]}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1, whiteSpace: 'nowrap' }}>
+            {cantidades[estado] === 1 ? singular : plural}
+          </Typography>
+        </Stack>
+      ))}
+    </Stack>
+  );
 }
 
-const textoAyuda = { color: 'text.secondary', fontSize: '0.875rem' };
-
 // tecnicos: los de GET /tecnicos; cada uno ya trae estado, reclamos, cliente y ubicación.
-// Los puntos muestran la última posición de cada técnico. Al tocar uno se hace foco en él
-// y se dibuja solo su recorrido del día elegido.
+// Los puntos muestran la última posición de cada técnico (el recorrido de cada jornada se ve en
+// la ficha del técnico). Al tocar uno se hace foco en él y se ve su información.
 // El mapa no pide los técnicos: se los pasa la pantalla que lo muestra.
 // tecnicoId: técnico a enfocar desde afuera. pedidoDeEnfoque: cambiarlo vuelve a enfocarlo.
 function MapaTecnicos({ tecnicos = [], tecnicoId = null, pedidoDeEnfoque = 0 }) {
   const [filtro, establecerFiltro] = useState('Todos');
-  const [dia, establecerDia] = useState(hoyLocal);
   const [enfocadoId, establecerEnfocadoId] = useState(tecnicoId);
   const [pedidoDeCentrado, establecerPedidoDeCentrado] = useState(0);
   const [enfoqueExterno, establecerEnfoqueExterno] = useState({ tecnicoId, pedidoDeEnfoque });
-  // recorrido: { tecnicoId, dia, puntos } del técnico enfocado.
-  const [recorrido, establecerRecorrido] = useState(null);
-  const [errorRecorrido, establecerErrorRecorrido] = useState('');
   const { actualizarTecnicos } = useAppData();
 
   // Si la pantalla pide enfocar otro técnico (o el mismo de nuevo), ese pedido manda.
@@ -81,36 +112,9 @@ function MapaTecnicos({ tecnicos = [], tecnicoId = null, pedidoDeEnfoque = 0 }) 
     (tecnico) => filtro === 'Todos' || tecnico.estado === filtro || tecnico.id === enfocadoId,
   );
   const tecnicoDestacado = tecnicosConUbicacion.find((tecnico) => tecnico.id === enfocadoId);
-  const activos = tecnicosConUbicacion.filter((tecnico) => tecnico.estado === 'Activo').length;
-  const libres = tecnicosConUbicacion.filter((tecnico) => tecnico.estado === 'Libre').length;
-  const asignados = tecnicosConUbicacion.filter((tecnico) => tecnico.estado === 'Asignado').length;
-
-  const idRecorrido = tecnicoDestacado?.id ?? null;
-  // Solo se muestra el recorrido si corresponde al técnico y al día que se están viendo.
-  const recorridoVisible = recorrido?.tecnicoId === idRecorrido && recorrido?.dia === dia ? recorrido : null;
-
-  // Pide el recorrido solo del técnico enfocado (un pedido, no uno por técnico).
-  useEffect(() => {
-    if (!dia || idRecorrido === null) return undefined;
-    let cancelado = false;
-    const cargarRecorrido = async () => {
-      try {
-        // Del inicio al fin del día en hora local, enviado con zona horaria.
-        const [anio, mes, numeroDia] = dia.split('-').map(Number);
-        const inicio = new Date(anio, mes - 1, numeroDia).toISOString();
-        const fin = new Date(anio, mes - 1, numeroDia, 23, 59, 59, 999).toISOString();
-        const resultado = await recorridosApi.obtener(idRecorrido, inicio, fin);
-        if (!cancelado) {
-          establecerRecorrido({ tecnicoId: idRecorrido, dia, puntos: resultado.puntos });
-          establecerErrorRecorrido('');
-        }
-      } catch {
-        if (!cancelado) establecerErrorRecorrido('No se pudo cargar el recorrido del técnico.');
-      }
-    };
-    cargarRecorrido();
-    return () => { cancelado = true; };
-  }, [dia, idRecorrido]);
+  const cantidades = Object.fromEntries(LEYENDA.map(({ estado }) => [
+    estado, tecnicosConUbicacion.filter((tecnico) => tecnico.estado === estado).length,
+  ]));
 
   return (
     <Paper sx={{ p: { xs: 2, md: 3 } }}>
@@ -148,39 +152,8 @@ function MapaTecnicos({ tecnicos = [], tecnicoId = null, pedidoDeEnfoque = 0 }) 
               </Button>
             ))}
           </Stack>
-          <Stack direction="row" gap={0.75} sx={{ justifyContent: { xs: 'flex-start', sm: 'flex-end' }, flexWrap: 'wrap' }}>
-            <Chip icon={<LocationOnIcon />} label={`${activos} activos`} color="success" sx={{ height: 32, fontSize: '0.9rem' }} />
-            <Chip label={`${asignados} asignados`} color="warning" sx={{ height: 32, fontSize: '0.9rem' }} />
-            <Chip label={`${libres} libres`} color="default" sx={{ height: 32, fontSize: '0.9rem' }} />
-          </Stack>
+          <Leyenda cantidades={cantidades} />
         </Stack>
-        {tecnicoDestacado ? (
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { sm: 'center' } }}>
-            <Chip
-              label={`Recorrido de ${tecnicoDestacado.nombre}`}
-              onDelete={() => establecerEnfocadoId(null)}
-              color="primary"
-              sx={{ height: 32, alignSelf: { xs: 'flex-start', sm: 'center' } }}
-            />
-            <TextField
-              type="date"
-              label="Día"
-              value={dia}
-              onChange={(event) => establecerDia(event.target.value)}
-              slotProps={{ inputLabel: { shrink: true }, htmlInput: { max: hoyLocal() } }}
-              size="small"
-              sx={{ maxWidth: { sm: 200 } }}
-            />
-            {recorridoVisible && recorridoVisible.puntos.length < 2 && (
-              <Box component="span" sx={textoAyuda}>No hay recorrido registrado ese día.</Box>
-            )}
-          </Stack>
-        ) : (
-          tecnicosConUbicacion.length > 0 && (
-            <Box component="span" sx={textoAyuda}>Tocá un técnico en el mapa para ver su recorrido.</Box>
-          )
-        )}
-        {tecnicoDestacado && errorRecorrido && <Alert severity="error">{errorRecorrido}</Alert>}
       </Stack>
 
       {tecnicosConUbicacion.length === 0 && (
@@ -192,27 +165,20 @@ function MapaTecnicos({ tecnicos = [], tecnicoId = null, pedidoDeEnfoque = 0 }) 
       <Box sx={{ mt: 1, height: { xs: 280, sm: 320, md: 380 }, borderRadius: 2, overflow: 'hidden' }}>
         <MapContainer center={centroMapa} zoom={13} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
           <AjustarVistaMapa tecnico={tecnicoDestacado} pedido={`${pedidoDeEnfoque}-${pedidoDeCentrado}`} />
-          <AjustarVistaRecorrido recorrido={recorridoVisible} />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
             // OpenStreetMap bloquea (403) los mosaicos pedidos sin cabecera Referer.
             referrerPolicy="strict-origin-when-cross-origin"
           />
-          {recorridoVisible?.puntos.length > 1 && (
-            <Polyline
-              positions={recorridoVisible.puntos.map((punto) => [punto.latitud, punto.longitud])}
-              pathOptions={{ color: '#f97316', weight: 4, opacity: 0.8 }}
-            />
-          )}
           {tecnicosVisibles.map((tecnico) => (
             <CircleMarker
               key={tecnico.id}
               center={[tecnico.ubicacion.latitud, tecnico.ubicacion.longitud]}
               radius={tecnico.id === enfocadoId ? 14 : 10}
               pathOptions={{
-                color: tecnico.id === enfocadoId ? '#155e75' : tecnico.estado === 'Activo' ? '#16803c' : tecnico.estado === 'Asignado' ? '#a66b00' : '#687586',
-                fillColor: tecnico.estado === 'Activo' ? '#2eaf5d' : tecnico.estado === 'Asignado' ? '#f2b233' : '#a5afbc',
+                color: tecnico.id === enfocadoId ? '#155e75' : coloresDe(tecnico.estado).borde,
+                fillColor: coloresDe(tecnico.estado).relleno,
                 fillOpacity: 0.9,
               }}
               eventHandlers={{ click: () => enfocar(tecnico.id) }}
