@@ -35,15 +35,18 @@ const rutaPorRol = {
   Tecnico: '/tecnicoHome',
 };
 
+// La sesión guardada sirve tal cual si es de administrador o coordinador; null para el técnico.
+const sesionSinBackend = (guardada) => (
+  guardada && rutaPorRol[guardada.rol] && guardada.rol !== 'Tecnico' ? guardada : null
+);
+
 // Componente principal de la aplicación.
 function AppContent({ modo, cambiarModo }) {
-  // Admin y coordinador con una sesión guardada ven su panel enseguida, y la sesión se valida por
-  // detrás (si ya no vale, se vuelve al login). El técnico espera la validación: sus pantallas
-  // dependen de la jornada activa, que pudo cambiar desde otro dispositivo.
-  const [sesionInicial] = useState(() => {
-    const guardada = sesionGuardada();
-    return guardada && rutaPorRol[guardada.rol] && guardada.rol !== 'Tecnico' ? guardada : null;
-  });
+  // Admin y coordinador con una sesión guardada arman su panel con los datos de localStorage, sin
+  // preguntarle al backend: si la sesión ya no vale, el primer pedido del panel recibe un 401 y
+  // vuelve al login. El técnico sí pide GET /auth/sesion: necesita su id, su jornada activa y su
+  // vehículo, que pueden cambiar desde el celular o desde la web del coordinador.
+  const [sesionInicial] = useState(() => sesionSinBackend(sesionGuardada()));
   const [usuarioActual, establecerUsuarioActual] = useState(sesionInicial?.usuario || '');
   const [nombreUsuarioActual, establecerNombreUsuarioActual] = useState(sesionInicial?.nombre || '');
   const [rolActual, establecerRolActual] = useState(sesionInicial?.rol || '');
@@ -55,9 +58,9 @@ function AppContent({ modo, cambiarModo }) {
   const { limpiarDatos, iniciarSesion } = useAppData();
 
   // Función para manejar el inicio de sesión exitoso.
+  // (Login ya guardó el token y el usuario en localStorage.)
   const ingresar = (usuario, datosUsuario, respuestaLogin) => {
     iniciarSesion(respuestaLogin);
-    guardarUsuario({ usuario, nombre: datosUsuario.nombre, rol: datosUsuario.rol });
     establecerUsuarioActual(usuario);
     establecerNombreUsuarioActual(datosUsuario.nombre);
     establecerRolActual(datosUsuario.rol);
@@ -76,12 +79,11 @@ function AppContent({ modo, cambiarModo }) {
     cerrarSesionEnTodas();
   };
 
-  // Recupera la sesión con el token guardado (GET /auth/sesion devuelve los datos y un token
-  // renovado). Se usa al abrir la página (también con F5 u otra pestaña) y cuando otra pestaña ingresa.
-  // enSegundoPlano: el panel ya se está viendo; no se muestra la carga y, si el backend no
-  // responde, la sesión sigue (los pedidos del panel lo van a reintentar).
-  const recuperarSesion = useCallback(async ({ enSegundoPlano = false } = {}) => {
-    if (!enSegundoPlano) establecerRecuperandoSesion(true);
+  // Solo para el técnico: recupera la sesión con el token guardado (GET /auth/sesion devuelve sus
+  // datos, su jornada activa, su vehículo y un token renovado). Se usa al abrir la página (también
+  // con F5 u otra pestaña) y cuando el técnico ingresa desde otra pestaña.
+  const recuperarSesion = useCallback(async () => {
+    establecerRecuperandoSesion(true);
     try {
       const respuesta = await authApi.sesion();
       actualizarToken(respuesta.token);
@@ -94,13 +96,23 @@ function AppContent({ modo, cambiarModo }) {
       if (window.location.pathname === '/') navegar(rutaPorRol[respuesta.usuario.rol] || '/');
     } catch (error) {
       // Con 401 el interceptor ya cerró la sesión en todas las pestañas y avisó el motivo.
-      if (error.response?.status !== 401 && !enSegundoPlano) olvidarToken();
+      if (error.response?.status !== 401) olvidarToken();
     } finally {
       establecerRecuperandoSesion(false);
     }
   }, [iniciarSesion, navegar]);
 
-  // Al abrir la página: si hay un token guardado, se valida la sesión; si no, se muestra el login.
+  // Admin y coordinador: entra con los datos guardados en localStorage (sin pedir nada).
+  const usarSesionGuardada = useCallback((guardada) => {
+    establecerUsuarioActual(guardada.usuario);
+    establecerNombreUsuarioActual(guardada.nombre);
+    establecerRolActual(guardada.rol);
+    establecerAvisoLogin('');
+    if (window.location.pathname === '/') navegar(rutaPorRol[guardada.rol]);
+  }, [navegar]);
+
+  // Al abrir la página con un token guardado: admin y coordinador ya están adentro (sesionInicial);
+  // el técnico recupera su sesión del backend. Sin token, se muestra el login.
   const inicioHecho = useRef(false);
   useEffect(() => {
     if (inicioHecho.current || !tokenGuardado()) return;
@@ -109,8 +121,9 @@ function AppContent({ modo, cambiarModo }) {
       descartarSesionVencida();
       return;
     }
+    if (sesionInicial) return;
     (async () => {
-      await recuperarSesion({ enSegundoPlano: Boolean(sesionInicial) });
+      await recuperarSesion();
     })();
   }, [recuperarSesion, sesionInicial]);
 
@@ -121,7 +134,9 @@ function AppContent({ modo, cambiarModo }) {
   useEffect(() => {
     const alCompartir = () => {
       limpiarDatos();
-      recuperarSesion();
+      const guardada = sesionSinBackend(sesionGuardada());
+      if (guardada) usarSesionGuardada(guardada);
+      else recuperarSesion();
     };
     const alCerrar = (evento) => {
       limpiarDatos();
@@ -137,7 +152,7 @@ function AppContent({ modo, cambiarModo }) {
       window.removeEventListener(EVENTO_SESION_COMPARTIDA, alCompartir);
       window.removeEventListener(EVENTO_SESION_CERRADA, alCerrar);
     };
-  }, [limpiarDatos, navegar, recuperarSesion]);
+  }, [limpiarDatos, navegar, recuperarSesion, usarSesionGuardada]);
 
   const cargandoSesion = (
     <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>

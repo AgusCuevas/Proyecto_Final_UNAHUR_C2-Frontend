@@ -53,7 +53,8 @@ Cada panel tiene sus secciones dentro de la misma ruta. Sin sesión, cualquier r
 
 - **Sesión:**
   - El JWT se guarda en `localStorage`, junto con el usuario, el nombre y el rol. Todas las pestañas lo ven al instante y sigue guardado aunque se cierre el navegador. El token vence a la hora sin uso y se renueva solo mientras se usa la web.
-  - Al abrir otra pestaña, el admin y el coordinador ven su panel enseguida y la sesión se valida por detrás con `GET /auth/sesion`. El técnico espera esa validación, porque sus pantallas dependen de la jornada activa. Si el token guardado ya venció, se va directo al login.
+  - Al recargar o abrir otra pestaña, el admin y el coordinador arman su panel con los datos de `localStorage`, sin pedirle nada al backend. Si la sesión ya no es válida, el primer pedido del panel recibe un 401 y vuelve al login. Si el token guardado ya venció, se va directo al login.
+  - El técnico sí pide `GET /auth/sesion` al abrir la página: necesita su id, su jornada activa y su vehículo, que pueden cambiar desde el celular o desde la web del coordinador.
   - Las pestañas se enteran de los cambios con el evento `storage` del navegador: si una ingresa, las demás entran con esa sesión; si una sale, todas vuelven al login.
   - Cuando la API responde `401` (token vencido o sesión reemplazada desde otro dispositivo), se cierra la sesión en todas las pestañas y se vuelve al login con un aviso.
 - **Datos:** los listados se paginan en el servidor (`usePaginado`) y las secciones cargan sus datos recién al abrirse (`useCargaDiferida`).
@@ -61,7 +62,8 @@ Cada panel tiene sus secciones dentro de la misma ruta. Sin sesión, cualquier r
 - **Jornadas de un técnico:** en la ficha del técnico (sección Técnicos del coordinador y "Ver información" en Usuarios del administrador) se listan sus jornadas, de la más nueva a la más vieja y con filtro por fecha. Al elegir una se abre su detalle: horario, vehículo, control inicial y final con sus fotos, y los reclamos finalizados.
 - **Popups en pantalla completa:** las fichas de detalle, las fotos ampliadas y los formularios tienen un botón para agrandarlos a toda la pantalla (`DialogoMaximizable`). Las confirmaciones cortas no lo tienen, y en celular no hace falta.
 - **Rendimiento del equipo:** el panel del administrador y el del coordinador muestran el mapa y, debajo, los técnicos con la jornada activa con sus trabajos y horas. Al tocar uno se lo ubica en el mapa.
-- **Mapa:** muestra la última ubicación de cada técnico y se actualiza cada 5 minutos. Al seleccionar un técnico, dibuja su recorrido del día elegido.
+- **Mapa:** muestra la última ubicación de cada técnico y se actualiza cada 5 minutos.
+- **Recorrido de cada jornada** (en el perfil del técnico, al abrir una jornada): la línea del recorrido con el inicio (verde), el fin (rojo) y cada reclamo finalizado (azul). El reclamo se ubica en la posición registrada más cercana a la hora en que se finalizó (si hay una a menos de 15 minutos), así que es aproximada. Los que no se pueden ubicar se indican debajo del mapa.
 - **Ubicación del técnico:** con la jornada activa, la web envía la posición del técnico cada 5 minutos usando la geolocalización del navegador.
 - **Responsive:** las tablas pasan a tarjetas en pantallas de menos de 900 px y ocultan columnas secundarias en tamaños intermedios.
 

@@ -8,6 +8,10 @@ import AvisoCarga from './AvisoCarga.jsx';
 const COLOR_RECORRIDO = '#f97316';
 const COLOR_INICIO = '#16a34a';
 const COLOR_FIN = '#dc2626';
+const COLOR_RECLAMO = '#2563eb';
+// Un reclamo se ubica en el punto del recorrido más cercano a la hora en que se finalizó, si hay
+// uno a menos de 15 minutos (con el técnico quieto el celular guarda pocos puntos).
+const DISTANCIA_MAXIMA_MS = 15 * 60 * 1000;
 const formatearHora = (fecha) => new Date(fecha).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 
 // Leaflet calcula el tamaño del mapa al crearlo. Dentro de un popup el mapa nace mientras el
@@ -32,11 +36,43 @@ function AjustarMapa({ puntos }) {
   return null;
 }
 
+// Ubica cada reclamo finalizado en el punto del recorrido más cercano a su hora de finalización.
+// Devuelve { ubicados: [{ posicion, reclamos }], sinUbicar }: los reclamos que caen en el mismo
+// punto se agrupan en un solo marcador.
+function ubicarReclamos(puntos, servicios) {
+  const porPunto = new Map();
+  let sinUbicar = 0;
+  servicios.forEach((servicio) => {
+    const hora = new Date(servicio.finalizadoEn).getTime();
+    let cercano = -1;
+    let distancia = Infinity;
+    puntos.forEach((punto, indice) => {
+      const diferencia = Math.abs(new Date(punto.registradoEn).getTime() - hora);
+      if (diferencia < distancia) {
+        cercano = indice;
+        distancia = diferencia;
+      }
+    });
+    if (!servicio.finalizadoEn || cercano < 0 || distancia > DISTANCIA_MAXIMA_MS) {
+      sinUbicar += 1;
+      return;
+    }
+    porPunto.set(cercano, [...(porPunto.get(cercano) || []), servicio]);
+  });
+  const ubicados = [...porPunto.entries()].map(([indice, reclamos]) => ({
+    posicion: [puntos[indice].latitud, puntos[indice].longitud],
+    reclamos,
+  }));
+  return { ubicados, sinUbicar };
+}
+
 // Recorrido de un técnico entre dos momentos (por ejemplo, el inicio y el fin de una jornada).
 // - fin vacío: la jornada sigue en curso y se muestra el recorrido hasta ahora.
+// - servicios: reclamos finalizados en la jornada ({ id, tipo, finalizadoEn }); se marcan en azul
+//   donde estaba el técnico al finalizarlos (posición aproximada, ver ubicarReclamos).
 // Se marca el punto de inicio (verde) y el último registrado (rojo). Al agrandar el popup que lo
 // contiene (clase "maximizado"), el mapa crece.
-function MapaRecorrido({ tecnicoId, inicio, fin = null }) {
+function MapaRecorrido({ tecnicoId, inicio, fin = null, servicios = [] }) {
   // Un único estado con el resultado y a qué pedido corresponde (clave): así, si cambia la
   // jornada, no se muestra el recorrido de la anterior mientras llega el nuevo.
   const [estado, establecerEstado] = useState({ clave: null, puntos: [], error: '' });
@@ -59,6 +95,7 @@ function MapaRecorrido({ tecnicoId, inicio, fin = null }) {
   // Mismo arreglo mientras no cambie el recorrido: así el mapa no se vuelve a encuadrar en cada
   // dibujo (por ejemplo, si el usuario lo movió).
   const puntos = useMemo(() => estado.puntos.map((punto) => [punto.latitud, punto.longitud]), [estado.puntos]);
+  const reclamos = useMemo(() => ubicarReclamos(estado.puntos, servicios), [estado.puntos, servicios]);
   const listo = estado.clave === clave;
   if (!listo || estado.error) return <AvisoCarga cargando={!listo} error={listo ? estado.error : ''} />;
 
@@ -102,6 +139,23 @@ function MapaRecorrido({ tecnicoId, inicio, fin = null }) {
               <Popup>{fin ? 'Fin' : 'Última posición'} · {formatearHora(ultimo.registradoEn)}</Popup>
             </CircleMarker>
           )}
+          {/* Después del inicio y el fin, para que queden por encima si coinciden. */}
+          {reclamos.ubicados.map(({ posicion, reclamos: delPunto }) => (
+            <CircleMarker
+              key={delPunto.map((reclamo) => reclamo.id).join('-')}
+              center={posicion}
+              radius={7}
+              pathOptions={{ color: '#ffffff', weight: 2, fillColor: COLOR_RECLAMO, fillOpacity: 1 }}
+            >
+              <Popup>
+                {delPunto.map((reclamo) => (
+                  <div key={reclamo.id}>
+                    Reclamo #{reclamo.id}{reclamo.tipo ? ` · ${reclamo.tipo}` : ''} · finalizado {formatearHora(reclamo.finalizadoEn)}
+                  </div>
+                ))}
+              </Popup>
+            </CircleMarker>
+          ))}
         </MapContainer>
       </Box>
       <Typography variant="caption" color="text.secondary" data-testid="recorrido-resumen">
@@ -114,6 +168,15 @@ function MapaRecorrido({ tecnicoId, inicio, fin = null }) {
             {'  '}
             <Box component="span" sx={{ color: COLOR_FIN, fontWeight: 700, whiteSpace: 'nowrap' }}>● {fin ? 'fin' : 'última posición'}</Box>
           </>
+        )}
+        {reclamos.ubicados.length > 0 && (
+          <>
+            {'  '}
+            <Box component="span" sx={{ color: COLOR_RECLAMO, fontWeight: 700, whiteSpace: 'nowrap' }}>● reclamo finalizado</Box>
+          </>
+        )}
+        {reclamos.sinUbicar > 0 && (
+          ` · ${reclamos.sinUbicar === 1 ? '1 reclamo sin ubicación' : `${reclamos.sinUbicar} reclamos sin ubicación`} (no hay posiciones cerca de la hora en que se finalizó)`
         )}
       </Typography>
     </Stack>

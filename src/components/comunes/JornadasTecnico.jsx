@@ -101,11 +101,12 @@ function seccionesDe(jornada, tecnicoId) {
         ].filter(([, valor]) => valor),
     },
     {
-      // El recorrido de esta jornada: desde que la inició hasta que la cerró (o hasta ahora).
+      // El recorrido de esta jornada: desde que la inició hasta que la cerró (o hasta ahora), con los
+      // reclamos finalizados marcados donde estaba el técnico al finalizarlos.
       titulo: 'Recorrido',
       icono: <RouteOutlinedIcon fontSize="small" />,
       campos: [],
-      contenido: <MapaRecorrido key={jornada.id} tecnicoId={tecnicoId} inicio={jornada.inicio} fin={jornada.fin} />,
+      contenido: <MapaRecorrido key={jornada.id} tecnicoId={tecnicoId} inicio={jornada.inicio} fin={jornada.fin} servicios={servicios} />,
     },
     seccionControl('Control inicial', jornada.controlInicial, kmInicial(jornada), 'Foto del control inicial'),
     seccionControl('Control final', jornada.controlFinal, kmFinal(jornada), 'Foto del control final'),

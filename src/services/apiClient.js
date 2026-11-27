@@ -5,8 +5,8 @@ const URL_API = import.meta.env.VITE_API_URL || '/api';
 // ---------- Sesión compartida entre pestañas
 // El token se guarda en localStorage: todas las pestañas del navegador lo ven al instante y
 // sigue ahí aunque se cierre el navegador (vence solo, a la hora sin uso). Junto al token se
-// guardan el usuario, el nombre y el rol, para mostrar el panel enseguida al abrir otra pestaña
-// mientras se valida la sesión con el backend.
+// guardan el usuario, el nombre y el rol: con eso, administrador y coordinador arman su panel al
+// recargar o abrir otra pestaña sin preguntarle al backend (el técnico sí pregunta: ver App.jsx).
 // Las demás pestañas se enteran de los cambios con el evento "storage" del navegador:
 // - otra pestaña ingresó (o ingresó otro usuario): esta entra con esa sesión;
 // - otra pestaña salió o la sesión se cerró: esta vuelve al login con el motivo.
@@ -52,9 +52,11 @@ export function sesionVencida() {
   return Boolean(token) && vencimientoDe(token) <= Date.now();
 }
 
-// Login en esta pestaña: guarda el token (las demás pestañas entran con la misma sesión).
-export function guardarSesion(token) {
+// Login en esta pestaña: guarda el usuario y el token (las demás pestañas entran con la misma
+// sesión). El usuario va primero: las otras pestañas se enteran por el token y leen el usuario.
+export function guardarSesion(token, usuario) {
   localStorage.removeItem(CLAVE_AVISO);
+  guardarUsuario(usuario);
   localStorage.setItem(CLAVE_TOKEN, token);
 }
 

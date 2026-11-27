@@ -49,8 +49,8 @@ function Login({ alIniciarSesion, aviso = '' }) {
         usuario: credenciales.usuario.toLowerCase(),
         contrasena: credenciales.contrasena,
       });
-      // Guarda el token y las demás pestañas abiertas entran con la misma sesión.
-      guardarSesion(respuesta.token);
+      // Guarda la sesión y las demás pestañas abiertas entran con la misma.
+      guardarSesion(respuesta.token, respuesta.usuario);
       setMensajeError('');
       alIniciarSesion(respuesta.usuario.usuario, respuesta.usuario, respuesta);
     } catch (causa) {
