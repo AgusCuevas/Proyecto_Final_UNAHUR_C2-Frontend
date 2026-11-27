@@ -1,18 +1,30 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Box, Stack, Typography } from '@mui/material';
+import {
+  Box, IconButton, Slider, Stack, ToggleButton, ToggleButtonGroup, Tooltip, Typography,
+} from '@mui/material';
+import PauseIcon from '@mui/icons-material/Pause';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import Replay10Icon from '@mui/icons-material/Replay10';
+import Forward10Icon from '@mui/icons-material/Forward10';
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { recorridosApi } from '../../services/api.js';
 import AvisoCarga from './AvisoCarga.jsx';
 
 const COLOR_RECORRIDO = '#f97316';
+const COLOR_RECORRIDO_ACTUAL = '#2563eb';
 const COLOR_INICIO = '#16a34a';
 const COLOR_FIN = '#dc2626';
 const COLOR_RECLAMO = '#2563eb';
 // Un reclamo se ubica en el punto del recorrido más cercano a la hora en que se finalizó, si hay
 // uno a menos de 15 minutos (con el técnico quieto el celular guarda pocos puntos).
 const DISTANCIA_MAXIMA_MS = 15 * 60 * 1000;
-const formatearHora = (fecha) => new Date(fecha).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+const COLOR_POSICION_ACTUAL = '#7c3aed';
+const formatearHora = (fecha, segundos = false) => new Date(fecha).toLocaleTimeString('es-AR', {
+  hour: '2-digit',
+  minute: '2-digit',
+  ...(segundos ? { second: '2-digit' } : {}),
+});
 
 // Leaflet calcula el tamaño del mapa al crearlo. Dentro de un popup el mapa nace mientras el
 // popup se abre (y cambia de tamaño al agrandarlo), así que se le avisa cada vez que su
@@ -76,6 +88,9 @@ function MapaRecorrido({ tecnicoId, inicio, fin = null, servicios = [] }) {
   // Un único estado con el resultado y a qué pedido corresponde (clave): así, si cambia la
   // jornada, no se muestra el recorrido de la anterior mientras llega el nuevo.
   const [estado, establecerEstado] = useState({ clave: null, puntos: [], error: '' });
+  const [indiceActual, establecerIndiceActual] = useState(0);
+  const [reproduciendo, establecerReproduciendo] = useState(false);
+  const [velocidad, establecerVelocidad] = useState(1);
   const clave = `${tecnicoId}|${inicio}|${fin}`;
 
   useEffect(() => {
@@ -97,6 +112,39 @@ function MapaRecorrido({ tecnicoId, inicio, fin = null, servicios = [] }) {
   const puntos = useMemo(() => estado.puntos.map((punto) => [punto.latitud, punto.longitud]), [estado.puntos]);
   const reclamos = useMemo(() => ubicarReclamos(estado.puntos, servicios), [estado.puntos, servicios]);
   const listo = estado.clave === clave;
+
+  useEffect(() => {
+    if (!reproduciendo || estado.puntos.length <= 1) return undefined;
+    const intervalo = window.setInterval(() => {
+      establecerIndiceActual((indice) => {
+        if (indice >= estado.puntos.length - 1) {
+          establecerReproduciendo(false);
+          return indice;
+        }
+        return indice + 1;
+      });
+    }, 900 / velocidad);
+    return () => window.clearInterval(intervalo);
+  }, [reproduciendo, velocidad, estado.puntos.length]);
+
+  useEffect(() => {
+    const manejarTecla = (evento) => {
+      if (evento.target instanceof HTMLInputElement) return;
+      if (evento.code === 'Space') {
+        evento.preventDefault();
+        establecerReproduciendo((activo) => estado.puntos.length > 1 ? !activo : false);
+      }
+      if (evento.code === 'ArrowLeft') {
+        establecerIndiceActual((indice) => Math.max(0, indice - 10));
+      }
+      if (evento.code === 'ArrowRight') {
+        establecerIndiceActual((indice) => Math.min(estado.puntos.length - 1, indice + 10));
+      }
+    };
+    window.addEventListener('keydown', manejarTecla);
+    return () => window.removeEventListener('keydown', manejarTecla);
+  }, [estado.puntos.length]);
+
   if (!listo || estado.error) return <AvisoCarga cargando={!listo} error={listo ? estado.error : ''} />;
 
   if (puntos.length === 0) {
@@ -109,6 +157,8 @@ function MapaRecorrido({ tecnicoId, inicio, fin = null, servicios = [] }) {
 
   const primero = estado.puntos[0];
   const ultimo = estado.puntos[estado.puntos.length - 1];
+  const actual = estado.puntos[indiceActual] || primero;
+  const recorridoActual = puntos.slice(0, indiceActual + 1);
   return (
     <Stack spacing={1}>
       <Box
@@ -130,7 +180,13 @@ function MapaRecorrido({ tecnicoId, inicio, fin = null, servicios = [] }) {
             // OpenStreetMap bloquea (403) los mosaicos pedidos sin cabecera Referer.
             referrerPolicy="strict-origin-when-cross-origin"
           />
-          {puntos.length > 1 && <Polyline positions={puntos} pathOptions={{ color: COLOR_RECORRIDO, weight: 4, opacity: 0.85 }} />}
+          {puntos.length > 1 && <Polyline positions={puntos} pathOptions={{ color: COLOR_RECORRIDO, weight: 4, opacity: 0.35 }} />}
+          {recorridoActual.length > 1 && (
+            <Polyline
+              positions={recorridoActual}
+              pathOptions={{ color: COLOR_RECORRIDO_ACTUAL, weight: 5, opacity: 1 }}
+            />
+          )}
           <CircleMarker center={puntos[0]} radius={8} pathOptions={{ color: '#ffffff', weight: 2, fillColor: COLOR_INICIO, fillOpacity: 1 }}>
             <Popup>Inicio · {formatearHora(primero.registradoEn)}</Popup>
           </CircleMarker>
@@ -156,8 +212,100 @@ function MapaRecorrido({ tecnicoId, inicio, fin = null, servicios = [] }) {
               </Popup>
             </CircleMarker>
           ))}
+          {puntos.length > 1 && (
+            <CircleMarker
+              center={[actual.latitud, actual.longitud]}
+              radius={7}
+              pathOptions={{ color: '#ffffff', weight: 3, fillColor: COLOR_POSICION_ACTUAL, fillOpacity: 1 }}
+            >
+              <Popup>Posición · {formatearHora(actual.registradoEn, true)}</Popup>
+            </CircleMarker>
+          )}
         </MapContainer>
       </Box>
+
+      {puntos.length > 1 && (
+        <Box
+          data-testid="controles-recorrido"
+          sx={{ px: 0.5, py: 0.25 }}
+          aria-label="Controles de reproducción del recorrido"
+        >
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <Tooltip title="Retroceder 10 posiciones">
+              <span>
+                <IconButton
+                  size="small"
+                  aria-label="Retroceder 10 posiciones"
+                  onClick={() => {
+                    establecerReproduciendo(false);
+                    establecerIndiceActual((indice) => Math.max(0, indice - 10));
+                  }}
+                >
+                  <Replay10Icon />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title={reproduciendo ? 'Pausar recorrido' : 'Reproducir recorrido'}>
+              <span>
+                <IconButton
+                  size="small"
+                  color="primary"
+                  aria-label={reproduciendo ? 'Pausar recorrido' : 'Reproducir recorrido'}
+                  onClick={() => {
+                    if (indiceActual >= puntos.length - 1) establecerIndiceActual(0);
+                    establecerReproduciendo((activo) => !activo);
+                  }}
+                >
+                  {reproduciendo ? <PauseIcon /> : <PlayArrowIcon />}
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="Avanzar 10 posiciones">
+              <span>
+                <IconButton
+                  size="small"
+                  aria-label="Avanzar 10 posiciones"
+                  onClick={() => {
+                    establecerReproduciendo(false);
+                    establecerIndiceActual((indice) => Math.min(puntos.length - 1, indice + 10));
+                  }}
+                >
+                  <Forward10Icon />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Slider
+              size="small"
+              value={indiceActual}
+              min={0}
+              max={puntos.length - 1}
+              onChange={(_, nuevoIndice) => {
+                establecerReproduciendo(false);
+                establecerIndiceActual(nuevoIndice);
+              }}
+              aria-label="Posición del recorrido"
+              sx={{ mx: 1.5, minWidth: 80 }}
+            />
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={velocidad}
+              onChange={(_, nuevaVelocidad) => nuevaVelocidad && establecerVelocidad(nuevaVelocidad)}
+              aria-label="Velocidad del recorrido"
+            >
+              {[1, 2, 4, 8].map((opcion) => (
+                <ToggleButton key={opcion} value={opcion} sx={{ px: 0.75, py: 0.25, fontSize: '0.75rem' }}>
+                  {opcion}×
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+          </Stack>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+            Posición {indiceActual + 1}/{puntos.length} · {formatearHora(actual.registradoEn, true)}
+          </Typography>
+        </Box>
+      )}
+
       <Typography variant="caption" color="text.secondary" data-testid="recorrido-resumen">
         {puntos.length} {puntos.length === 1 ? 'posición registrada' : 'posiciones registradas'}
         {` · de ${formatearHora(primero.registradoEn)} a ${formatearHora(ultimo.registradoEn)}`}
