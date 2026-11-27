@@ -15,7 +15,8 @@ const COLOR_RECORRIDO = '#f97316';
 const COLOR_RECORRIDO_ACTUAL = '#2563eb';
 const COLOR_INICIO = '#16a34a';
 const COLOR_FIN = '#dc2626';
-const COLOR_RECLAMO = '#2563eb';
+// Distinto del azul del recorrido reproducido, para que los reclamos se vean encima de la línea.
+const COLOR_RECLAMO = '#111827';
 // Un reclamo se ubica en el punto del recorrido más cercano a la hora en que se finalizó, si hay
 // uno a menos de 15 minutos (con el técnico quieto el celular guarda pocos puntos).
 const DISTANCIA_MAXIMA_MS = 15 * 60 * 1000;
@@ -112,38 +113,50 @@ function MapaRecorrido({ tecnicoId, inicio, fin = null, servicios = [] }) {
   const puntos = useMemo(() => estado.puntos.map((punto) => [punto.latitud, punto.longitud]), [estado.puntos]);
   const reclamos = useMemo(() => ubicarReclamos(estado.puntos, servicios), [estado.puntos, servicios]);
   const listo = estado.clave === clave;
+  const total = estado.puntos.length;
+  // Al llegar a la última posición la reproducción termina sola.
+  const enReproduccion = reproduciendo && indiceActual < total - 1;
+
+  // Reproducir o pausar. Si terminó, vuelve a empezar desde el inicio.
+  const alternarReproduccion = () => {
+    if (enReproduccion) {
+      establecerReproduciendo(false);
+      return;
+    }
+    if (total <= 1) return;
+    if (indiceActual >= total - 1) establecerIndiceActual(0);
+    establecerReproduciendo(true);
+  };
 
   useEffect(() => {
-    if (!reproduciendo || estado.puntos.length <= 1) return undefined;
+    if (!enReproduccion) return undefined;
     const intervalo = window.setInterval(() => {
-      establecerIndiceActual((indice) => {
-        if (indice >= estado.puntos.length - 1) {
-          establecerReproduciendo(false);
-          return indice;
-        }
-        return indice + 1;
-      });
+      establecerIndiceActual((indice) => Math.min(indice + 1, total - 1));
     }, 900 / velocidad);
     return () => window.clearInterval(intervalo);
-  }, [reproduciendo, velocidad, estado.puntos.length]);
+  }, [enReproduccion, velocidad, total]);
 
+  // Atajos: Espacio reproduce o pausa; las flechas saltan 10 posiciones. No se usan mientras se
+  // escribe o con un control enfocado (botón, slider...), que ya maneja esas teclas por su cuenta.
   useEffect(() => {
     const manejarTecla = (evento) => {
-      if (evento.target instanceof HTMLInputElement) return;
+      const destino = evento.target;
+      if (destino instanceof HTMLElement
+        && (destino.isContentEditable || destino.closest('input, textarea, select, button, [role="slider"]'))) return;
       if (evento.code === 'Space') {
         evento.preventDefault();
-        establecerReproduciendo((activo) => estado.puntos.length > 1 ? !activo : false);
+        alternarReproduccion();
       }
       if (evento.code === 'ArrowLeft') {
         establecerIndiceActual((indice) => Math.max(0, indice - 10));
       }
       if (evento.code === 'ArrowRight') {
-        establecerIndiceActual((indice) => Math.min(estado.puntos.length - 1, indice + 10));
+        establecerIndiceActual((indice) => Math.min(total - 1, indice + 10));
       }
     };
     window.addEventListener('keydown', manejarTecla);
     return () => window.removeEventListener('keydown', manejarTecla);
-  }, [estado.puntos.length]);
+  });
 
   if (!listo || estado.error) return <AvisoCarga cargando={!listo} error={listo ? estado.error : ''} />;
 
@@ -245,18 +258,15 @@ function MapaRecorrido({ tecnicoId, inicio, fin = null, servicios = [] }) {
                 </IconButton>
               </span>
             </Tooltip>
-            <Tooltip title={reproduciendo ? 'Pausar recorrido' : 'Reproducir recorrido'}>
+            <Tooltip title={enReproduccion ? 'Pausar recorrido' : 'Reproducir recorrido'}>
               <span>
                 <IconButton
                   size="small"
                   color="primary"
-                  aria-label={reproduciendo ? 'Pausar recorrido' : 'Reproducir recorrido'}
-                  onClick={() => {
-                    if (indiceActual >= puntos.length - 1) establecerIndiceActual(0);
-                    establecerReproduciendo((activo) => !activo);
-                  }}
+                  aria-label={enReproduccion ? 'Pausar recorrido' : 'Reproducir recorrido'}
+                  onClick={alternarReproduccion}
                 >
-                  {reproduciendo ? <PauseIcon /> : <PlayArrowIcon />}
+                  {enReproduccion ? <PauseIcon /> : <PlayArrowIcon />}
                 </IconButton>
               </span>
             </Tooltip>
